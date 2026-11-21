@@ -81,6 +81,7 @@ P: Dict[str, Any] = {
     "jet_cap": 40.0,               # nav3 only: max planned jet climb (m); 0 = ground-only routes
     "hopfix3": False,              # nav3 only: good-4's stale jet-hop state fix
     "combat_hop": False,           # nav3 only: periodic jump + jet hops while fighting
+    "scan_phase": 0.0,             # chaos control: idle torso-scan phase shift (behaviour-neutral re-roll of trajectories)
     "air_lead": False,             # A/B: gun lead for airborne targets from their observed vertical acceleration
                                    # (jetting +12 m/s^2 to the 10 m/s cap, else -g; clamp at the ground below)
     "strafe_boost": 0.0,           # A/B >0 (nav3): boost-run the engage strafe while energy > this (off below it - 30)
@@ -149,6 +150,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "orbitx": {"strafe_mode": "orbit"},
     "stillx": {"strafe_mode": "still"},
     "airx": {"air_lead": True},
+    "chaosx": {"scan_phase": 1.0},
+    "chaos2x": {"scan_phase": 2.5},
     "sboostx": {"strafe_boost": 80.0},
     "sboost50x": {"strafe_boost": 50.0},          # more boost: on above 50 energy, off below 20
     "widex": {"strafe_wide": True},
@@ -947,9 +950,9 @@ def _face_yaw(state: WorldState, m: Dict[str, Any], fresh: List[EnemyThreat], zp
     v = state.vel
     if math.hypot(v[0], v[1]) > 2:
         # slow scan around the travel direction so the 120 deg wedge sees flanks
-        return math.atan2(v[1], v[0]) + 0.9 * math.sin(state.t * 0.8)
+        return math.atan2(v[1], v[0]) + 0.9 * math.sin(state.t * 0.8 + P["scan_phase"])
     # standing still: sweep the full circle (~10 s per turn) so nobody walks up on our blind side
-    return ((state.t * 0.6) % (2 * math.pi)) - math.pi
+    return ((state.t * 0.6 + 2.0 * P["scan_phase"]) % (2 * math.pi)) - math.pi
 
 
 def _track_sounds(state: WorldState, m: Dict[str, Any]) -> None:
