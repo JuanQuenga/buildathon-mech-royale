@@ -73,3 +73,20 @@ small effects.
 | 11-21 ~04:50 (sim de87b36) | good-3 | d0e666d (good-4) | squad | 64 | 3.59 | 3.66 | +0.06 (−0.33..+0.47) | zone 2→0 |
 | 11-21 ~04:50 (sim de87b36) | good-3 | d0e666d (good-4) | ffa | 64 | 10.88 | 11.33 | +0.45 (−0.62..+1.58) | survived 21→26, kills 1.78→2.08, zone 0→1 |
 | 11-21 ~05:20 (sim 3c9d011) | good-3 (2 copies) | good-4 (2 copies), **same matches** + 12 built-ins | ffa h2h | 24 (48 samples each) | 10.04 | 9.69 | −0.35 (±2.2) | noise, but good-3 better on 16/24 seeds and more kills (1.92 vs 1.23); good-4 0 zone deaths vs 2. Worth an official practice run of both. |
+
+### 11-21 squad step-change search (owner: solo agent) — diagnosis first, see docs/REVIEW.md
+
+Diagnosis (32 traced squad matches at good-4, `--full`, sim traces now record the squad's engaged set):
+in the sim **no house bot dies without us before ~380 s** (10 non-us deaths in 32 matches), then all of them die to
+the final zone between 382 and 420 s. Points ≈ our kills. Bad matches (0-3 pts): mostly killed by ONE engaged easy
+bot while we spread fire over passive bots or faced a passive bot with our back to the attacker (seed 9: 7 s of rear
+hits in `hold`), or never found a secondary weapon (9/64: mean 1.8 pts vs 3.8 with one, 4.4 with two). Good matches
+end the same way, just later: 3-7 hunters converge from 60-140 m while we hit a passive high-HP bot; we go from
+full HP to dead in 10-15 s and the retreat verdict flips at ~20 % HP.
+
+| Date | A (base) | B (cand) | Mode | Matches | A | B | Δ (95% CI) | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11-21 ~00:00 (sim 3fee0be) | 3fee0be, hunter model off | 3fee0be (hunter model: prioritise mechs that hit us, discount passive mechs, face unseen attackers) | squad | 64 | 3.70 | 3.33 | −0.38 (−0.86..+0.08) | stopped looting: 19/64 ended without a secondary (base 9/64) |
+| 11-21 ~00:25 (sim 11d7cb9) | good-4 | 11d7cb9 (hunter model + weapon first: crates while unarmed, explore, run for a known weapon) | squad | 64 | 3.53 | 3.50 | −0.03 (−0.34..+0.30) | 2 weapons at end 84→91 %, kills 3.48→3.44 |
+| 11-21 ~00:50 (sim 3e27987) | 3e27987 | + opp_min_hp_squad=0.85, heal_after_kill=1 | squad | 64 | 3.45 | 3.56 | +0.11 (−0.22..+0.44) | neutral |
+| 11-21 ~01:05 (sim 3b015a6) | 3b015a6 | + squad_standoff=110 | squad | 64 | 3.53 | 3.64 | +0.11 (−0.19..+0.41) | neutral; laser deaths 10→17 |
