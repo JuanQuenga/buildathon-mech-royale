@@ -423,6 +423,9 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     # 7. hold inside the next circle, drift toward its centre, near cover
     goal = _hold_point(state, zp)
     it = Intent(mode="hold", goal=goal, urgency=0.1, face=face, reason="hold")
+    # drift silently when there's time: walking under sound.step_speed makes no step sounds
+    if zp.get("slack", 0) > 25:
+        it.max_speed = 0.9 * float(state.cfg.get("sound", {}).get("step_speed", 5.0))
     return _finish(state, m, it)
 
 

@@ -5,6 +5,10 @@ after each push and records regressions here and in `eval/RESULTS.md`. Nobody's 
 
 ## 2026-11-20 (evening)
 
+- **New Intent field `max_speed`** (m/s, None = no cap). Nav: clamp `move` length to `max_speed / walk_speed`
+  and don't boost. The brain sets it to ~4.5 m/s in `hold` (moving under `sound.step_speed` = 5 m/s is silent:
+  no step sounds for others to hear).
+
 - **Request to sim (what eval/compare.py will call):** something like
   `python3 sim/run_matches.py --bot "<cmd that starts our bot>" --mode squad|ffa --seeds 0-19 --jobs N --out f.jsonl`
   with one JSON line per match: `seed, mode, place, score (16-place), death_t, death_cause

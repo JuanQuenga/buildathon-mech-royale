@@ -35,6 +35,7 @@ class Intent:
     shoot_crate: Optional[int] = None    # crate id combat may shoot when no enemy to fight
     arrive_by: Optional[float] = None    # match time t by which goal must be reached (zone)
     reason: str = ""                     # short debug text
+    max_speed: Optional[float] = None    # cap ground speed (m/s); < sound.step_speed (5) = silent movement
 
 
 @dataclass
