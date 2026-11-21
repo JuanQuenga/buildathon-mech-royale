@@ -86,6 +86,7 @@ P: Dict[str, Any] = {
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
     "weave": False,                # A/B (nav3): retreat with a sideways weave relative to the nearest attacker
+    "precommit": False,            # A/B: pick a firing spot where only the target can shoot us before fighting
     "cover_all": False,            # A/B: retreat cover hidden from the nearest three threats (was: first threat only)
     "cube_price": False,           # A/B: grab cubes when exposure (eta x incoming dps) costs less than their value
     "keep_gun": False,             # A/B: gun valued above lightning (no gun-for-lightning swaps)
@@ -195,6 +196,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "weavex": {"weave": True},
     "cubex": {"cube_price": True},
     "coverfixx": {"cover_all": True},
+    "precomx": {"precommit": True},
     "keepgunx": {"keep_gun": True},
     "firefixx": {"fire_fix": True},
     "drop95x": {"drop_first": True, "drop_max_eta": 60.0, "drop_base": 60.0},
@@ -793,6 +795,13 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             if pk is not None:
                 m["heal"] = False
                 return _finish(state, m, pk)
+        if tgt is not None and fight["verdict"] == "engage" and P["precommit"]:
+            pc = _precommit_intent(state, m, tgt, fresh, attackers, threats, face)
+            if pc == "decline":
+                fight["verdict"] = None          # opportunity fight with no single-shooter position: do not start it
+            elif pc is not None:
+                m["heal"] = False
+                return _finish(state, m, pc)
         if tgt is not None and fight["verdict"] == "engage" and P["isolate"]:
             iso = _isolate_intent(state, m, tgt, hot)
             if iso is not None:
@@ -1023,6 +1032,56 @@ def _engage_speed(state: WorldState, th) -> Optional[float]:
             return cap if cap is not None else 6.0
         return None
     return cap
+
+
+def _precommit_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, fresh: List[EnemyThreat], attackers,
+                      threats: Threats, face):
+    """A/B `precommit` (outside review's top bet): choose, before fighting, a firing position from which only the
+    target can shoot us. One shooter costs ~50 HP/s, two or more 120-134 HP/s (sim traces). If other mechs have a line
+    on us, go (firing on the move) to a flank spot <= 70 m away with a clear shot at the target that leaves fewer of the
+    other threats with a line on us (fewest first); if none exists and nobody is shooting us yet, decline the fight; if we are being shot, fight as usual."""
+    if state.arena is None:
+        return None
+    hs = set(getattr(threats, "hunters", None) or []) | set(attackers)
+    others = [e for e in fresh if e.kind == "mech" and e.id != tgt.id and e.dist < 230
+              and (e.id in hs or e.facing_me or e.dist < 120)]
+    pst = m.setdefault("pre_stat", {})
+    exposed = [e for e in others if e.visible and e.los]
+    if not exposed:
+        pst["single"] = pst.get("single", 0) + 1
+        return None
+    t = state.t
+    pm = m.setdefault("pre", {"spot": None, "t": -1e9, "tid": None})
+    if pm["tid"] != tgt.id or t - pm["t"] > 1.5 or pm["spot"] is None:
+        spot = None
+        try:
+            want = _desired_range(state, tgt)
+            other_feet = [tuple(e.pos) for e in others[:4]]
+            cands = state.arena.flank_positions(state.pos, tuple(tgt.pos), rng=max(40.0, min(want, 120.0)), n=10,
+                                                cubes=state.me.get("cubes", 0) or 0, other_threats=other_feet)
+            cands = [c for c in cands if dist2d(c, state.pos) <= 70.0 and _inside_zone_soon(state, c)]
+            if cands:
+                ex = state.arena.exposure(cands, other_feet)
+                fewer = [(x, dist2d(c, state.pos), c) for c, x in zip(cands, ex) if x < len(exposed)]
+                if fewer:
+                    spot = min(fewer)[2]             # fewest other shooters, then shortest trip
+        except Exception:
+            spot = None
+        pm.update(spot=spot, t=t, tid=tgt.id)
+    spot = pm["spot"]
+    if spot is None:
+        if not attackers:
+            pst["decline"] = pst.get("decline", 0) + 1
+            return "decline"
+        pst["no_spot_hit"] = pst.get("no_spot_hit", 0) + 1
+        return None
+    if dist2d(spot, state.pos) < 3.0:
+        pst["at_spot"] = pst.get("at_spot", 0) + 1
+        return None                                  # in position: fight from here with the normal engage
+    pst["moving"] = pst.get("moving", 0) + 1
+    return Intent(mode="engage", goal=tuple(spot), target_id=tgt.id, desired_range=None, urgency=0.55,
+                  face=yaw_to(state.pos, tgt.pos), allow_fire=True, avoid=[e.pos for e in exposed],
+                  reason=f"precommit {tgt.id} vs {len(exposed)}")
 
 
 def _isolate_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: List[EnemyThreat]) -> Optional[Intent]:
@@ -1627,7 +1686,7 @@ def summary(state: WorldState) -> Dict[str, Any]:
     except Exception:
         pass
     return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence,
-            "mode_first": m.get("mode_first"), "mode_flips": m.get("mode_flips", 0), "peek_stat": m.get("peek_stat"), "iso_stat": m.get("iso_stat"), "modes": m["modes"],
+            "mode_first": m.get("mode_first"), "mode_flips": m.get("mode_flips", 0), "peek_stat": m.get("peek_stat"), "iso_stat": m.get("iso_stat"), "pre_stat": m.get("pre_stat"), "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
             "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),
