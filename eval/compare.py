@@ -66,6 +66,7 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
     logs = os.path.join(tmp, f"logs-{tag}-{mode}")
     sim_root = SIM_ROOT  # a committed sim (worktree) so both bots face the same opponents
     extra = f"--ffa {shlex.quote(FFA_SPEC)}" if mode == "ffa" else ""
+    extra += " " + os.environ.get("MECH_SIM_EXTRA", "")   # e.g. "--squad retaliate_s=4 --squad forget_s=15" (assumption checks)
     cmd = RUNNER.format(bot=shlex.quote(bot_cmd(ref_path, tag)), mode=mode, seeds=seeds, out=out, jobs=jobs, root=sim_root,
                         logs=logs, extra=extra)
     t0 = time.time()

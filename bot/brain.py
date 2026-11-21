@@ -45,7 +45,11 @@ P: Dict[str, Any] = {
     "crate_min_hp_frac": 0.5,
     "memory_item_s": 90.0,
     "hunter_model": True,          # squad diagnosis: fight maths count hunters only (non-FFA); hunters first
-    "hunter_pref": 0.6,            # ratio multiplier for targets that are hunting us
+    "hunter_pref": 0.6,            # ratio multiplier for targets that are hunting us (only once we hold a secondary)
+    "weapon_first": True,          # squad diagnosis: 9/64 matches never found a secondary (mean 1.8 pts vs 3.8/4.4)
+    "crate_value_unarmed": 45.0,   # a crate is a 50% weapon roll while slot 1 is empty
+    "explore_cell": 60.0,          # exploration grid (m) while unarmed and no pickup is known
+    "run_for_weapon_m": 140.0,     # under fire without a secondary: run to a known weapon this close instead of fleeing
 }
 
 
@@ -457,6 +461,12 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             if (P["retreat_needs_cover"] and not real_cover and tgt is not None and tgt.dist < 90
                     and fight["ratio"] < P["no_cover_fight_ratio"]):
                 fight["verdict"] = "engage"
+        if fight["verdict"] == "retreat" and P["weapon_first"] and state.weapon_kinds()[1] is None and hpf > 0.2:
+            wk = _known_weapon(state, m, P["run_for_weapon_m"])
+            if wk is not None:
+                it = Intent(mode="loot", goal=wk["pos"], loot_id=wk["id"], urgency=0.6, face=face, allow_fire=True,
+                            target_id=tgt.id if tgt is not None else None, reason=f"run for weapon {wk['id']}")
+                return _finish(state, m, it)
         if fight["verdict"] == "retreat":
             m["heal"] = True
             it = Intent(mode="retreat", goal=goal, urgency=0.9, face=face,
@@ -480,10 +490,8 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             m["heal"] = True
             it = Intent(mode="retreat", goal=_cover_from(state, [cpos], zp), urgency=0.9, face=b, allow_fire=True,
                         avoid=[cpos], reason="unseen attacker, cover")
-        else:
-            it = Intent(mode="engage", goal=None, urgency=0.5, face=b, allow_fire=True, desired_range=60.0,
-                        reason="unseen attacker, turn")
-        return _finish(state, m, it)
+            return _finish(state, m, it)
+        # otherwise carry on (combat turns the torso to the damage bearing via threats.face_yaw)
 
     # 3. heal cycle (stop shooting, break LOS, wait for regen)
     if m["heal"] and hpf >= P["heal_until"]:
@@ -515,6 +523,11 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     if lt is not None:
         lt.face = lt.face if lt.face is not None else face
         return _finish(state, m, lt)
+
+    # 6b. no secondary weapon and nothing known to loot: explore unvisited ground inside the circle
+    ex = _explore_choice(state, m, zp)
+    if ex is not None:
+        return _finish(state, m, ex)
 
     # 7. hold inside the next circle, drift toward its centre, near cover
     goal = _hold_point(state, zp)
@@ -567,7 +580,7 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         r = my_ttk / their_ttk
         if e.id in attackers:
             r *= 0.9
-        if P["hunter_model"] and e.id in hunters:
+        if P["hunter_model"] and e.id in hunters and state.weapon_kinds()[1] is not None:
             r *= P["hunter_pref"]
         if r < best_r:
             best, best_r = e, r
@@ -796,9 +809,12 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
         elif r["type"] == "cube":
             val = 30.0 if cubes < 10 else 8.0
         elif r["type"] == "crate":
-            if hpf < P["crate_min_hp_frac"]:
+            unarmed = P["weapon_first"] and kinds[1] is None
+            if hpf < P["crate_min_hp_frac"] and not unarmed:
                 continue
             val = 18.0 if cubes < 10 else 6.0
+            if unarmed:
+                val = max(val, P["crate_value_unarmed"])
         eta = d * 1.2 / walk
         if fresh and min(dist2d(e.pos, r["pos"]) for e in fresh) < 60:
             val *= 0.3
@@ -835,6 +851,20 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
     return it
 
 
+def _known_weapon(state: WorldState, m, max_d: float):
+    """Nearest remembered weapon pickup (not a gun, reachable height) within max_d, zone-safe."""
+    best, bd = None, max_d
+    for i, r in m["items"].items():
+        if r["type"] != "pickup" or r.get("kind") in ("gun", None) or m["blacklist"].get(i, -1e9) > state.t:
+            continue
+        if r["pos"][2] - state.pos[2] > P["roof_weapon_dz"]:
+            continue
+        d = dist2d(r["pos"], state.pos)
+        if d < bd and _in_safe_future(state, r["pos"]):
+            best, bd = r, d
+    return best
+
+
 def _drone_choice(state: WorldState, m, hpf) -> Optional[Tuple[EnemyThreat, float]]:
     if hpf < P["drone_min_hp_frac"]:
         return None
@@ -856,6 +886,44 @@ def _drone_choice(state: WorldState, m, hpf) -> Optional[Tuple[EnemyThreat, floa
     e = EnemyThreat(id=best.id, kind="npc", pos=best.pos, vel=best.vel, hp=best.hp, max_hp=best.max_hp,
                     weapons=[], dist=dist3d(best.pos, state.pos), visible=best.visible_now, last_seen_t=best.last_seen_t)
     return e, bs
+
+
+def _explore_choice(state: WorldState, m, zp) -> Optional[Intent]:
+    """Unarmed (slot 1 empty): walk to the nearest unvisited grid cell inside the next circle, torso scanning, to
+    find pickups and crates. Visited = we stood within ~0.7 cell of its centre (items there were in near vision)."""
+    if not P["weapon_first"] or state.weapon_kinds()[1] is not None:
+        return None
+    cs = P["explore_cell"]
+    vis = m.setdefault("visited", set())
+    cx, cy = int(math.floor(state.pos[0] / cs)), int(math.floor(state.pos[1] / cs))
+    vis.add((cx, cy))
+    z = state.zone
+    best, bd = None, 1e9
+    for dx in range(-5, 6):
+        for dy in range(-5, 6):
+            c = (cx + dx, cy + dy)
+            if c in vis or c in m.setdefault("explore_bad", {}) and m["explore_bad"][c] > state.t:
+                continue
+            p = ((c[0] + 0.5) * cs, (c[1] + 0.5) * cs, state.pos[2])
+            d = dist2d(p, state.pos)
+            if d < 0.5 * cs or d > 300:
+                continue
+            if z and dist2d(p, z["next_center"]) > float(z["next_radius"]) - 10:
+                continue
+            if d < bd:
+                best, bd = (c, p), d
+    if best is None:
+        return None
+    c, p = best
+    if m.get("explore_goal") != c:
+        m["explore_goal"], m["explore_since"] = c, state.t
+    elif state.t - m.get("explore_since", state.t) > max(20.0, bd / 5.0) or m["stuck_s"] > 5.0:
+        m.setdefault("explore_bad", {})[c] = state.t + 60.0   # can't get there: try another cell
+        m["explore_goal"] = None
+        m["last_progress_t"] = state.t
+    if not _in_safe_future(state, p):
+        return None
+    return Intent(mode="loot", goal=p, urgency=0.2, face=None, reason=f"explore {c[0]},{c[1]}")
 
 
 def _hold_point(state: WorldState, zp):
