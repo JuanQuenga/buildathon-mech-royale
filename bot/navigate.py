@@ -30,6 +30,7 @@ PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 
 
 
 JUKE_MIN_RANGE = 80.0
+NAVLOG = bool(__import__("os").environ.get("MECH_NAVLOG"))
 
 
 def _mem(state: WorldState) -> Dict[str, Any]:
@@ -95,6 +96,19 @@ def step(state: WorldState, intent: Intent, threats: Threats) -> NavOut:
     if dt > st["ms_max"]:
         st["ms_max"] = dt
     m["last_move"] = out.move
+    if NAVLOG and state.t - m.get("log_t", -1e9) >= 1.0:
+        m["log_t"] = state.t
+        try:
+            import sys
+            p = m.get("path") or []
+            print(f"[navlog] t={state.t:.1f} pos=({state.pos[0]:.1f},{state.pos[1]:.1f},{state.pos[2]:.1f}) en={state.energy:.0f} "
+                  f"mode={getattr(intent, 'mode', None)} urg={getattr(intent, 'urgency', 0):.1f} goal={tuple(round(v) for v in intent.goal) if intent and intent.goal else None} "
+                  f"mv=({out.move[0]:.2f},{out.move[1]:.2f}) b={out.boost} j={out.jump} blk={out.blocked} jet={bool(m.get('jet'))} "
+                  f"rec={bool(m.get('recover'))} jf={m.get('jet_fail', 0)} wait={state.t - m.get('hop_wait_t', -1e9) < 0.5} "
+                  f"pend={m.get('pending')} unr={m.get('unreachable')} path={[(round(w[0]), round(w[1]), round(w[2]), w[3] if len(w) > 3 else '') for w in p[:2]]}",
+                  file=sys.stderr)
+        except Exception:
+            pass
     return out
 
 
@@ -415,6 +429,17 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     speed = 1.0
     eta_s: Optional[float] = None
 
+    # ---------------- stale hop state: a hop is only executed while its waypoint leads the path. If the path or
+    # goal changed mid-hop, m["jet"] used to stay set forever, which disabled replanning (straight-line steering
+    # into pits and walls: sim zone deaths). Clear it once the hop is over or abandoned.
+    j = m.get("jet")
+    if j is not None:
+        if not grounded:
+            j["air"] = True
+        lead = (m.get("path") or [None])[0]
+        if (state.t - j["t0"] > JET_TIMEOUT or (grounded and j.get("air")) or
+                (grounded and lead is not j.get("to") and state.t - j["t0"] > 0.5)):
+            m["jet"] = None
     # ---------------- recovery in progress
     rec = m.get("recover")
     if rec is not None and state.t < rec["until"]:
