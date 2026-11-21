@@ -49,7 +49,10 @@ P: Dict[str, Any] = {
     "weapon_first": True,          # squad diagnosis: 9/64 matches never found a secondary (mean 1.8 pts vs 3.8/4.4)
     "crate_value_unarmed": 45.0,   # a crate is a 50% weapon roll while slot 1 is empty
     "explore_cell": 60.0,          # exploration grid (m) while unarmed and no pickup is known
-    "run_for_weapon_m": 140.0,     # under fire without a secondary: run to a known weapon this close instead of fleeing
+    "run_for_weapon_m": 140.0,
+    "opp_min_hp": 0.6,             # start a fight with a mech that is not shooting us only above this HP fraction
+    "opp_min_hp_squad": 0.6,       # ...in squad/unknown rounds (A/B 0.85: start every new fight healthy)
+    "heal_after_kill": False,      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
 }
 
 
@@ -517,6 +520,9 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
         # otherwise carry on (combat turns the torso to the damage bearing via threats.face_yaw)
 
     # 3. heal cycle (stop shooting, break LOS, wait for regen)
+    if P["heal_after_kill"] and state.mode_guess != "ffa" and any(ev.get("type") == "kill" for ev in state.events) \
+            and hpf < P["opp_min_hp_squad"]:
+        m["heal"] = True
     if m["heal"] and hpf >= P["heal_until"]:
         m["heal"] = False
     hb = P["heal_below_squad"] if state.mode_guess == "squad" else P["heal_below"]
@@ -635,10 +641,11 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         hpf = state.hp / max(1.0, state.max_hp)
         others = [e for e in fresh if e.id != best.id and e.dist < 150]
         busy = _fighting_others(state, best)
-        if hpf > 0.6 and (best_r < eng or (busy and best_r < eng * 1.6)) and (sq or not others or busy):
+        omin = P["opp_min_hp"] if state.mode_guess == "ffa" else P["opp_min_hp_squad"]
+        if hpf > omin and (best_r < eng or (busy and best_r < eng * 1.6)) and (sq or not others or busy):
             out["verdict"] = "engage"
             out["opportunity"] = True
-        elif best.dist < 70 and best_r < 1.0:
+        elif best.dist < 70 and best_r < 1.0 and (hpf > omin or state.mode_guess == "ffa" or best.facing_me):
             out["verdict"] = "engage"
             out["opportunity"] = True
     return out
