@@ -381,6 +381,8 @@ def _value(tg: _Tgt, intent: Intent, threats: Threats, state: WorldState, me: _M
         v = 0.6 if hits_me else 0.02
     else:  # crate
         v = 0.35 if intent.mode in ("loot", "rotate", "hold", "capture") else 0.15
+    if tg.kind == "mech" and tg.id in (getattr(intent, "spare_ids", None) or ()):
+        return 0.0          # brain: leave this one alone (squad conveyor)
     if intent.target_id is not None and tg.id == intent.target_id:
         v = max(v, 0.4) * 3.0
     if tg.kind == "crate" and intent.shoot_crate == tg.id:

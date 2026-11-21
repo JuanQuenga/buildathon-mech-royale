@@ -53,6 +53,10 @@ P: Dict[str, Any] = {
     "opp_min_hp": 0.6,             # start a fight with a mech that is not shooting us only above this HP fraction
     "opp_min_hp_squad": 0.6,       # ...in squad/unknown rounds (A/B 0.85: start every new fight healthy)
     "heal_after_kill": False,
+    "conveyor": False,             # A/B: squad/unknown rounds: fight only hunters (mechs shooting us), spare passive
+                                   # house bots unless nearly dead. Every kill adds one hunter, so killing passives while
+                                   # hunters live stacks shooters (the 3-7-attacker deaths); hunters-only = a chain of 1v1s
+    "conveyor_until": 300.0,       # ...until this match time (late game: everyone engages anyway)
     "squad_standoff": 0.0,         # A/B >0: vs gun/mortar mechs in squad rounds hold this range with gun/laser
                                    # (sim: house gunners hit 37-88% inside 80 m, 20-34% beyond; our led shots drop less)      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
 }
@@ -445,6 +449,7 @@ def _ehp(state: WorldState) -> float:
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
     m = _mem(state)
+    m["threats_ref"] = threats
     if m.get("first_weapon_t") is None and (state.weapon_kinds() + [None])[1] is not None:
         m["first_weapon_t"] = round(state.t, 1)
     _remember_items(state, m)
@@ -570,6 +575,9 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
 
 
 def _finish(state: WorldState, m: Dict[str, Any], it: Intent) -> Intent:
+    th = m.get("threats_ref")
+    if P["conveyor"] and th is not None:
+        it.spare_ids = [e.id for e in th.enemies if e.kind == "mech" and _spare(state, th, e)]
     m["mode"] = it.mode
     m["last_reason"] = it.reason
     f = m.get("fight") or {}
@@ -603,6 +611,8 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
     best, best_r = None, 1e9
     for e in fresh:
         if not e.visible and state.t - e.last_seen_t > 0.6:
+            continue
+        if _spare(state, threats, e):
             continue
         hp = e.hp if e.hp is not None else 1400.0
         d = e.dist
@@ -644,6 +654,8 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         others = [e for e in fresh if e.id != best.id and e.dist < 150]
         busy = _fighting_others(state, best)
         omin = P["opp_min_hp"] if state.mode_guess == "ffa" else P["opp_min_hp_squad"]
+        if _spare(state, threats, best):
+            return out
         if hpf > omin and (best_r < eng or (busy and best_r < eng * 1.6)) and (sq or not others or busy):
             out["verdict"] = "engage"
             out["opportunity"] = True
@@ -651,6 +663,18 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             out["verdict"] = "engage"
             out["opportunity"] = True
     return out
+
+
+def _spare(state: WorldState, threats: Threats, e: EnemyThreat) -> bool:
+    """Conveyor: leave this mech alone (it is not hunting us and not nearly dead)."""
+    if not P["conveyor"] or state.mode_guess == "ffa" or state.t >= P["conveyor_until"] or e.kind != "mech":
+        return False
+    hunters = set(getattr(threats, "hunters", None) or [])
+    if e.id in hunters or e.id in set(threats.attackers):
+        return False
+    if e.id in (getattr(threats, "killable", None) or []) or (e.hp is not None and e.hp < 0.2 * (e.max_hp or 1400.0)):
+        return False
+    return True
 
 
 def _fighting_others(state: WorldState, e: EnemyThreat) -> bool:

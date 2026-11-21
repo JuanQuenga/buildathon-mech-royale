@@ -36,6 +36,7 @@ class Intent:
     arrive_by: Optional[float] = None    # match time t by which goal must be reached (zone)
     reason: str = ""                     # short debug text
     max_speed: Optional[float] = None    # cap ground speed (m/s); < sound.step_speed (5) = silent movement
+    spare_ids: List[int] = field(default_factory=list)  # mechs combat must not shoot (squad: passive house bots)
 
 
 @dataclass
