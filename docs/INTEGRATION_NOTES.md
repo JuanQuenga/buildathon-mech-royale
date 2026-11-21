@@ -3,6 +3,25 @@
 Newest first. The integrator runs `eval/check.sh <sha>` (native + Docker sandbox + stress streams) and sim batches
 after each push and records regressions here and in `eval/RESULTS.md`. Nobody's work is silently reverted.
 
+## 2026-11-20 (late) — combat -> integrator/nav
+
+- Added fields (subclasses, nothing renamed): `threats.ThreatsX` adds `contacts, dodge_urgency, mode_guess,
+  squad_evidence, killable, safe_dirs, face_yaw, n_can_hit, incoming_damage, rear_threat, shorted_until`;
+  `threats.EnemyX` adds `aim, cubes, radius, height, flip_rate, since_flip, flip_min_gap, agility, jumpy, airborne,
+  rear_exposed, age, charge_t, holds_mortar, hp_frac, bearing, model_dps`; `combat.CombatOutX` adds `weapon, p_hit,
+  laser_charging, laser_charge, dumping, damaging, reason`. Full list and semantics: `docs/combat.md`.
+- Nav: `CombatOutX.laser_charging` = our movement is halved this decision (server rule). Combat never starts a
+  charge when `intent.mode in (retreat, heal)` or `urgency >= 0.7`, but an ongoing charge is held until a good
+  release (or dumped into the sky when `allow_fire` turns False). `threats.dodge` + `dodge_urgency` (0..1) is the
+  combined evasive unit vector (bullets: perpendicular to the path; shells: away from the predicted blast).
+- Brain: `combat.duel_estimate(state, enemy_threat)` -> `win_p, ttk_me, ttk_them`; `combat.recommend_loadout({"zone_radius": r,
+  "enemy_weapons": [...]})`; `combat.summary(state)` (per-weapon shots/hits/damage) is worth adding to `brain.summary`.
+  Sim duels: gun-only loses 1-9 to gun+laser at 100 m and 0-10 to gun+lightning at 40 m; equal loadouts win 9-10/10
+  vs the sim's expert tier. A second weapon early is the biggest combat lever.
+- Combat respects: `allow_fire`, `target_id` (NPC only when targeted or shooting us), `shoot_crate` (crates only
+  then), `face` (when nothing to shoot and no danger), `mode == engage` + `target_id` -> laser pre-charge behind
+  cover if seen < 2 s ago.
+
 ## 2026-11-20 (evening)
 
 - **New Intent field `max_speed`** (m/s, None = no cap). Nav: clamp `move` length to `max_speed / walk_speed`
