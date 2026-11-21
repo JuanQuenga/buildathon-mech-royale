@@ -187,3 +187,17 @@ Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
 | good-80 | cubex twin (r40x) | 5.45 | **5.31** (cubex mean 5.39 over 2 draws = base) |
 | good-81 | precomx on base + cover fix: before fighting, move (firing) to a flank spot ≤ 70 m with a clear shot where fewer other mechs can see us; decline opportunity fights when none exists | 5.45 (sim smoke: a better spot exists only in a minority of contacts: clustered hunters leave no single-shooter angle) | **5.29** |
 | good-82 | twin of good-81 (r41x) | 5.45 | **5.15** (pre-commit mean 5.22, below base) |
+
+### 11-21 18:40 forensic overhaul (new owner): official probes of untested dimensions
+Showdown forensics (43 real FFA matches, `mech-royale/work/fx/prof2.py`): nobody dodges better than we do (gun hits per
+aimed shot 0.56-0.70 for every bot, laser 0.6-0.8); the practice leaders (kyoto-max, giddygiddyboy, doni, Kanyaraasi)
+stand still 35-48 % of their life, walk silently at 4.6 m/s, start almost no fights, and collect kill cubes at once.
+Range, delayed aggression and never-retreat were never scored officially, so the first slots go to gated tags for them.
+
+| Tag | Change (one each) | Prediction | Official |
+| --- | --- | --- | --- |
+| good-43 | snipe: hold 170 m with a laser (range dimension; house gunners should miss a strafing target at 0.7 s flight) | 5.35 (5.8+ if house guns do not lead) | |
+| good-28 | hide240: break LOS and fight only hunters until 240 s (delayed escalation), older non-steady base | 5.0 (good-26 full hide was 5.04) | |
+| good-23 | berserk: never retreat (older non-steady base) | 5.2 | |
+| good-45 | sboost50: boost-strafe above 50 energy (speed dimension; 6 m/s 4.77, 11.7 m/s 5.34) | 5.3 | |
+
