@@ -52,6 +52,8 @@ P: Dict[str, Any] = {
     "crate_value_unarmed": 45.0,   # a crate is a 50% weapon roll while slot 1 is empty
     "explore_cell": 60.0,          # exploration grid (m) while unarmed and no pickup is known
     "run_for_weapon_m": 140.0,
+    "run_for_weapon_cap_s": 0.0,   # A/B >0: give up a run for a weapon under fire after this long (sim seed 20: 12 s run
+                                   # onto a roof under fire from one easy bot, 1355 -> 275 HP, weapon never reached)
     "opp_min_hp": 0.6,             # start a fight with a mech that is not shooting us only above this HP fraction
     "opp_min_hp_squad": 0.6,       # ...in squad/unknown rounds (A/B 0.85: start every new fight healthy)
     "heal_after_kill": False,
@@ -119,6 +121,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "aggrox": {"engage_ratio_squad": 1.6, "opp_min_hp_squad": 0.4, "heal_below_squad": 0.4, "seek_min_hp": 0.6},
     "soundx": {"seek": True, "seek_sound": True},
     "fixx": {"hopfix3": True},
+    "capx": {"run_for_weapon_cap_s": 6.0},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
@@ -596,6 +599,12 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
                 fight["verdict"] = "engage"
         if fight["verdict"] == "retreat" and P["weapon_first"] and state.weapon_kinds()[1] is None and hpf > 0.2:
             wk = _known_weapon(state, m, P["run_for_weapon_m"])
+            if wk is not None and P["run_for_weapon_cap_s"] > 0:
+                rs = m.setdefault("run_since", {})
+                t0 = rs.setdefault(wk["id"], state.t)
+                if state.t - t0 > P["run_for_weapon_cap_s"]:
+                    m["blacklist"][wk["id"]] = state.t + 30.0
+                    wk = None
             if wk is not None:
                 it = Intent(mode="loot", goal=wk["pos"], loot_id=wk["id"], urgency=0.6, face=face, allow_fire=True,
                             target_id=tgt.id if tgt is not None else None, reason=f"run for weapon {wk['id']}")
