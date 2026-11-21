@@ -196,8 +196,22 @@ Range, delayed aggression and never-retreat were never scored officially, so the
 
 | Tag | Change (one each) | Prediction | Official |
 | --- | --- | --- | --- |
-| good-43 | snipe: hold 170 m with a laser (range dimension; house gunners should miss a strafing target at 0.7 s flight) | 5.35 (5.8+ if house guns do not lead) | |
+| good-43 | snipe: hold 170 m with a laser (range dimension; house gunners should miss a strafing target at 0.7 s flight) | 5.35 (5.8+ if house guns do not lead) | **4.92** (long range is clearly worse: the house squad is not out-ranged; next: closer than 90 m) |
 | good-28 | hide240: break LOS and fight only hunters until 240 s (delayed escalation), older non-steady base | 5.0 (good-26 full hide was 5.04) | |
 | good-23 | berserk: never retreat (older non-steady base) | 5.2 | |
 | good-45 | sboost50: boost-strafe above 50 energy (speed dimension; 6 m/s 4.77, 11.7 m/s 5.34) | 5.3 | |
+
+### Telemetry probes (the official score as a measuring instrument)
+We have never seen one of our official practice matches. `tele_*` builds play the base policy (`laser+nav3x+fixx+steadyx`)
+and then sit still (no move, no fire) from a chosen moment, so their score is the mean number of kills at that moment.
+The same builds run in the sim give the sim's value; where they disagree, the sim's squad director is wrong in a known way.
+
+| Tag | Sits from | Score means | Prediction (sim-shaped guess) | Official |
+| --- | --- | --- | --- | --- |
+| probe-t60 | t = 60 s | kills by 60 s | 2.0 | |
+| probe-t100 | t = 100 s | kills by 100 s | 4.0 | |
+| probe-t150 | t = 150 s | kills by 150 s | 5.0 (most deaths before 150 s) | |
+| probe-att2 | first time 2 mechs hit us within 3 s | kills before the first double-team | 2.5 | |
+| probe-att3 | first time 3 mechs hit us within 3 s | kills before the first triple-team | 3.8 | |
+| probe-k3 | our 3rd kill | E[min(kills, 3)]: share of matches that fail early | 2.8 | |
 
