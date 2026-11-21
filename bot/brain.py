@@ -84,6 +84,7 @@ P: Dict[str, Any] = {
     "scan_phase": 0.0,             # chaos control: idle torso-scan phase shift (behaviour-neutral re-roll of trajectories)
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
+    "ffa_stand": False,            # A/B FFA-only: no real cover within reach -> keep fighting instead of an open-ground retreat
     "gun_disc_m": 0.0,             # A/B >0: no gun fire at a mech beyond this unless it fights us / is our target / killable
     "air_lead": False,             # A/B: gun lead for airborne targets from their observed vertical acceleration
                                    # (jetting +12 m/s^2 to the 10 m/s cap, else -g; clamp at the ground below)
@@ -156,6 +157,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "chaosx": {"scan_phase": 1.0},
     "discx": {"gun_disc_m": 150.0},
     "ffax": {"ffa_tactics": True},
+    "standx": {"ffa_stand": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
@@ -656,6 +658,10 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             # open-ground retreats at low HP). Optionally keep trading when there is no cover to run to.
             if (P["retreat_needs_cover"] and not real_cover and tgt is not None and tgt.dist < 90
                     and fight["ratio"] < P["no_cover_fight_ratio"]):
+                fight["verdict"] = "engage"
+            elif (P["ffa_stand"] and state.mode_guess == "ffa" and not real_cover and tgt is not None
+                  and tgt.dist < 140 and fight["ratio"] < 6.0):
+                # FFA self-play: 93 % of deaths before 30 s came in `retreat` across open ground (2+ attackers, gun only)
                 fight["verdict"] = "engage"
         if fight["verdict"] == "retreat" and P["weapon_first"] and state.weapon_kinds()[1] is None and hpf > 0.2:
             wk = _known_weapon(state, m, P["run_for_weapon_m"])
