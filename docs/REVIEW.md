@@ -12,9 +12,10 @@ replies). **good-46 and good-47 are the noise checks (behaviour-neutral re-rolls
 | 3 | `good-39` | 72710d6 | good-31 + **boost-run the engage strafe** (19.5 vs 11.7 m/s) while energy > 80, off below 50 (keeps a jet reserve). Top-16 bots boost 27–44 % of their firing time in the cast; if house bots under-lead, lateral speed is what makes them miss. Sim: squad +0.38 ± 0.58, FFA +0.33 ± 2.0 (no collapse). Profile `…steadyx+sboostx` | 5.65 |
 | 4 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
 | 5 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 6 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
-| 7 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 8 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 6 | `good-48` | 0208ea2 | good-31 + **gun discipline**: no opportunistic gun fire at a mech beyond 150 m unless it already fights us, is the brain's target or is killable. Real FFA (6 AM showdown): gun-only, we opened fire on a laser bot at 176 m and lost 1,400 HP to four full beams in 8 s. In practice it may also stop waking passive house bots with 40 %-accurate long shots. Sim: squad +0.19 ± 0.49, FFA −0.20 ± 2.0. Profile `…steadyx+discx` | 5.4 |
+| 7 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
+| 8 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 9 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
 
 Superseded (rage base without steady strafe; gated but less informative now, run only if the queue is empty):
 `good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
