@@ -70,6 +70,7 @@ P: Dict[str, Any] = {
     "drop_max_eta": 45.0,          # supply drop = 3 cubes + full HP + full energy
     "drop_base": 30.0,
     "laser_first": False,          # A/B: laser valued above lightning (6/8 real top-4 finishers ended with a laser)
+    "no_mortar": False,            # A/B: never take a mortar (sim: gun+mortar matches score ~2.8 vs ~6 with a laser)
     "drop_first": False,           # A/B: consider the supply drop before heal-hiding and opportunistic fights
     "explore_armed_until": 0.0,    # A/B: keep exploring unvisited ground for crates/drones while armed until this time
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
@@ -98,6 +99,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "stack2": {"cube_greed": True, "seek": True, "seek_min_hp": 0.85, "heal_after_kill": True, "opp_min_hp_squad": 0.85, "crate_value": 32.0,
                "drone_value": 60.0, "drop_max_eta": 70.0, "drop_base": 60.0, "drop_first": True},  # seek + fresh + scale
     "farm": {"cube_greed": True, "crate_value": 32.0, "drone_value": 60.0, "explore_armed_until": 150.0, "seek": True},
+    "laser2": {"cube_greed": True, "laser_first": True, "no_mortar": True},
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
 
@@ -128,6 +130,8 @@ _env_overrides()
 WEAPON_VALUE = {"lightning": 3.0, "laser": 2.8, "mortar": 1.2, "gun": 1.5}
 if P["laser_first"]:
     WEAPON_VALUE["laser"] = 3.6
+if P["no_mortar"]:
+    WEAPON_VALUE["mortar"] = 0.0
 UPGRADE_VALUE = {
     "plating": 10, "armor": 9.5, "nanites": 8, "lightning_efficiency": 7, "laser_damage": 7, "gun_damage": 6.5,
     "laser_charge": 6.5, "gun_rate": 6, "servos": 5.5, "lightning_range": 5.5, "capacitor": 5, "reactor": 5,
@@ -933,6 +937,8 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
             if k in have or k == "gun":
                 continue
             v = WEAPON_VALUE.get(k, 1.0)
+            if v <= 0:
+                continue
             if kinds[1] is None:
                 val = P["weapon_first_value"] * v  # a second weapon early is the biggest combat lever
             else:
@@ -996,6 +1002,8 @@ def _known_weapon(state: WorldState, m, max_d: float):
     best, bd = None, max_d
     for i, r in m["items"].items():
         if r["type"] != "pickup" or r.get("kind") in ("gun", None) or m["blacklist"].get(i, -1e9) > state.t:
+            continue
+        if WEAPON_VALUE.get(r.get("kind"), 1.0) <= 0:
             continue
         if r["pos"][2] - state.pos[2] > P["roof_weapon_dz"]:
             continue
@@ -1119,6 +1127,8 @@ def inventory(state: WorldState, intent: Intent) -> InvOut:
         if dist2d(p["pos"], state.pos) > reach - 0.3 or abs(p["pos"][2] - state.pos[2]) > 3.8:
             continue
         v = WEAPON_VALUE.get(k, 1.0)
+        if v <= 0:
+            continue
         if kinds[1] is None and kinds[0] is not None:
             out.take = p["id"]
             break
