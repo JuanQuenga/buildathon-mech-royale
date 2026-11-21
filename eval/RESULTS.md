@@ -62,3 +62,5 @@ small effects.
 | 11-21 ~02:50 (sim c4fa09a) | 49147f3 | 49147f3 + retreat_needs_cover=1 | squad | 64 | 3.36 | 3.42 | +0.06 (−0.36..+0.50) | neutral |
 | 11-21 ~03:05 (sim de87b36, load ~8) | good-3 | e12b612 (all fixes incl. stale-jet fix) | ffa | 64 | 10.67 | 10.27 | −0.41 (−1.44..+0.62) | zone 3→1, survived 16→12 |
 | 11-21 ~03:05 (sim de87b36, load ~8) | good-3 | e12b612 | squad | 64 | 3.67 | 3.14 | **−0.53 (−0.91..−0.17)** | **regression**; zone 4→0 but kills 3.59→3.05. Bisecting. |
+| 11-21 ~03:20 (sim de87b36) | good-3 | a77011d (juke + roof weapons + zone field ETA) | squad | 64 | 3.56 | 3.28 | −0.28 (−0.62..+0.08) | bisect: regression already here; zone 3→0 |
+| 11-21 ~03:30 (sim de87b36) | good-3 | a28e180 (+ detection) | squad | 64 | 3.66 | 3.25 | −0.41 (−0.89..+0.06) | bisect |
