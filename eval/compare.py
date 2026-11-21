@@ -101,6 +101,14 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
             guess[g] = guess.get(g, 0) + 1
             fb += int(sm.get("fallbacks", 0) or 0)
             p99.append(float(sm.get("p99_ms", 0) or 0))
+        lastm, natt = {}, []
+        for sm in summaries:
+            lc = (sm.get("brain") or {}).get("last") or {}
+            if lc:
+                lastm[lc.get("mode")] = lastm.get(lc.get("mode"), 0) + 1
+                natt.append(lc.get("n_att", 0))
+        if lastm:
+            print(f"    [{tag}] mode at death {lastm}  attackers at death mean {statistics.mean(natt):.1f}")
         tot = max(1, sum(modes.values()))
         print(f"    [{tag}] brain modes " + " ".join(f"{k}:{100 * v / tot:.0f}%" for k, v in sorted(modes.items(), key=lambda x: -x[1]))
               + f"  round guess at death {guess}  fallbacks {fb}  bot p99 max {max(p99):.1f}ms")
