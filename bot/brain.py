@@ -44,6 +44,8 @@ P: Dict[str, Any] = {
     "drone_min_hp_frac": 0.6,
     "crate_min_hp_frac": 0.5,
     "memory_item_s": 90.0,
+    "hunter_model": True,          # squad diagnosis: fight maths count hunters only (non-FFA); hunters first
+    "hunter_pref": 0.6,            # ratio multiplier for targets that are hunting us
 }
 
 
@@ -468,6 +470,21 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
                         avoid=[e.pos for e in hot if e.id != tgt.id], reason=f"engage {tgt.id} r={fight['ratio']:.2f}")
             return _finish(state, m, it)
 
+    # 2b. shot by a mech we cannot see (behind us / beyond near range): turn to it and fight, or go to cover
+    ua = getattr(threats, "unseen_attack", None) if P["hunter_model"] else None
+    if ua is not None and state.t - ua[1] < 2.0 and not hot:
+        b = ua[0]
+        cpos = (state.pos[0] + 90 * math.cos(b), state.pos[1] + 90 * math.sin(b), state.pos[2])
+        m["last_threat_pos"], m["last_threat_t"] = cpos, state.t
+        if hpf < max(0.45, P["heal_below_squad"] - 0.1):
+            m["heal"] = True
+            it = Intent(mode="retreat", goal=_cover_from(state, [cpos], zp), urgency=0.9, face=b, allow_fire=True,
+                        avoid=[cpos], reason="unseen attacker, cover")
+        else:
+            it = Intent(mode="engage", goal=None, urgency=0.5, face=b, allow_fire=True, desired_range=60.0,
+                        reason="unseen attacker, turn")
+        return _finish(state, m, it)
+
     # 3. heal cycle (stop shooting, break LOS, wait for regen)
     if m["heal"] and hpf >= P["heal_until"]:
         m["heal"] = False
@@ -527,8 +544,14 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         return out
     ehp = _ehp(state)
     # incoming DPS from every fresh mech that can plausibly hit us
+    hunters = set(getattr(threats, "hunters", None) or [])
+    hm = P["hunter_model"] and state.mode_guess != "ffa"
     inc = 0.0
     for e in fresh:
+        if hm and e.id not in hunters and e.id not in attackers and not e.facing_me:
+            # practice squad: a non-engaged house bot does not shoot; count a little in case it turns
+            inc += 0.15 * enemy_dps(e, e.dist) if (e.visible and e.dist < 120) else 0.0
+            continue
         if e.id in attackers or e.can_hit_me or (e.visible and e.dist < 120):
             inc += enemy_dps(e, e.dist)
     inc = max(inc, 1.0)
@@ -544,6 +567,8 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         r = my_ttk / their_ttk
         if e.id in attackers:
             r *= 0.9
+        if P["hunter_model"] and e.id in hunters:
+            r *= P["hunter_pref"]
         if r < best_r:
             best, best_r = e, r
     out["target"], out["ratio"] = best, best_r

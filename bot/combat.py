@@ -33,6 +33,7 @@ from .state import CombatOut, Intent, Threats, WorldState
 from .threats import effective_flip_rate, telegraph_factor
 
 TICK = 0.05
+_HUNTER_ON = os.environ.get("MECH_HUNTER", "1") not in ("0", "false", "no")
 _STATS_DIR = os.environ.get("MECH_COMBAT_STATS_DIR")   # eval only: dump summary() there every 50 decisions
 
 
@@ -367,6 +368,12 @@ def _value(tg: _Tgt, intent: Intent, threats: Threats, state: WorldState, me: _M
             v *= 2.5
         if tg.charging and tg.facing_me:
             v *= 1.5
+        if _HUNTER_ON:
+            hunters = getattr(threats, "hunters", None) or []
+            if tg.id in hunters:
+                v *= 2.0            # whoever is actually shooting us comes first
+            elif hunters and state.mode_guess != "ffa" and tg.id not in getattr(threats, "killable", []):
+                v *= 0.35           # a passive mech while a hunter is on us (practice squad: it won't shoot back)
     elif tg.kind == "npc":
         # contract (docs/INTERFACES.md): ignore drones unless they are the brain's target or shoot at us
         e = tg.threat
@@ -553,6 +560,12 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
     fire = [False, False]
     cmd = None
     tg = None
+    ua = getattr(threats, "unseen_attack", None) if _HUNTER_ON else None
+    if ua is not None and best is not None and t - ua[1] < 1.5:
+        _, btg, _, _ = best
+        hunters = getattr(threats, "hunters", None) or []
+        if btg.kind != "mech" or (btg.id not in hunters and btg.id not in getattr(threats, "killable", [])):
+            best = None     # face the attacker (threats.face_yaw = damage bearing) instead
     if best is not None and best[0] > 0.5:
         _, tg, wbest, opts = best
         if mem.get("tgt") != tg.id:

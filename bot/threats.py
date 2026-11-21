@@ -37,6 +37,15 @@ ENEMY_SOUNDS = ("gun", "mortar", "laser", "laser_charge", "lightning", "step", "
 # Rough effective DPS of a weapon in the hands of a competent bot (before hit probability):
 # gun 12 x 45 per (12 x 0.24 + 2.4) s; laser 315 per (0.75 + 1.65) s; lightning 60 / 0.25 s while energy lasts;
 # mortar (200 + 160) / 2.6 s; npc 25 / 1 s.
+# Hunter model (squad diagnosis 11-21: most bad squad matches were lost to ONE engaged house bot while we shot
+# passive ones or faced a passive bot with our back to the attacker). A "hunter" hit us recently or keeps aiming at
+# us; everyone else's modelled danger is discounted, strongly when the round looks like the practice squad.
+import os as _os
+HUNTER_S = 8.0                        # a mech that hit us within this many seconds is a hunter
+AIM_HUNTER_S = 0.8                    # ...or one that kept its aim on us (visible) this long
+PASSIVE_MULT = {"squad": 0.2, "unknown": 0.45, "ffa": 0.75}
+HUNTER_ON = _os.environ.get("MECH_HUNTER", "1") not in ("0", "false", "no")
+
 BASE_DPS = {"gun": 102.0, "laser": 131.0, "lightning": 200.0, "mortar": 138.0, "npc": 25.0}
 RANGE = {"gun": 230.0, "laser": 280.0, "lightning": 45.0, "mortar": 235.0, "npc": 90.0}
 
@@ -69,6 +78,8 @@ class EnemyX(EnemyThreat):
     hp_frac: float = 1.0
     bearing: float = 0.0                  # yaw from us to it
     model_dps: float = 0.0
+    hunter: bool = False                  # hit us within HUNTER_S or kept aiming at us (see HUNTER_S)
+    last_hit_me_t: float = -1e9
 
 
 @dataclass
@@ -96,6 +107,8 @@ class ThreatsX(Threats):
     rear_threat: bool = False             # we were hit from behind in the last 2 s or a danger sits behind us
     shorted_until: float = -1.0           # our laser is shorted until this match time
     squad_evidence: Dict[str, float] = field(default_factory=dict)
+    hunters: List[int] = field(default_factory=list)       # ids of hunters (visible or not)
+    unseen_attack: Optional[Tuple[float, float, int]] = None   # (bearing, t, by): hit by a mech we do not see now
 
 
 def _mem(state: WorldState) -> Dict[str, Any]:
@@ -342,10 +355,16 @@ def _assess(state: WorldState) -> ThreatsX:
     # ---------------------------------------------------------------- enemies
     vh = mem["vhist"]
     dmg5: Dict[int, float] = {}
+    last_hit: Dict[int, float] = {}
     lo5 = t - 5.0
     for (tt, a, by, w) in state.damage_log:
+        if by is not None and w != "npc":
+            last_hit[by] = max(last_hit.get(by, -1e9), tt)
         if by is not None and tt >= lo5:
             dmg5[by] = dmg5.get(by, 0.0) + a
+    rmode = getattr(state, "mode_guess", "unknown") or "unknown"
+    passive_mult = PASSIVE_MULT.get(rmode, 0.45) if HUNTER_ON else 0.75
+    aim_since = mem.setdefault("aim_since", {})
     cand = []
     for tr in state.tracks.values():
         if tr.dead:
@@ -405,6 +424,13 @@ def _assess(state: WorldState) -> ThreatsX:
         e.rear_exposed = tr.kind == "mech" and off > math.pi / 2 + 0.05
         if tr.kind == "mech" and e.facing_me and tr.visible_now:
             focus_on_me += 1
+        if tr.kind == "mech":
+            if e.facing_me and tr.visible_now:
+                aim_since.setdefault(tr.id, t)
+            elif tr.visible_now or age > 1.0:
+                aim_since.pop(tr.id, None)
+            e.last_hit_me_t = last_hit.get(tr.id, -1e9)
+            e.hunter = (t - e.last_hit_me_t < HUNTER_S) or (t - aim_since.get(tr.id, t) >= AIM_HUNTER_S)
         # line of fire (symmetric approximation: our muzzle -> its center)
         if tr.visible_now and los_budget > 0 and d < 300:
             los_budget -= 1
@@ -421,8 +447,10 @@ def _assess(state: WorldState) -> ThreatsX:
             dps += weapon_threat(w, d, e.los or (age < 0.3 and d < 45))
         if tr.kind == "mech":
             dps *= mult
-            if not e.facing_me:
-                dps *= 0.75  # needs to turn first (<= ~0.8 s)
+            if not e.facing_me and not e.hunter:
+                dps *= passive_mult  # needs to turn first (<= ~0.8 s); in the practice squad most never will
+            elif not e.facing_me:
+                dps *= 0.75
         else:
             # drones shoot at mechs within 45 m of them or whoever attacked them
             aggro = tr.dmg_from_me > 0 or t - tr.last_hit_me_t < 3.0 or d < 45.0
@@ -456,6 +484,20 @@ def _assess(state: WorldState) -> ThreatsX:
 
     # attackers: ids that hit us in the last 3 s
     out.attackers = sorted({int(by) for (tt, a, by, w) in state.damage_log if by is not None and tt >= t - 3.0})
+    out.hunters = sorted({e.id for e in out.enemies if e.kind == "mech" and e.hunter} |
+                         {int(by) for by, tt in last_hit.items() if t - tt < HUNTER_S and by < 100})
+    # hit by a mech we cannot see right now (behind us, beyond near range): remember the bearing
+    vis_ids = {e.id for e in out.enemies if e.visible}
+    for (tt, a, by, w) in reversed(state.damage_log):
+        if tt < t - 2.0:
+            break
+        if by is not None and w not in ("zone", "npc") and by not in vis_ids:
+            for c in mem["contacts"]:
+                if c.id == by and c.source == "damage":
+                    out.unseen_attack = (math.atan2(c.pos[1] - pos[1], c.pos[0] - pos[0]), tt, int(by))
+                    break
+            if out.unseen_attack is not None:
+                break
 
     # ---------------------------------------------------------------- incoming projectiles
     g_mortar = _wcfg(state, "mortar", "gravity", 22.0)
@@ -591,6 +633,12 @@ def _assess(state: WorldState) -> ThreatsX:
         if recent:
             c = recent[0]
             out.face_yaw = math.atan2(c.pos[1] - pos[1], c.pos[0] - pos[0])
+    if HUNTER_ON and out.unseen_attack is not None:
+        ua_b, ua_t, ua_by = out.unseen_attack
+        ua_dps = dmg5.get(ua_by, 0.0) / 5.0 * 1.2
+        top = max((e.danger for e in out.enemies if e.visible and e.hunter), default=0.0)
+        if ua_dps >= 0.8 * top:
+            out.face_yaw = ua_b
     if out.face_yaw is not None:
         out.rear_threat = rear_recent or abs(B.wrap(out.face_yaw - my_aim[0])) > math.pi / 2
     else:

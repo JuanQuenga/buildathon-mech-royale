@@ -312,6 +312,8 @@ def run_match(world, seed, mode="squad", bot_cmds=("python3 -u bot/main.py",), f
             intel, shared = ({}, set())
             if director is not None:
                 intel, shared = director.intel(M, vis)
+                M._trace_eng = sorted(h for h, v in intel.items() if v.get("engaged"))
+                M._trace_known = sorted(shared)
             # external: send all, then collect
             sent = []
             for m in ext:
@@ -438,6 +440,9 @@ def _trace_frame(M, debug_draw):
             ds.append([d["id"], st, d["holder"], round(d["progress"] / M.cfg["drops"]["capture_s"], 2)])
     if ds:
         fr["d"] = ds
+    if getattr(M, "_trace_eng", None) is not None:
+        fr["eng"] = M._trace_eng      # squad mode: house bots currently engaged (hunting)
+        fr["seen"] = M._trace_known   # entrants seen by the house squad this decision
     if M.trace_events:
         fr["ev"] = M.trace_events
         M.trace_events = []
