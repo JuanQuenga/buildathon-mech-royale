@@ -38,6 +38,25 @@ P: Dict[str, Any] = {
     "memory_item_s": 90.0,
 }
 
+
+def _env_overrides() -> None:
+    """MECH_BRAIN='heal_below=0.7,engage_ratio_squad=0.8' overrides tunables (eval A/B only)."""
+    import os
+    spec = os.environ.get("MECH_BRAIN", "")
+    for part in spec.split(","):
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        k = k.strip()
+        if k in P:
+            try:
+                P[k] = type(P[k])(float(v)) if not isinstance(P[k], bool) else v.strip().lower() in ("1", "true", "yes")
+            except ValueError:
+                pass
+
+
+_env_overrides()
+
 WEAPON_VALUE = {"lightning": 3.0, "laser": 2.8, "mortar": 1.2, "gun": 1.5}
 UPGRADE_VALUE = {
     "plating": 10, "armor": 9.5, "nanites": 8, "lightning_efficiency": 7, "laser_damage": 7, "gun_damage": 6.5,

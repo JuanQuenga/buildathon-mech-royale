@@ -46,10 +46,15 @@ def worktree(ref, tmp):
     return path, sha
 
 
-def bot_cmd(path):
+ENV = {"base": "", "cand": ""}
+
+
+def bot_cmd(path, tag=""):
     if path is None:
         return f"{PY} -u {KIT}/python/example_bot.py"
-    return f"{PY} -u {path}/bot/main.py"
+    env = ENV.get(tag) or ""
+    pre = f"env {env} " if env else ""
+    return f"{pre}{PY} -u {path}/bot/main.py"
 
 
 SIM_ROOT = REPO
@@ -61,7 +66,7 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
     logs = os.path.join(tmp, f"logs-{tag}-{mode}")
     sim_root = SIM_ROOT  # a committed sim (worktree) so both bots face the same opponents
     extra = f"--ffa {shlex.quote(FFA_SPEC)}" if mode == "ffa" else ""
-    cmd = RUNNER.format(bot=shlex.quote(bot_cmd(ref_path)), mode=mode, seeds=seeds, out=out, jobs=jobs, root=sim_root,
+    cmd = RUNNER.format(bot=shlex.quote(bot_cmd(ref_path, tag)), mode=mode, seeds=seeds, out=out, jobs=jobs, root=sim_root,
                         logs=logs, extra=extra)
     t0 = time.time()
     p = subprocess.run(cmd, shell=True, text=True, capture_output=True, cwd=sim_root)
@@ -84,7 +89,9 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
                         summaries.append(json.loads(line[6:]))
                     except ValueError:
                         pass
-    if summaries:
+    def _print_summaries():
+        if not summaries:
+            return
         modes, guess, fb, p99 = {}, {}, 0, []
         for sm in summaries:
             b = sm.get("brain") or {}
@@ -106,6 +113,15 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
             if "error" in r:
                 print(f"  sim error seed {r.get('seed')}: {r['error'][:300]}", file=sys.stderr)
                 continue
+            if "mechs" not in r:  # flat format: one row per tracked bot
+                if "place" not in r:
+                    continue
+                rows.append({"seed": r["seed"], "place": r["place"], "score": 16 - r["place"], "death_t": r.get("death_t"),
+                             "death_cause": r.get("death_cause") or "survived", "kills": r.get("kills", 0),
+                             "missed_replies": r.get("missed_replies", 0), "late": r.get("late_replies", 0),
+                             "cubes": r.get("cubes", 0), "zone_dmg": r.get("zone_dmg", 0),
+                             "tracebacks": int(r.get("bot_stderr_tracebacks", 0) or 0)})
+                continue
             for m in r.get("mechs") or []:
                 if not m.get("tracked"):
                     continue
@@ -117,7 +133,8 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
                 rows.append({"seed": r["seed"], "place": m["place"], "score": 16 - m["place"], "death_t": m.get("death_t"),
                              "death_cause": cause, "kills": m.get("kills", 0), "missed_replies": m.get("missed", 0),
                              "late": m.get("late", 0), "cubes": m.get("cubes", 0), "zone_dmg": m.get("zone_dmg", 0)})
-    if rows:
+    _print_summaries()
+    if rows and "tracebacks" not in rows[0]:
         rows[0]["tracebacks"] = tb
     return rows, time.time() - t0
 
@@ -153,10 +170,13 @@ def main():
     ap.add_argument("--seeds", default="0-23")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--log", action="store_true", help="append the result to eval/RESULTS.md")
+    ap.add_argument("--env-a", default="", help="env assignments for the base bot, e.g. MECH_BRAIN=heal_below=0.7")
+    ap.add_argument("--env-b", default="", help="env assignments for the candidate bot")
     ap.add_argument("--sim-ref", default="HEAD", help="commit whose sim/ to use (default HEAD; 'worktree' = the live tree)")
     a = ap.parse_args()
     tmp = tempfile.mkdtemp(prefix="mechcmp.")
     global SIM_ROOT
+    ENV["base"], ENV["cand"] = a.env_a, a.env_b
     try:
         if a.sim_ref != "worktree":
             SIM_ROOT, ssha = worktree(a.sim_ref, tmp)
