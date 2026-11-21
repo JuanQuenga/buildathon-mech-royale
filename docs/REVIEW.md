@@ -10,20 +10,21 @@ replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 dr
 | 1 | `good-52` | 2d14b1f | good-31 + **longer planned jet climbs** (`jet60x`: jet_cap 40 → 60 m, roof weapons up to 35 m). Navigation is the one lever with large real effects (good-4 hop rules −0.3, ground-only −0.29 = jet_cap 0), so the dose-response may continue upward | 5.5 |
 | 2 | `good-r4` | 0647f5f | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 | 3 | `good-r5` | 964946c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 4 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
-| 5 | `good-r6` | fe55d11 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 6 | `good-r7` | 7b21405 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 7 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 8 | `good-r8` | 90709e2 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 9 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 10 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 11 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 12 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 13 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 14 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 15 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 16 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 17 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 4 | `good-53` | 6301311 | **FFA final candidate** = good-31 policy + opening hold-fire + FFA survival-first (`openholdx+ffahidex`). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.38 |
+| 5 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 6 | `good-r6` | fe55d11 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 7 | `good-r7` | 7b21405 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 8 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 9 | `good-r8` | 90709e2 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 10 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 11 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 12 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 13 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 14 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 15 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 16 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 17 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 18 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -219,7 +220,13 @@ Pending: the queue above. good-45 (boost above 50 energy, 77e995c) is gated and 
 
 
 ## Recommended final entry
-**The good-31 policy (`laser+nav3x+fixx+steadyx`: laser first + good-3 nav + stale-hop fix + steady strafe)**: best family mean (5.43 over 2 draws). Enter whichever tag of this policy scores best (good-31 at 5.56 today; re-rolls good-46/47/49/50 are the same policy and equally valid entries).
+- **Practice board / qualification:** the best official draw of the base policy (`laser+nav3x+fixx+steadyx`), today
+  good-31 at 5.56; re-rolls good-r* keep adding draws.
+- **Final (16-entrant FFA, new seeds):** **good-53** (6301311): the same base policy plus opening hold-fire and FFA
+  survival-first, provided its practice check is clean and FFA self-play v7 does not contradict it. Fall back to
+  good-50 (hold-fire only, practice 5.35), then to the base policy (good-31). Reason: in 20 real showdowns placement
+  follows damage taken and survival, our bot takes the most damage of the field and dies at 95 s, and all three of our
+  opening deaths were fights we started unarmed. Both switches are inactive or measured-neutral in practice.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
