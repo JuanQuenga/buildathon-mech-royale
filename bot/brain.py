@@ -697,7 +697,17 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
                 and (tgt is None or tgt.id not in killable_ids)):
             # A/B: unarmed with a known weapon close by: keep going for it (firing on the move) instead of flipping
             # between loot and engage every second (sim seeds 28/32/34: never armed, 1-2 s loot/engage alternation)
-            wk = _known_weapon(state, m, P["arm_first_m"])
+            close_threats = [e for e in hot if (e.id in attackers or e.id in set(getattr(threats, "hunters", None) or []))
+                             and e.dist < 60.0]
+            wk = _known_weapon(state, m, P["arm_first_m"]) if len(close_threats) <= 1 else None
+            if wk is not None:
+                # exits: give up on a weapon we have chased for 20 s (unreachable roof, taken, blocked): blacklist 60 s
+                at = m.setdefault("arm_t", {})
+                t0 = at.setdefault(wk["id"], state.t)
+                if state.t - t0 > 20.0:
+                    m["blacklist"][wk["id"]] = state.t + 60.0
+                    at.pop(wk["id"], None)
+                    wk = None
             if wk is not None:
                 it = Intent(mode="loot", goal=wk["pos"], loot_id=wk["id"], urgency=0.6, face=face, allow_fire=True,
                             target_id=tgt.id if tgt is not None else None, reason=f"arm first {wk['id']}")
