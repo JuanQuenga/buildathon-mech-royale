@@ -1,23 +1,23 @@
 # Review: Mech Royale entry (for the human and the coordinator)
 
-## Status (11-21 14:50 ET)
-- **Board:** best draw good-31 = 5.56, rank ~37 of 250; the cut (32nd) is 5.65 and rising ~0.1 per hour this
-  afternoon; 16th 6.10; leader 6.31. We are outside the qualifying 32 until a draw beats the cut.
-- **Base policy** `laser+nav3x+fixx+steadyx`: true mean 5.34 (9 official draws, SD 0.13).
-- **Isolate** (`+isolatex`, fight one at a time from spots hidden from the other attackers): 5.48, 5.44, then its
-  first re-roll good-ri41 5.17 → mean 5.36 over 3 draws, i.e. the base level. No variant has a true mean measurably
-  above 5.34; every draw (base or isolate re-roll) has only ~1–2 % chance of beating a 5.65 cut.
-- **Tested today, no gain** (official): airborne lead 5.25, boost strafe 5.27, gun discipline 5.35, opening hold-fire
-  5.35, ffax 5.46, jet60 5.17, laser hunt 5.33, peek 5.44/5.15, commit 5.33, arm-first 5.19/5.27, cycle 5.42/5.21,
-  isolate+cycle 5.21, arm-first+cycle 5.44, widex 5.23, weave 5.38. **Clearly worse:** break contact at the 2nd
-  hunter 4.73, slow6 4.77, stand-to-fire 4.19 (lateral movement while fighting the squad is worth ~1 point).
+## Status (11-21 16:55 ET): practice work stopped
+- **Board:** best draw good-31 = 5.56; we are outside the top 50 shown; the cut (32nd) is 5.98, 16th 6.19, leader
+  6.33. Qualification would need a draw ~0.6 above our policies' true level: not realistic.
+- **Base policy** `laser+nav3x+fixx+steadyx`: true mean 5.34 (SD 0.13 per draw). Every variant built today, including
+  the outside review's five fixes and its top bet (pre-commit positioning, 5.29 / 5.15), lands at or below the base
+  after a second draw. The only large official effects were negative (stand to fire 4.19, slow fire 4.77, break
+  contact 4.73). The aim audit (81 % on mech-aimed shots = field), the tier question (not observable) and the
+  survival study (never reaches the house bots' zone deaths) closed the remaining leads.
+- **Upgrades:** we take the highest of a fixed ranking (plating +15 % HP, armor −8 % damage taken, nanites, laser
+  damage +18 %, …); by effect that is already the best order for kills before death (plating gives the largest
+  effective-HP step; laser damage ≈ +10 % total DPS), so no upgrade variant.
+- The queue keeps the isolate re-rolls running (lottery tickets of a ~5.35 policy).
 
 ## Please submit
 **The submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it). Predictions vs
 official results: `eval/RESULTS.md` ("Predictions before scoring").
 
-Current queue (16:00): good-79 (retreat cover against the three nearest threats), good-80 (cubex twin), then
-the isolate re-rolls good-ri42 … ri62. Outside-review batch: cubes 5.46, fire-control fix 5.23, cubes + drops
+Current queue (16:55): the isolate re-rolls good-ri42 … ri62 only. Outside-review batch: cubes 5.46, fire-control fix 5.23, cubes + drops
 5.19, keep gun 5.33. Review claims checked against the protocol (first drop at 95 s with full HP + 3 cubes,
 +4 % HP/damage per cube, rear ×1.5): all correct.
 
@@ -350,6 +350,9 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-81 / good-82 | 5.29 / 5.15 | pre-commit positioning (outside review's top bet) and twin: mean 5.22, below base |
+| good-80 | 5.31 | cubes twin (cubes mean 5.39 = base) |
+| good-79 | 5.35 | retreat cover against the three nearest threats (bug fix) |
 | good-78 | 5.33 | keep the gun (no gun-for-lightning swap) |
 | good-77 | 5.19 | cubes + supply drops first |
 | good-76 | 5.23 | fire-control order fix (re-check gun shot after laser aim override) |
