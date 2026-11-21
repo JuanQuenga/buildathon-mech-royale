@@ -85,6 +85,7 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "peek": False,                 # A/B structural: fight from cover with the laser (peek, fire, hide during cooldown)
     "ffa_strict": False,           # A/B: once squad evidence is strong, need 3 unexplained deaths before guessing ffa
     "open_hold": False,            # A/B: unarmed, first 45 s, round not known squad: never start a fight (only answer fire)
     "ffa_hide": False,             # A/B FFA-only survival-first: hide from non-hunters, fight only attackers/killable,
@@ -168,6 +169,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ffahide3x": {"ffa_hide": True, "ffa_hide_alive": 3},
     "openholdx": {"open_hold": True},
     "strictffax": {"ffa_strict": True},
+    "peekx": {"peek": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
@@ -696,6 +698,11 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
                         target_id=tgt.id if tgt is not None else None, allow_fire=True,
                         avoid=[e.pos for e in hot], reason=f"retreat r={fight['ratio']:.2f}")
             return _finish(state, m, it)
+        if tgt is not None and fight["verdict"] == "engage" and P["peek"]:
+            pk = _peek_intent(state, m, tgt, hot)
+            if pk is not None:
+                m["heal"] = False
+                return _finish(state, m, pk)
         if tgt is not None and fight["verdict"] == "engage":
             m["heal"] = False
             it = Intent(mode="engage", goal=None, target_id=tgt.id, desired_range=_desired_range(state, tgt),
@@ -887,6 +894,46 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             out["verdict"] = "engage"
             out["opportunity"] = True
     return out
+
+
+def _peek_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: List[EnemyThreat]) -> Optional[Intent]:
+    """A/B `peek` (structural): fight from cover with the laser. Real showdowns: the practice leaders (kyoto-max 6.31,
+    giddygiddyboy 6.0) fire while moving ~6 m/s at ~60 m and take 24-28 dmg/s; we strafe at 11.6 m/s and take 41/s.
+    Cycle: laser ready -> stand where we see the target (or go back to the last such spot), charge and fire;
+    laser cooling -> step to the nearest spot hidden from the threats (<= 25 m). None -> normal engage."""
+    las = None
+    for w in state.me.get("weapons") or []:
+        if w and w.get("kind") == "laser":
+            las = w
+    if las is None or state.arena is None or not (30.0 <= tgt.dist <= 220.0):
+        return None
+    t = state.t
+    pm = m.setdefault("peek", {"cover": None, "cover_t": -1e9, "spot": None, "spot_t": -1e9})
+    threat_feet = [tuple(e.pos) for e in sorted(hot, key=lambda e: e.dist)[:4]] or [tuple(tgt.pos)]
+    if t - pm["cover_t"] > 1.0 or pm["cover"] is None or dist2d(pm["cover"], state.pos) > 30.0:
+        try:
+            pm["cover"] = state.arena.nearest_cover(state.pos, threat_feet, 25.0, budget_ms=2.0)
+        except Exception:
+            pm["cover"] = None
+        pm["cover_t"] = t
+    cover = pm["cover"]
+    if cover is None or not _inside_zone_soon(state, cover):
+        return None
+    charge = float(las.get("charge", 0) or 0)
+    cd = float(las.get("cooldown", 0) or 0)
+    face = yaw_to(state.pos, tgt.pos)
+    if tgt.visible and tgt.los:
+        pm["spot"], pm["spot_t"] = tuple(state.pos), t
+    if cd > 0.6 and charge <= 0:
+        goal, why = cover, "peek: cover"                      # cooling: out of sight
+    elif tgt.visible and tgt.los:
+        goal, why = tuple(state.pos), "peek: fire"            # ready and in sight: hold still, charge, release
+    elif pm["spot"] is not None and t - pm["spot_t"] < 8.0:
+        goal, why = pm["spot"], "peek: step out"              # ready, hidden: back to the last firing spot
+    else:
+        return None
+    return Intent(mode="engage", goal=goal, target_id=tgt.id, desired_range=None, urgency=0.5, face=face,
+                  allow_fire=True, avoid=[e.pos for e in hot if e.id != tgt.id], reason=f"{why} {tgt.id}")
 
 
 def _weak_loadout(state: WorldState) -> bool:
