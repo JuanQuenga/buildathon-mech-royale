@@ -85,6 +85,7 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "open_hold": False,            # A/B: unarmed, first 45 s, round not known squad: never start a fight (only answer fire)
     "ffa_hide": False,             # A/B FFA-only survival-first: hide from non-hunters, fight only attackers/killable,
     "ffa_hide_alive": 5,           # ...while more than this many mechs are alive
     "ffa_stand": False,            # A/B FFA-only: no real cover within reach -> keep fighting instead of an open-ground retreat
@@ -163,6 +164,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ffastandx": {"ffa_stand": True},
     "lookx": {"look_around": True},
     "ffahidex": {"ffa_hide": True},
+    "openholdx": {"open_hold": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
@@ -866,7 +868,10 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             return out
         if (P["ffa_tactics"] and state.mode_guess == "ffa" and _weak_loadout(state)
                 and best.id not in (getattr(threats, "killable", None) or [])):
-            return out                     # FFA: no new fights before a real secondary (top-4 seats take few opening hits)
+            return out
+        if (P["open_hold"] and state.t < 45.0 and state.mode_guess != "squad" and state.weapon_kinds()[1] is None
+                and best.id not in (getattr(threats, "killable", None) or [])):
+            return out                     # opening hold-fire: no opportunity fights while unarmed (see combat._open_hold)                     # FFA: no new fights before a real secondary (top-4 seats take few opening hits)
         if hpf > omin and (best_r < eng or (busy and best_r < eng * 1.6)) and ((sq and not P["squad_picky"]) or not others or busy):
             out["verdict"] = "engage"
             out["opportunity"] = True

@@ -170,9 +170,27 @@ def _ffa_tactics(state) -> bool:
         return False
 
 
+def _open_hold(state) -> bool:
+    """A/B opening hold-fire: unarmed (slot 1 empty), first 45 s, round not known to be squad. Real showdowns: all three
+    of our opening deaths (18.7, 24.6, 32.8 s) were gun fights WE started in the first 5 s while unarmed."""
+    try:
+        from .brain import P as BP
+        if not BP.get("open_hold", False):
+            return False
+    except Exception:
+        return False
+    return (state.t < 45.0 and getattr(state, "mode_guess", "unknown") != "squad"
+            and (state.weapon_kinds() + [None, None])[1] is None)
+
+
 def _gun_held(tg, intent, threats, state=None) -> bool:
     """A/B gun discipline: no gun fire at a mech beyond gun_disc_m that is not already fighting us, not the brain's
     target and not killable (FFA showdown 11-21 6 AM: we plinked a laser bot at 176 m with the gun and lost the duel)."""
+    if state is not None and _open_hold(state) and tg.kind == "mech":
+        hunters = getattr(threats, "hunters", None) or ()
+        attackers = getattr(threats, "attackers", None) or ()
+        if tg.id not in hunters and tg.id not in attackers and tg.id not in (getattr(threats, "killable", None) or ()):
+            return True
     lim = _gun_disc_m()
     if state is not None and _ffa_tactics(state):
         lim = 120.0 if lim <= 0 else min(lim, 120.0)
