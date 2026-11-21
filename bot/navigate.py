@@ -449,9 +449,20 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
                 if nav_ok:
                     if True:
                         if m.get("jet") is None and _need_replan(state, m, goal):
-                            st_, path = ar.plan_full(state.pos, goal, cubes=_cubes(state), budget_ms=PLAN_BUDGET_MS,
-                                                     jet_cap=JET_CAP, avoid=_avoid_list(state, threats, intent),
+                            # After failed hops, stop planning big climbs (and finally plan as a smaller mech:
+                            # the size-class lattices are conservative). Sim: an 8-cube mech beside a 37 m
+                            # building retried a 35 m hop it could never finish for 30 s outside the zone.
+                            jf = m.get("jet_fail", 0)
+                            if jf and state.t - m.get("jet_fail_t", -1e9) > 25.0:
+                                m["jet_fail"] = jf = 0
+                            cap = JET_CAP if jf == 0 else (16.0 if jf == 1 else 0.0)
+                            cub = _cubes(state) if jf < 3 else 0.0
+                            st_, path = ar.plan_full(state.pos, goal, cubes=cub, budget_ms=PLAN_BUDGET_MS,
+                                                     jet_cap=cap, avoid=_avoid_list(state, threats, intent),
                                                      smooth_ms=0.8)
+                            if st_ == "fail" and jf:
+                                st_, path = ar.plan_full(state.pos, goal, cubes=0.0, budget_ms=PLAN_BUDGET_MS,
+                                                         jet_cap=JET_CAP, avoid=(), smooth_ms=0.8)
                             m["stats"]["replans"] += 1
                             m["goal"] = tuple(goal)
                             m["plan_t"] = state.t
@@ -622,14 +633,21 @@ def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
     grounded = bool(state.me.get("grounded", True))
     energy = state.energy
     climb = float(wp[4]) if len(wp) > 4 else max(0.0, wp[2] - z)
-    need = ar.jet_energy(climb) if ar is not None else 2.0 * climb + 6.0
+    # plan cost is 2.0/m; replays and the sim show ~2.4/m in practice: start only with the realistic amount
+    need = max(ar.jet_energy(climb) if ar is not None else 0.0, 2.4 * max(0.0, climb - 2.0) + 8.0)
+    emax = float(state.me.get("max_energy", 100.0) or 100.0)
+    if need > emax * 0.98 and m.get("jet") is None:
+        m["path"] = []
+        m["jet_fail"] = m.get("jet_fail", 0) + 1
+        m["jet_fail_t"] = state.t
+        return None
     j = m.get("jet")
     d = math.hypot(wp[0] - x, wp[1] - y)
     dirx, diry = unit2(wp[0] - x, wp[1] - y)
     if j is None:
         if not grounded:
             return NavOut(move=(dirx, diry), boost=energy > 5)
-        if energy < need and not (urgency >= 0.8 and energy >= 0.6 * need):
+        if energy < need:
             # wait at the base for energy (regen starts energy_regen_delay after the last spend)
             return NavOut(move=(0.0, 0.0), eta=(need - energy) / 18.0 + 1.0)
         m["jet"] = {"t0": state.t, "z0": z, "climb": climb, "to": wp, "air": False}
@@ -648,6 +666,7 @@ def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
         else:
             m["path"] = []        # failed hop: replan from where we are
             m["jet_fail"] = m.get("jet_fail", 0) + 1
+            m["jet_fail_t"] = state.t
         return None
     if grounded and not j["air"] and state.t - j["t0"] > 0.4:
         # jump did not take (blocked?): retry once next tick
