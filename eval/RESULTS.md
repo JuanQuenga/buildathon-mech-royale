@@ -10,6 +10,8 @@ official numbers and say so here in bold.**
 | — | example bot | — | 1.15 | organiser-stated baseline |
 | 11-21 00:05 | d0e666d | good-4 | **4.58** (rank 22/157; cut #32 = 4.35; top 5.58) | **sim squad said 3.66: the sim is ~25 % too harsh** (example: sim 0.91 vs official 1.15). good-3 (f8db786) being scored by the coordinator |
 | 11-21 ~00:30 | f8db786 | good-3 | **4.88** (rank 20/~157; cut #32 = 4.48; top 5.58) | **same seeds as good-4, +0.30 for the OLDER tag although the sim rated good-4 ≥ good-3**. good-3 is the base to beat |
+| 11-21 ~00:45 | f8db786 | good-3 (rerun) | 4.85 | identical commit resubmitted: timing noise ±0.03. Any behaviour change re-rolls every match, so between-tag noise is larger (chaos control tag pending) |
+| 11-21 ~01:00 | 5e2b91e | good-6 | **4.96** (rank ~26; cut 4.77) | main + cube_greed (hunter model, weapon-first, pickup fix, 2-death FFA guess). New best |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
@@ -106,3 +108,14 @@ full HP to dead in 10-15 s and the retreat verdict flips at ~20 % HP.
 | 11-21 ~01:20 (sim 81d2689) | 81d2689 | + conveyor=1 (fight only hunters, spare passive house bots) | squad | 64 | 3.59 | 3.28 | −0.31 (−0.66..+0.03) | passive kills are worth more than the hunter each adds (in this sim) |
 | 11-21 ~01:40 (sim 6946cf7) | 6946cf7 | + cube_greed=1 (grab kill-drop cubes before the next fight) | squad | 64 | 3.47 | 3.75 | +0.28 (−0.05..+0.62) | best single switch; cubes are the only lever that moved |
 | 11-21 ~02:10 (sim 6946cf7) | good-4 | 6946cf7 + cube_greed=1 | squad | 64 | 3.72 | 3.78 | +0.06 (−0.48..+0.61) | FFA half of this run was stopped (machine handoff): **FFA unmeasured** |
+
+### 11-21 ~01:00 profile screen (MacBook, sim 97fccf5, `--squad join_per_loss=0.6`, seeds 0-95, same seeds)
+
+| Profile (main 833cdf0) | Score | Kills | Alive |
+| --- | --- | --- | --- |
+| base | 4.77 | 4.73 | 119 s |
+| greed (= good-6) | 4.82 | 4.76 | 105 s |
+| seek | 5.04 | 5.01 | 116 s |
+| hret (break contact at 2 hunters) | 4.85 | 4.83 | 123 s |
+| fresh (heal after kill, new fights at 85 %) | 5.02 | 4.95 | 115 s |
+| good-3 | 4.94 | 4.85 | 138 s |

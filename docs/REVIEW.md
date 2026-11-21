@@ -5,13 +5,15 @@ Newest first. Each tag passed the native gate on the MacBook (`NATIVE_ONLY=1 eva
 recorded stream, slow-policy and crash tests, big and late stress streams, 0 missed replies). Run the Docker gate
 before submitting.
 
-| Tag | Commit | Single hypothesis it tests | Expected official |
+| Tag | Commit | Single hypothesis it tests (vs good-6 = main + cube_greed, official 4.96) | Expected official |
 | --- | --- | --- | --- |
-| `good-6` | 5e2b91e | Everything on `main` since good-4 (hunter model, weapon-first, pickup-memory fix, 2-death FFA guess) **plus cube_greed** (grab kill-drop cubes before the next fight) beats good-4 in the real game | 4.7–5.0 |
-| `good-5` | 37f5786 | good-4 with **good-3's brain.py** restored (nav/combat/main fixes kept). If it scores ≈ good-3 (4.88), the good-3→good-4 regression is in the brain changes (far/roof weapon trips, zone-field ETAs, inside-circle goal checks, early FFA guess) | 4.8 |
+| `good-7` | 3dd9bcd | **seek**: when healthy (≥80 % HP) with a secondary weapon and nothing else to do, walk to the nearest remembered house bot instead of holding, so kills come one at a time before the squad escalates (sim +0.22 vs greed, 96 seeds) | 5.1 |
+| `good-8` | 696e4ec | **fresh**: after each kill heal out of sight, and start new fights only at ≥85 % HP (sim +0.20 vs greed) | 5.1 |
+
+Submitted already: good-5 (37f5786, good-4 + good-3 brain, scoring), good-6 (5e2b91e) = 4.96.
 
 ## Recommended final entry
-`good-3` (f8db786), official **4.88**, until something beats it officially.
+`good-6` (5e2b91e), official **4.96**, until something beats it officially.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
