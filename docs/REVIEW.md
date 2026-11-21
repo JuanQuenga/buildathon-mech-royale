@@ -7,23 +7,21 @@ replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 dr
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-61` | 5feec86 | **Arm-first** (`armfirstx`, bug fix): unarmed with a known weapon ≤ 150 m, HP > 35 % and at most one attacker within 60 m → keep going for the weapon (firing on the move) instead of flipping between loot and engage every 1–2 s; give up on a weapon after 20 s (blacklist 60 s). Sim per-seed analysis: in the 10 worst seeds 51 % of runs never armed or armed after 40 s (1 % in the 10 best); seed 28 now arms at 19 s instead of 85 s, seed 32 at 46 s instead of never | 5.6 |
-| 2 | `good-62` | fdac016 | **Twin draw of good-61** (arm-first + neutral `r36x`) | 5.6 |
-| 3 | `good-63` | 4265b9c | **Fight-regen cycle** (`cyclex`): in a fight below 40 % HP (target not killable) break off to cover and regenerate to 90 % (45 HP/s after 5 s out of combat), then fight again at full aggression: a second health pool per life | 5.5 |
-| 4 | `good-64` | d2a1dcf | **Arm-first + fight-regen cycle** combined (`armfirstx+cyclex`) | 5.6 |
-| 5 | `good-58` | 17795de | **Twin draw of good-57** (isolate + neutral `r34x`) | 5.5 |
-| 6 | `good-60` | a872744 | **Twin draw of good-59** (commit + neutral `r35x`) | 5.5 |
-| 7 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
-| 8 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 9 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 10 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 11 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 12 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 13 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 14 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 15 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 16 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 17 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 1 | `good-65` | 87c9993 | **Slow fire** (`slow6x`): cap our speed at 6 m/s while engaging a target. Real showdowns: the practice leaders fire while moving ~6 m/s and take 24–28 dmg/s; we strafe at 11.6 m/s and take 41/s. Sim traces: standing shots deal 207/s vs 148/s while strafing | 5.6 |
+| 2 | `good-66` | ee04710 | **Stand to fire** (`stand1x`): stand still while at most one attacker has line of sight, 6 m/s with two, full strafe with three or more | 5.6 |
+| 3 | `good-67` | 8c58383 | **Close and slow** (`close60x`): slow6 + 60 m laser engagement range (the leaders' median; ours 90 m, 120 vs lightning) | 5.5 |
+| 4 | `good-68` | 1f02acd | **Twin draw of good-65** (slow6 + neutral `r37x`) | 5.6 |
+| 5 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
+| 6 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 7 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 8 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 9 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 10 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 11 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 12 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 13 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 14 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 15 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -294,6 +292,9 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-64 | 5.44 | arm-first + cycle |
+| good-63 | 5.42 | fight-regen cycle 40 → 90 % |
+| good-61 / good-62 | 5.19 / 5.27 | arm-first and twin: mean 5.23 (below base; the sim seeds it fixed are not the official seeds' problem) |
 | good-59 | 5.33 | **commit** (kill conversion): = base; twin good-60 queued |
 | good-57 | 5.48 | **isolate** (fight one at a time from spots hidden from the other attackers): first draw; twin good-58 decides |
 | good-54 / good-56 | 5.44 / 5.15 | **peek** (fight from cover with the laser) and its twin: mean 5.30 = base. Sim diagnosis: the cycle runs in only 19 % of engage decisions (48 % no laser yet, 29 % no cover within 40 m), damage intake unchanged (20.7 vs 20.5/s): mostly the base policy. Not iterated |

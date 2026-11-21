@@ -38,6 +38,7 @@ official numbers and say so here in bold.**
 | 11-21 ~10:48 | 2d14b1f / 964946c / 6301311 / 8f2c4d8 | good-52 / r5 / good-53 / good-44 | 5.17 / 5.27 / 5.31 / 5.33 | jet60 worse; FFA candidate v1 no practice cost; laser hunt neutral |
 | 11-21 ~11:43 | ab489ab / b2d0122 / 9ac13f6 | good-54 / good-56 / good-57 | 5.44 / 5.15 / 5.48 | peek mean 5.30 (cycle rarely engages in sim: 19 % of engage decisions); isolate first draw 5.48 |
 | 11-21 ~11:50 | 6e21d12 | good-59 | 5.33 | commit (kill conversion): = base mean |
+| 11-21 ~12:48 | 5feec86 / fdac016 / 4265b9c / d2a1dcf | good-61 / 62 / 63 / 64 | 5.19 / 5.27 / 5.42 / 5.44 | arm-first mean 5.23 (no); cycle 5.42, arm-first+cycle 5.44 (within noise) |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
