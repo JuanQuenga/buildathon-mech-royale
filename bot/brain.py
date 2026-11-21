@@ -140,6 +140,8 @@ P: Dict[str, Any] = {
     "dk_max_eta": 35.0,            # ...only drops we can reach within this many seconds (dk_max_eta_hurt below half HP)
     "dk_max_eta_hurt": 60.0,
     "dk_lead_s": 4.0,              # ...leave when the trip takes as long as the fall plus this
+    "dk_last_stand": True,         # ...after a capture never retreat again (sim: the base fled with its second life and
+                                   # died 30 s later without a kill; officially never-retreat costs nothing: 5.31)
     "vacuum": False,               # collect cubes at once (boosting, under fire) up to vac_max_cubes
     "vac_reach": 90.0,
     "vac_max_cubes": 10,
@@ -1075,6 +1077,8 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         if (P["hunter_retreat"] > 0 and state.mode_guess != "ffa" and tgt_frac > P["hunter_retreat"]
                 and len([e for e in fresh if (e.id in hunters or e.id in attackers) and e.dist < 160]) >= 2):
             out["verdict"] = "retreat"
+        elif m.get("last_stand") and state.mode_guess != "ffa":
+            out["verdict"] = "engage"     # policy v2: after a supply-drop capture the second life is spent on kills
         elif P["berserk"] and state.mode_guess != "ffa" and best_r < P["berserk_max_ratio"]:
             out["verdict"] = "engage"
         elif best_r > thr or (state.hp / state.max_hp < 0.25 and best_r > 0.5):

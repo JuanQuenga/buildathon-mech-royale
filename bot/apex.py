@@ -35,6 +35,8 @@ def refine(state: WorldState, threats: Threats, it: Intent, m: Dict[str, Any]) -
         if ty == "drop":
             am["drops_got"] = am.get("drops_got", 0) + 1
             am.setdefault("drop_t", []).append(round(state.t, 1))
+            if P["dk_last_stand"]:
+                m["last_stand"] = True
         elif ty == "pickup":
             am["vac_last_pick"] = state.t
     zp = m.get("zp") or {}
