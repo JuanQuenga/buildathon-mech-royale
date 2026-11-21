@@ -109,6 +109,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "lstand": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "laser_standoff": 120.0},
     "hopx": {"hop_legacy": True},
     "nav3x": {"nav3": True},
+    "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
     "standx": {"laser_standoff": 120.0},
     "laserx": {"laser_first": True, "no_mortar": True},
