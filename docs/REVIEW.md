@@ -15,7 +15,7 @@
 **The submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it). Predictions vs
 official results: `eval/RESULTS.md` ("Predictions before scoring").
 
-Current queue: isolate re-rolls good-ri41 … ri46, then good-ri47 … ri62 as they pass the gate. Each draw of a
+Current queue: isolate re-rolls good-ri41 … good-ri62 (22 gated tags, about 5.5 hours of slots). Each draw of a
 mean-5.46 policy has ~6 % chance of beating today's 5.65 cut (the base policy ~1 %); slot in any new experiment with
 a plausible ≥ 0.3 gain ahead of them.
 
@@ -368,8 +368,8 @@ Pending: the queue above. good-45 (boost above 50 energy, 77e995c) is gated and 
   survival-first until 3 mechs remain (`ffahide3x`, FFA-only). Evidence: 20+ real showdowns (placement follows damage
   taken and survival; our three opening deaths were fights we started unarmed); FFA self-play +0.22 ± 0.48 over 200
   matches (v7) with consistent positive point estimates (v4 +0.26, v6 +0.29); practice cost measured nil (good-50
-  5.35, good-53 5.31). Fallback: the base policy (good-31). If an isolate re-roll becomes our best draw, the
-  isolate + openhold + ffahide3 combination would be the natural FFA entry (not yet built: one `mkvar.sh` + gate).
+  5.35, good-53 5.31). Fallback: the base policy (good-31). If an isolate re-roll becomes our best draw, enter
+  **good-74** (5ce2a12, gated): isolate + openhold + ffahide3, the same FFA package on the isolate base.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
