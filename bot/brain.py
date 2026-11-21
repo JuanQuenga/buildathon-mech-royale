@@ -40,6 +40,7 @@ P: Dict[str, Any] = {
     "loot_max_dist_weapon": 260.0,  # empty slot 1: travel further for a weapon
     "roof_weapon_dz": 25.0,
     "weapon_first_value": 60.0,
+    "use_zone_field": True,        # A/B: nav's travel-time field in zone ETAs
     "drone_min_hp_frac": 0.6,
     "crate_min_hp_frac": 0.5,
     "memory_item_s": 90.0,
@@ -318,7 +319,7 @@ def zone_plan(state: WorldState) -> Dict[str, Any]:
     target = _safe_point(state, c1, r1)
     inside_next = dist2d(state.pos, c1) <= max(0.0, r1 - 2.0)
     eta = _eta(state, target) if not inside_next else 0.0
-    if not inside_next:
+    if not inside_next and P["use_zone_field"]:
         fe = _field_eta(state, state.pos)  # nav's travel-time field: real walking time around buildings
         if fe is not None and fe != math.inf:
             eta = max(eta, fe)
@@ -340,7 +341,7 @@ def _in_safe_future(state: WorldState, p, extra_eta=0.0) -> bool:
     c1, r1 = z["next_center"], float(z["next_radius"])
     t_here = _eta_quick(state, p)
     back = dist2d(p, _safe_point(state, c1, r1, p)) * P["zone_path_factor"] / max(1.0, state.stat("walk_speed", 11.7))
-    fb = _field_eta(state, p)
+    fb = _field_eta(state, p) if P["use_zone_field"] else None
     if fb is not None:
         back = max(back, fb)
     deadline = min(float(z["shrink_end"]), _exit_time(state, p)) if dist2d(p, c1) > r1 else _exit_time(state, p)
