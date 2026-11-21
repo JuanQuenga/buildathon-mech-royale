@@ -157,7 +157,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "chaosx": {"scan_phase": 1.0},
     "discx": {"gun_disc_m": 150.0},
     "ffax": {"ffa_tactics": True},
-    "standx": {"ffa_stand": True},
+    "ffastandx": {"ffa_stand": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
