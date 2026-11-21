@@ -19,9 +19,12 @@ tracebacks / no fallbacks.
 | --- | --- | --- | --- |
 | good-1 | 634dbe1 | check.sh PASS (no sim yet) | skeleton, example-bot behaviour |
 | good-2 | e9ea4c2 | check.sh PASS (no sim yet) | brain v1 on placeholder nav/combat |
-| **good-3** | **f8db786** | check.sh PASS; 64 sim matches, 0 missed replies, 0 tracebacks | nav + combat + brain + process guard. Sim 0fb1d99: squad **3.38** (example 0.91), FFA **10.91** (example 7.34) |
+| **good-4** | **d0e666d** | check.sh PASS at load 5 (docker p99 3.8 ms / stress p99 12.6 ms, 0 missed); 256 sim matches, 0 missed replies, 0 tracebacks | good-3 + zone fixes (realistic jet energy, stale jet-hop state, heal/retreat goals inside circle), policy auto-restart, juke off. Sim de87b36, 64 seeds vs good-3: squad **3.66** vs 3.59, FFA **11.33** vs 10.88 (both within noise); zone deaths 4→1 |
+| good-3 | f8db786 | check.sh PASS; 64 sim matches, 0 missed replies, 0 tracebacks | nav + combat + brain + process guard. Sim 0fb1d99: squad **3.38** (example 0.91), FFA **10.91** (example 7.34) |
 
 ## Conformance and timing (eval/check.sh)
+
+| d0e666d (good-4), load 5 | native p99 3.4 / max 6.7 | docker p99 3.8 / max 10.7 | stress big p99 12.6 / max 15.5 | stress late p99 9.4 / max 9.9 | PASS, 0 missed, + slow-policy and crash tests |
 
 Caveat: the build machine is shared and often at load average 50+ on 16 cores; latency numbers and the bot's
 fallback counts in sim runs (e.g. 1667 fallbacks over 32 squad matches for f8db786 = ~5% of decisions) are
@@ -67,3 +70,5 @@ small effects.
 | 11-21 ~04:00 (sim de87b36) | 0e30c54 | 0e30c54 + MECH_JUKE_RANGE=1e9 (juke off) | squad | 64 | 3.14 | 3.61 | **+0.47 (+0.06..+0.86)** | juke was the regression → off by default |
 | 11-21 ~04:10 (sim de87b36) | 0e30c54 | + old loot params (no roof/far weapons) | squad | 64 | 3.30 | 3.11 | −0.19 (−0.53..+0.17) | keep new loot params |
 | 11-21 ~04:20 (sim de87b36) | 0e30c54 | + use_zone_field=0 | squad | 64 | 3.28 | 3.25 | −0.03 (−0.33..+0.27) | neutral; keep field (safer zone ETAs) |
+| 11-21 ~04:50 (sim de87b36) | good-3 | d0e666d (good-4) | squad | 64 | 3.59 | 3.66 | +0.06 (−0.33..+0.47) | zone 2→0 |
+| 11-21 ~04:50 (sim de87b36) | good-3 | d0e666d (good-4) | ffa | 64 | 10.88 | 11.33 | +0.45 (−0.62..+1.58) | survived 21→26, kills 1.78→2.08, zone 0→1 |
