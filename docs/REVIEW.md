@@ -81,6 +81,22 @@ break contact at the 2nd hunter). Steady-base versions follow as good-39+.
   `ffa` guess, so FFA-only switches leak into a few practice matches (acceptable for a final entry, since practice
   stops counting at the cutoff).
 
+- **What separates FFA placers (20 showdown matches, per bot):** not damage dealt but damage taken and survival.
+  poteto deals the most damage per second of the field (34.6/s, like the best placer TigerTown27 at 34.0/s) but
+  takes 41/s and lives 95 s; the bots that place 5.7–7.4 take 24–30/s and live 150–178 s. Laser and gun engagement
+  ranges (median laser hit 60–110 m; ours 95 m) do not separate winners. So for the final, survival beats aggression.
+  (`eval/diag/cast/range.py`, and the per-bot dealt/taken table in this section's history.)
+
+| Bot | mean place | dealt/s | taken/s | life s |
+| --- | --- | --- | --- | --- |
+| TigerTown27 | 5.7 | 34.0 | 26.6 | 178 |
+| r1ver | 6.9 | 23.4 | 29.7 | 164 |
+| A-bot LLC | 7.0 | 34.8 | 36.2 | 134 |
+| Kanyaraasi | 7.1 | 18.2 | 26.4 | 172 |
+| **poteto (us)** | 8.9 | **34.6** | **41.0** | **95** |
+| 2696 | 10.5 | 37.4 | 52.2 | 86 |
+| scorpion | 11.4 | 29.2 | 55.8 | 75 |
+
 **FFA-only switch `ffax`** (`ffa_tactics`, active only while the detector says `ffa`; commit 809b931):
 gun discipline beyond 120 m; never pick a target that puts an active attacker more than 80° behind our aim unless
 the target is killable; while holding only a gun or gun + mortar, no opportunity fights, and break off from a
