@@ -57,6 +57,10 @@ P: Dict[str, Any] = {
                                    # house bots unless nearly dead. Every kill adds one hunter, so killing passives while
                                    # hunters live stacks shooters (the 3-7-attacker deaths); hunters-only = a chain of 1v1s
     "conveyor_until": 300.0,       # ...until this match time (late game: everyone engages anyway)
+    "cube_greed": False,           # A/B: squad: grab cubes (kill drops) within cube_grab_m before a new fight unless a
+                                   # hunter is shooting; loot is devalued only near hunters; cube value cube_value_greed
+    "cube_grab_m": 35.0,
+    "cube_value_greed": 50.0,
     "squad_standoff": 0.0,         # A/B >0: vs gun/mortar mechs in squad rounds hold this range with gun/laser
                                    # (sim: house gunners hit 37-88% inside 80 m, 20-34% beyond; our led shots drop less)      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
 }
@@ -542,6 +546,18 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
                     reason=f"heal {hpf:.2f}")
         return _finish(state, m, it)
 
+    # 3b. squad: pick up nearby cubes (kill drops) before starting the next fight
+    if P["cube_greed"] and state.mode_guess != "ffa" and not attackers and int(state.me.get("cubes", 0) or 0) < 10:
+        cb = [r for r in m["items"].values() if r["type"] == "cube" and dist2d(r["pos"], state.pos) < P["cube_grab_m"]
+              and abs(r["pos"][2] - state.pos[2]) < 4.0 and m["blacklist"].get(r["id"], -1e9) <= state.t]
+        if cb:
+            c = min(cb, key=lambda r: dist2d(r["pos"], state.pos))
+            if m["stuck_s"] > 4.0:
+                m["blacklist"][c["id"]] = state.t + 30
+                m["last_progress_t"] = state.t
+            return _finish(state, m, Intent(mode="loot", goal=c["pos"], loot_id=c["id"], urgency=0.3, face=face,
+                                            reason=f"grab cube {c['id']}"))
+
     # 4. opportunistic fight on a visible mech (not attacking us yet)
     tgt = fight.get("target")
     if tgt is not None and fight["verdict"] == "engage" and fight.get("opportunity"):
@@ -867,6 +883,8 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
                 val = 15 * (v - worst)
         elif r["type"] == "cube":
             val = 30.0 if cubes < 10 else 8.0
+            if P["cube_greed"] and cubes < 10:
+                val = P["cube_value_greed"]
         elif r["type"] == "crate":
             unarmed = P["weapon_first"] and kinds[1] is None
             if hpf < P["crate_min_hp_frac"] and not unarmed:
@@ -875,7 +893,11 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
             if unarmed:
                 val = max(val, P["crate_value_unarmed"])
         eta = d * 1.2 / walk
-        if fresh and min(dist2d(e.pos, r["pos"]) for e in fresh) < 60:
+        near_set = fresh
+        if P["cube_greed"] and state.mode_guess != "ffa":
+            hs = set(getattr(m.get("threats_ref"), "hunters", None) or [])
+            near_set = [e for e in fresh if e.id in hs]
+        if near_set and min(dist2d(e.pos, r["pos"]) for e in near_set) < 60:
             val *= 0.3
         score = val / (1.0 + eta / 6.0)
         if i == cur:
