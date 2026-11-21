@@ -101,6 +101,12 @@ def _remember_items(state: WorldState, m: Dict[str, Any]) -> None:
     items = m["items"]
     t = state.t
     seen = set()
+    for ev in state.events:
+        if ev.get("type") == "take_failed" and ev.get("reason") in ("gone", "range"):
+            i = ev.get("id")
+            if ev.get("reason") == "gone":
+                items.pop(i, None)
+            m["blacklist"][i] = t + (60.0 if ev.get("reason") == "gone" else 3.0)
     o = state.obs
     for kind, key in (("pickup", "pickups"), ("crate", "crates"), ("cube", "cubes")):
         for it in o.get(key) or []:
@@ -115,10 +121,27 @@ def _remember_items(state: WorldState, m: Dict[str, Any]) -> None:
             rec["pos"], rec["t"] = tuple(it["pos"]), t
             if "hp" in it:
                 rec["hp"] = it["hp"]
-    # forget items we should see but don't (close by) and stale ones
+    # forget items we should see but don't (close by) and stale ones. Weapon pickups are kept until we stood on the
+    # spot without seeing them for 1.5 s: near-range LOS to an item lying in a dip can fail (seed 2: we walked to 6 m
+    # of a mortar, forgot it, and dithered between three pickups for 25 s). `take` needs reach, not sight.
     near = 30.0
-    gone = [i for i, r in items.items() if i not in seen and
-            ((dist2d(r["pos"], state.pos) < near and abs(r["pos"][2] - state.pos[2]) < 8) or t - r["t"] > P["memory_item_s"])]
+    gone = []
+    for i, r in items.items():
+        if i in seen:
+            r.pop("close_t", None)
+            continue
+        d = dist2d(r["pos"], state.pos)
+        if t - r["t"] > P["memory_item_s"]:
+            gone.append(i)
+        elif r["type"] == "pickup":
+            if d < 3.0 and abs(r["pos"][2] - state.pos[2]) < 4.0:
+                r.setdefault("close_t", t)
+                if t - r["close_t"] > 1.5:
+                    gone.append(i)
+            elif d < near and abs(r["pos"][2] - state.pos[2]) < 8 and t - r["t"] > 20.0:
+                gone.append(i)      # long unseen although close: probably taken by someone
+        elif d < near and abs(r["pos"][2] - state.pos[2]) < 8:
+            gone.append(i)
     for i in gone:
         del items[i]
 
@@ -950,7 +973,13 @@ def inventory(state: WorldState, intent: Intent) -> InvOut:
     reach = float(state.cfg.get("loot", {}).get("pickup_radius", 4.0))
     kinds = state.weapon_kinds()
     ws = state.me.get("weapons") or [None, None]
-    for p in state.obs.get("pickups") or []:
+    pk = list(state.obs.get("pickups") or [])
+    seen_ids = {p.get("id") for p in pk}
+    for r in m["items"].values():   # remembered pickups in reach that the obs does not list (LOS quirks)
+        if (r["type"] == "pickup" and r["id"] not in seen_ids and dist2d(r["pos"], state.pos) < reach
+                and m["blacklist"].get(r["id"], -1e9) <= state.t):
+            pk.append({"id": r["id"], "kind": r.get("kind"), "pos": r["pos"]})
+    for p in pk:
         k = p.get("kind")
         if k is None or k in kinds:
             continue
