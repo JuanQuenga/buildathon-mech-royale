@@ -85,6 +85,8 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "ffa_hide": False,             # A/B FFA-only survival-first: hide from non-hunters, fight only attackers/killable,
+    "ffa_hide_alive": 5,           # ...while more than this many mechs are alive
     "ffa_stand": False,            # A/B FFA-only: no real cover within reach -> keep fighting instead of an open-ground retreat
     "gun_disc_m": 0.0,             # A/B >0: no gun fire at a mech beyond this unless it fights us / is our target / killable
     "air_lead": False,             # A/B: gun lead for airborne targets from their observed vertical acceleration
@@ -160,6 +162,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ffax": {"ffa_tactics": True},
     "ffastandx": {"ffa_stand": True},
     "lookx": {"look_around": True},
+    "ffahidex": {"ffa_hide": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
@@ -880,15 +883,23 @@ def _weak_loadout(state: WorldState) -> bool:
 
 
 def _hiding(state: WorldState) -> bool:
+    if P["ffa_hide"] and state.mode_guess == "ffa":
+        # A/B FFA survival-first: placement is survival order; real showdown places 5-10 avoided the opening brawl
+        return state.alive > P["ffa_hide_alive"]
     return (P["hide"] and state.mode_guess != "ffa" and state.t < P["hide_until"]
             and state.alive > P["hide_alive_min"])
 
 
 def _spare(state: WorldState, threats: Threats, e: EnemyThreat) -> bool:
     """Conveyor: leave this mech alone (it is not hunting us and not nearly dead)."""
-    if not P["conveyor"] or state.mode_guess == "ffa" or state.t >= P["conveyor_until"] or e.kind != "mech":
+    if e.kind != "mech":
         return False
-    if P["hide"] and not _hiding(state):
+    if P["ffa_hide"] and state.mode_guess == "ffa":
+        if not _hiding(state):
+            return False
+    elif not P["conveyor"] or state.mode_guess == "ffa" or state.t >= P["conveyor_until"]:
+        return False
+    elif P["hide"] and not _hiding(state):
         return False
     hunters = set(getattr(threats, "hunters", None) or [])
     if e.id in hunters or e.id in set(threats.attackers):
