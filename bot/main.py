@@ -343,6 +343,11 @@ def _report(pilot, lat, fallbacks, skipped, place) -> None:
         pct = lambda p: lat[min(len(lat) - 1, int(p * len(lat)))] * 1000 if lat else 0.0
         info = {"replies": len(lat), "fallbacks": fallbacks, "skipped_obs": skipped, "place": place,
                 "p50_ms": round(pct(0.5), 3), "p99_ms": round(pct(0.99), 3), "max_ms": round(pct(1.0), 3)}
+        try:
+            import resource
+            info["maxrss_mb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
+        except Exception:
+            pass
         if pilot is not None:
             info["init_ms"] = round(pilot.init_s * 1000, 1)
             info["errors"] = pilot.errors
