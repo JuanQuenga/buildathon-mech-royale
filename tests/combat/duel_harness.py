@@ -86,6 +86,11 @@ def find_spot(W, rng, d, tries=400):
 
 def new_match(seed):
     cfg = load_config()
+    # no zone pressure in these isolated tests
+    cfg["zone"]["start_radius"] = 5000.0
+    for ph in cfg["zone"]["phases"]:
+        ph["radius"] = 4000.0
+        ph["dps"] = 0.0
     M = Match(world(), seed=seed, cfg=cfg, sim=sim_config())
     M.projs = []
     M._pending_takes = []
@@ -117,8 +122,10 @@ def mk_weapons(M, m, kinds):
 class Mover:
     """Scripted target / our own legs."""
 
-    def __init__(self, pattern, rng, axis):
+    def __init__(self, pattern, rng, axis, keep=None):
         self.p = pattern
+        self.keep = keep            # desired range to the opponent (our legs in duels), or None
+        self.dist = None
         self.rng = rng
         self.axis = axis            # yaw of the line between the two mechs
         self.dir = 1
@@ -148,6 +155,12 @@ class Mover:
                 a["jump"] = True
             if self.p == "boost":
                 a["boost"] = m.energy > 5
+        if self.keep is not None and self.dist is not None:
+            radial = max(-1.0, min(1.0, (self.dist - self.keep) / 15.0))
+            mx = a["move"][0] * 0.6 + radial * math.cos(self.axis)
+            my = a["move"][1] * 0.6 + radial * math.sin(self.axis)
+            n = math.hypot(mx, my)
+            a["move"] = [mx / n, my / n] if n > 1 else [mx, my]
         return a
 
 
@@ -263,11 +276,13 @@ def duel(args):
         mk_weapons(M, Bm, args.enemy_loadout.split("+"))
         bot = BuiltinBot(args.tier, W, cfg, seed, 1)
         S = st.WorldState({"type": "hello", "slot": 0, "seed": seed, "config": cfg}, _arena())
-        mover = Mover(args.self_move, random.Random(seed + 3), ang)
+        keep = args.keep if args.keep is not None else (28.0 if "lightning" in args.loadout else None)
+        mover = Mover(args.self_move, random.Random(seed + 3), ang, keep)
         intent = st.Intent(mode="engage", target_id=Bm.id)
         while M.t < args.secs and A.alive and Bm.alive:
             if M.tick % 2 == 0:
                 mover.axis = math.atan2(Bm.pos[1] - A.pos[1], Bm.pos[0] - A.pos[0])
+                mover.dist = math.hypot(Bm.pos[0] - A.pos[0], Bm.pos[1] - A.pos[1])
                 a, dt, obs, out = ours_decide(S, M, A, intent, mover if args.self_move != "stand" else None)
                 M.apply_action(A, a)
                 vis = M._senses.visible_set([x for x in M.mechs if x.alive], want_items=set())
@@ -304,6 +319,7 @@ def main():
     d.add_argument("--dist", type=float, default=100.0)
     d.add_argument("--self-move", default="strafe")
     d.add_argument("--reps", type=int, default=10)
+    d.add_argument("--keep", type=float, default=None, help="our legs hold this range (default: 28 m with lightning, else none)")
     d.add_argument("--secs", type=float, default=60.0)
     d.add_argument("--verbose", action="store_true")
     a = ap.parse_args()
