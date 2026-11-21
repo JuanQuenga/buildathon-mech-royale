@@ -85,6 +85,9 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "fire_speed": 0.0,             # A/B >0: cap our speed (m/s) while engaging a target
+    "fire_stand": False,           # A/B: stand while <= 1 attacker in sight, 6 m/s with 2, full strafe with 3+
+    "laser_range": 0.0,            # A/B >0: preferred engage range with a laser (default 90, 120 vs lightning)
     "cycle_hp": 0.0,               # A/B >0 fight-regen cycle: break off below this HP fraction and heal to heal_until
     "arm_first": False,            # A/B: unarmed + known weapon within arm_first_m: go for it even in a fight
     "arm_first_m": 150.0,
@@ -183,6 +186,9 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "cycle50x": {"cycle_hp": 0.5, "heal_until": 0.9},
     "cycle40lx": {"cycle_hp": 0.4, "heal_until": 0.7},
     "armfirstx": {"arm_first": True},
+    "slow6x": {"fire_speed": 6.0},
+    "stand1x": {"fire_stand": True, "fire_speed": 6.0},
+    "close60x": {"fire_speed": 6.0, "laser_range": 60.0},
     "evadex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
                "heal_below_squad": 0.8, "heal_below": 0.7, "engage_ratio_squad": 0.0, "engage_ratio_ffa": 0.0,
                "retreat_ratio": 100.0, "berserk": False, "no_fire": True},       # survival study (a): pure evasion
@@ -844,6 +850,8 @@ def _finish(state: WorldState, m: Dict[str, Any], it: Intent) -> Intent:
     th = m.get("threats_ref")
     if P["conveyor"] and th is not None:
         it.spare_ids = [e.id for e in th.enemies if e.kind == "mech" and _spare(state, th, e)]
+    if it.mode == "engage" and it.target_id is not None and (P["fire_speed"] > 0 or P["fire_stand"]):
+        it.max_speed = _engage_speed(state, th)
     m["mode"] = it.mode
     m["last_reason"] = it.reason
     f = m.get("fight") or {}
@@ -957,6 +965,24 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             out["verdict"] = "engage"
             out["opportunity"] = True
     return out
+
+
+def _engage_speed(state: WorldState, th) -> Optional[float]:
+    """A/B slow fire: real showdowns: practice leaders fire while moving ~6 m/s, we strafe at 11.6 m/s and take the
+    most damage; sim peek traces: standing shots dealt 207/s vs 148/s while strafing. fire_speed caps engage speed;
+    fire_stand: stand still with <= 1 attacker in sight, fire_speed (or 6) with 2, full strafe with 3+."""
+    cap = P["fire_speed"] if P["fire_speed"] > 0 else None
+    if P["fire_stand"]:
+        n = 0
+        if th is not None:
+            hs = set(getattr(th, "hunters", None) or []) | set(getattr(th, "attackers", None) or [])
+            n = sum(1 for e in th.enemies if e.kind == "mech" and e.id in hs and e.visible and e.los)
+        if n <= 1:
+            return 0.0
+        if n == 2:
+            return cap if cap is not None else 6.0
+        return None
+    return cap
 
 
 def _isolate_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: List[EnemyThreat]) -> Optional[Intent]:
@@ -1100,6 +1126,8 @@ def _desired_range(state: WorldState, e: EnemyThreat) -> float:
     if so > 0 and state.mode_guess != "ffa" and "lightning" not in their and "laser" not in their:
         return max(so, 90.0 if "laser" in kinds else 0.0)
     if "laser" in kinds:
+        if P["laser_range"] > 0:
+            return P["laser_range"]
         if "lightning" in their:
             return 120.0
         return 90.0
