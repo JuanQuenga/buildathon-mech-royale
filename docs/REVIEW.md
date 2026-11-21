@@ -7,12 +7,12 @@ before submitting.
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
-| 2 | `good-10` | 1cd7676 | **Laser first** (vs good-6 = greed, 4.96): laser valued above lightning when choosing the first secondary. Sim +0.55 vs greed (96 paired seeds, CI +0.13..+0.97); in the sim gun+laser matches score ~6.0, gun+lightning ~4.5, gun+mortar ~2.8; 6/8 real top-4 finishers ended with a laser | 5.3 |
-| 1 | `good-9` | e6718e7 | **Chaos control**: good-3 with only the idle torso-scan phase shifted (behaviour-neutral). Its distance from good-3 (4.88/4.85) is the tag-to-tag noise: any behaviour change re-rolls all 48 trajectories | 4.6–5.1 |
+| 1 | `good-10` | 1cd7676 | **Laser first** (compare with good-6 = greed, 4.96): when choosing the first secondary, value a laser above lightning. Sim: +0.55 over greed (96 paired seeds, CI +0.13..+0.97). In the sim, gun+laser matches average ~6.0 points, laser+lightning ~5.8, gun+lightning ~4.5, gun+mortar ~2.8 and gun alone ~2.3. 6/8 real top-4 finishers ended with a laser | 5.3 |
+| 2 | `good-11` | ddbc83a | **Laser first + never take a mortar, on top of seek** (compare with good-7 = seek, 5.00; best official). This is the candidate final entry if the laser lever is real | 5.4 |
 
-More tags (scaling, stacked seek+fresh, picky, laser) follow after the sim screens finish (~2:10 AM).
+good-9 (chaos control) was submitted at 1:56. More tags follow (~2:15): farm (explore for crates and drones while armed until 150 s), laser2 (good-10 + no mortar).
 
-Submitted: good-5 4.46, good-6 4.96, good-7 (seek) 5.00, good-8 (fresh) scoring.
+Official so far: good-7 5.00, good-6 4.96, good-3 4.88/4.85, good-8 (fresh) 4.79, good-4 4.58, good-5 4.46.
 
 ## Recommended final entry
 `good-7` (3dd9bcd, seek), official **5.00**, until something beats it officially.

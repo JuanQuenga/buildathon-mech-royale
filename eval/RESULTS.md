@@ -14,6 +14,7 @@ official numbers and say so here in bold.**
 | 11-21 ~01:00 | 5e2b91e | good-6 | **4.96** (rank ~26; cut 4.77) | main + cube_greed (hunter model, weapon-first, pickup fix, 2-death FFA guess). New best |
 | 11-21 ~01:35 | 37f5786 | good-5 | 4.46 | good-4 + good-3 brain.py: did NOT recover good-3. Either the regression is outside the brain, or tag-to-tag noise is ~±0.3 |
 | 11-21 ~01:40 | 3dd9bcd | good-7 | **5.00** | main + seek profile (sim +0.22 vs greed). New best, but only +0.04 over good-6 |
+| 11-21 ~01:55 | 696e4ec | good-8 | 4.79 | main + fresh profile (heal after kill, new fights at 85 %). Sim said +0.20 vs greed; official −0.17 vs good-6 |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
@@ -121,3 +122,11 @@ full HP to dead in 10-15 s and the retreat verdict flips at ~20 % HP.
 | hret (break contact at 2 hunters) | 4.85 | 4.83 | 123 s |
 | fresh (heal after kill, new fights at 85 %) | 5.02 | 4.95 | 115 s |
 | good-3 | 4.94 | 4.85 | 138 s |
+| greed + laser_first (laser 3.6 > lightning 3.0) | 5.38 (Δ +0.55 ± 0.42 vs greed) | 5.28 | 116 s |
+| picky (unknown-mode fight rules in squad) | 4.93 (+0.10) | 4.90 | 112 s |
+| scale (crate 32, drone 60, drops first, eta 70) | 4.90 (+0.07) | 4.82 | 103 s |
+| stack (seek + fresh) | 5.14 (+0.31) | 5.07 | 114 s |
+| stack2 (seek + fresh + scale) | 5.16 (+0.33) | 5.08 | 103 s |
+
+Loadout at death vs points (sim, greed / laser profiles): gun+laser 5.8 / 6.1, laser+lightning 5.8 / 6.0,
+gun+lightning 4.3 / 4.9, gun+mortar 2.6 / 2.9, gun only 2.3 / 1.7.
