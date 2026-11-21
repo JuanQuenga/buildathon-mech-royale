@@ -86,6 +86,7 @@ P: Dict[str, Any] = {
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
     "weave": False,                # A/B (nav3): retreat with a sideways weave relative to the nearest attacker
+    "cover_all": False,            # A/B: retreat cover hidden from the nearest three threats (was: first threat only)
     "cube_price": False,           # A/B: grab cubes when exposure (eta x incoming dps) costs less than their value
     "keep_gun": False,             # A/B: gun valued above lightning (no gun-for-lightning swaps)
     "fire_fix": False,             # A/B (combat): re-check the gun shot against the final aim after a laser override
@@ -193,6 +194,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "slow6x": {"fire_speed": 6.0},
     "weavex": {"weave": True},
     "cubex": {"cube_price": True},
+    "coverfixx": {"cover_all": True},
     "keepgunx": {"keep_gun": True},
     "firefixx": {"fire_fix": True},
     "drop95x": {"drop_first": True, "drop_max_eta": 60.0, "drop_base": 60.0},
@@ -1186,7 +1188,14 @@ def _cover_from(state: WorldState, threat_pos: List, zp: Dict[str, Any]):
             c = cc[3]
         else:
             try:
-                c = state.arena.nearest_cover(state.pos, tp, 60.0)
+                if P["cover_all"] and len(threat_pos) > 1:
+                    # A/B (outside review): hide from the nearest three threats, not only the first one listed
+                    near = sorted(threat_pos, key=lambda p: dist2d(p, state.pos))[:3]
+                    c = state.arena.nearest_cover(state.pos, [tuple(p) for p in near], 60.0)
+                    if c is None:
+                        c = state.arena.nearest_cover(state.pos, tuple(near[0]), 60.0)
+                else:
+                    c = state.arena.nearest_cover(state.pos, tp, 60.0)
             except Exception:
                 c = None
             m["cover_cache"] = (state.t, tp, state.pos, c)
