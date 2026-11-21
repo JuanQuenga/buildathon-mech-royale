@@ -52,7 +52,9 @@ P: Dict[str, Any] = {
     "run_for_weapon_m": 140.0,
     "opp_min_hp": 0.6,             # start a fight with a mech that is not shooting us only above this HP fraction
     "opp_min_hp_squad": 0.6,       # ...in squad/unknown rounds (A/B 0.85: start every new fight healthy)
-    "heal_after_kill": False,      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
+    "heal_after_kill": False,
+    "squad_standoff": 0.0,         # A/B >0: vs gun/mortar mechs in squad rounds hold this range with gun/laser
+                                   # (sim: house gunners hit 37-88% inside 80 m, 20-34% beyond; our led shots drop less)      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
 }
 
 
@@ -671,6 +673,9 @@ def _desired_range(state: WorldState, e: EnemyThreat) -> float:
         if "mortar" in their:
             return 25.0
         return 28.0
+    so = P["squad_standoff"]
+    if so > 0 and state.mode_guess != "ffa" and "lightning" not in their and "laser" not in their:
+        return max(so, 90.0 if "laser" in kinds else 0.0)
     if "laser" in kinds:
         if "lightning" in their:
             return 120.0
