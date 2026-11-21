@@ -123,7 +123,20 @@ early deaths (v2): 93 % die in `retreat`, usually gun-only with 2+ attackers, an
 problem is open-ground retreats under fire, not starting fights. v3 tests `ffastandx` (FFA-only: without real cover
 within reach, keep fighting instead of retreating in the open).
 
-SELFPLAY_V3
+**v3** (seeds 3000–3049, 50 matches; stopped early, clear result):
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx | 200 | 9.10 ± 0.65 | 1.50 | 105 | 27/200 | 10 (194/200) | 19 | 0 |
+| var:laser+nav3x+fixx+steadyx+ffastandx | 200 | 8.39 ± 0.65 | 1.28 | 95 | 21/200 | 10 (188/200) | 19 | 0 |
+
+Reading: standing and fighting without cover is worse (−0.7 ± 0.9, early deaths 24 % → 27 %): the retreat logic is
+right, and the early deaths are fights we lose either way. Dropped. Also tried `lookx` (spin the torso while
+unarmed to find pickups): in the sim, arming time barely changes (median 11.9 → 10.8 s; squad +0.17 ± 0.61);
+arming is limited by distance to weapons, not by vision. v4 tests `ffahidex` (FFA survival-first: hide from
+non-hunters, fight only attackers/killable while more than 5 mechs are alive).
+
+SELFPLAY_V4
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
