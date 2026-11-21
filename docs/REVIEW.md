@@ -11,6 +11,8 @@ replies) on 11-21 ~05:15 ET.
 | 2 | `good-36` | 1ca1a5a | good-31 with even slower strafe reversals (every 6–10 s) | 5.6 |
 | 3 | `good-37` | 0ebc659 | good-31 with no sideways movement while engaging (hold range only; projectile dodge kept) | 5.5 |
 | 4 | `good-38` | a9a0bd3 | good-31 with no reversals at all (orbit one way) | 5.55 |
+| 5 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
+| 6 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
 
 Superseded (rage base without steady strafe; gated but less informative now, run only if the queue is empty):
 `good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
