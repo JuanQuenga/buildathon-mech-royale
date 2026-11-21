@@ -14,6 +14,7 @@ replies). Two tracks: experiments (table) first, then re-roll filler (track 1). 
 | 5 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
 | 6 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
 | 7 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 8 | `good-49` | 20b1e60 | **FFA candidate**: good-31 policy + `ffax` (FFA-only tactics, inactive in squad unless the detector errs, ~7 % in sim). Its official run checks the switch costs nothing in practice before we consider it for the final; it is also a near-re-roll of the good-31 policy | 5.3 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
