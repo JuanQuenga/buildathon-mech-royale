@@ -10,19 +10,20 @@ replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 dr
 | 1 | `good-61` | 5feec86 | **Arm-first** (`armfirstx`, bug fix): unarmed with a known weapon ≤ 150 m, HP > 35 % and at most one attacker within 60 m → keep going for the weapon (firing on the move) instead of flipping between loot and engage every 1–2 s; give up on a weapon after 20 s (blacklist 60 s). Sim per-seed analysis: in the 10 worst seeds 51 % of runs never armed or armed after 40 s (1 % in the 10 best); seed 28 now arms at 19 s instead of 85 s, seed 32 at 46 s instead of never | 5.6 |
 | 2 | `good-62` | fdac016 | **Twin draw of good-61** (arm-first + neutral `r36x`) | 5.6 |
 | 3 | `good-63` | 4265b9c | **Fight-regen cycle** (`cyclex`): in a fight below 40 % HP (target not killable) break off to cover and regenerate to 90 % (45 HP/s after 5 s out of combat), then fight again at full aggression: a second health pool per life | 5.5 |
-| 4 | `good-58` | 17795de | **Twin draw of good-57** (isolate + neutral `r34x`) | 5.5 |
-| 5 | `good-60` | a872744 | **Twin draw of good-59** (commit + neutral `r35x`) | 5.5 |
-| 6 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
-| 7 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 8 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 9 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 10 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 11 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 12 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 13 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 14 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 15 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 16 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 4 | `good-64` | d2a1dcf | **Arm-first + fight-regen cycle** combined (`armfirstx+cyclex`) | 5.6 |
+| 5 | `good-58` | 17795de | **Twin draw of good-57** (isolate + neutral `r34x`) | 5.5 |
+| 6 | `good-60` | a872744 | **Twin draw of good-59** (commit + neutral `r35x`) | 5.5 |
+| 7 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
+| 8 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 9 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 10 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 11 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 12 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 13 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 14 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 15 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 16 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 17 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
