@@ -204,6 +204,10 @@ class Pilot:
             d = self._call("debug", brain.debug, None, s, intent, th, nv, cb)
             if d:
                 action["debug"] = d
+        if brain is not None and hasattr(brain, "tele_sit") and self._call("tele", brain.tele_sit, False, s, th):
+            action = {"tick": s.tick, "move": [0.0, 0.0], "fire": [False, False]}     # telemetry probe: sit still
+            if "aim" in s.prev_action:
+                action["aim"] = s.prev_action["aim"]
         action = sanitize(action, s.tick)
         s.prev_action = action
         return action

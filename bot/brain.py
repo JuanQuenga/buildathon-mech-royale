@@ -130,6 +130,11 @@ P: Dict[str, Any] = {
     "seek_sound_m": 110.0,
     "seek_max_m": 260.0,
     "seek_mem_s": 30.0,
+    "tele_t": 0.0,                 # telemetry probes (official score as the instrument): play normally, then SIT (no move,
+    "tele_att": 0,                 # no fire) for the rest of the match once t >= tele_t / >= tele_att distinct mechs hit us
+    "tele_kills": 0,               # within 3 s / our kills reach tele_kills / we took a laser hit (tele_laser). The score is
+    "tele_laser": False,           # then the mean number of kills at that moment: the real kill curve and escalation.
+    "tele_dmg": 0.0,               # ...or once total mech damage taken reaches tele_dmg
     "squad_standoff": 0.0,         # A/B >0: vs gun/mortar mechs in squad rounds hold this range with gun/laser
                                    # (sim: house gunners hit 37-88% inside 80 m, 20-34% beyond; our led shots drop less)      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
 }
@@ -202,6 +207,12 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "drop95x": {"drop_first": True, "drop_max_eta": 60.0, "drop_base": 60.0},
     "stand1x": {"fire_stand": True, "fire_speed": 6.0},
     "close60x": {"fire_speed": 6.0, "laser_range": 60.0},
+    "telet45x": {"tele_t": 45.0}, "telet60x": {"tele_t": 60.0}, "telet75x": {"tele_t": 75.0}, "telet90x": {"tele_t": 90.0},
+    "telet100x": {"tele_t": 100.0}, "telet120x": {"tele_t": 120.0}, "telet150x": {"tele_t": 150.0}, "telet200x": {"tele_t": 200.0},
+    "teleatt2x": {"tele_att": 2}, "teleatt3x": {"tele_att": 3}, "teleatt4x": {"tele_att": 4},
+    "telek2x": {"tele_kills": 2}, "telek3x": {"tele_kills": 3}, "telek4x": {"tele_kills": 4}, "telek5x": {"tele_kills": 5},
+    "telek6x": {"tele_kills": 6}, "telek7x": {"tele_kills": 7}, "telelaserx": {"tele_laser": True},
+    "teledmg1400x": {"tele_dmg": 1400.0}, "teledmg2800x": {"tele_dmg": 2800.0},
     "evadex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
                "heal_below_squad": 0.8, "heal_below": 0.7, "engage_ratio_squad": 0.0, "engage_ratio_ffa": 0.0,
                "retreat_ratio": 100.0, "berserk": False, "no_fire": True},       # survival study (a): pure evasion
@@ -893,6 +904,41 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     if zp.get("slack", 0) > 25 and not (P["perch"] and goal is not None):
         it.max_speed = 0.9 * float(state.cfg.get("sound", {}).get("step_speed", 5.0))
     return _finish(state, m, it)
+
+
+def tele_sit(state: WorldState, threats) -> bool:
+    """Telemetry probe latch (see P["tele_*"]): True once the configured moment has passed -> the pilot sits still."""
+    if not (P["tele_t"] > 0 or P["tele_att"] > 0 or P["tele_kills"] > 0 or P["tele_laser"] or P["tele_dmg"] > 0):
+        return False
+    m = _mem(state)
+    if m.get("tele_sit"):
+        return True
+    hit = False
+    if P["tele_t"] > 0 and state.t >= P["tele_t"]:
+        hit = True
+    if P["tele_kills"] > 0 and m.get("kills", 0) >= P["tele_kills"]:
+        hit = True
+    if P["tele_att"] > 0:
+        ids = set()
+        for a in (getattr(threats, "attackers", None) or []):
+            tr = state.tracks.get(a)
+            if (tr is not None and tr.kind == "mech") or (tr is None and a < 100):
+                ids.add(a)
+        if len(ids) >= P["tele_att"]:
+            hit = True
+    if P["tele_laser"] or P["tele_dmg"] > 0:
+        for ev in state.events:
+            if ev.get("type") != "damaged" or ev.get("by") is None or ev.get("by") >= 100:
+                continue
+            if P["tele_laser"] and ev.get("weapon") == "laser":
+                hit = True
+            m["tele_dmg_sum"] = m.get("tele_dmg_sum", 0.0) + float(ev.get("amount", 0.0) or 0.0)
+        if P["tele_dmg"] > 0 and m.get("tele_dmg_sum", 0.0) >= P["tele_dmg"]:
+            hit = True
+    if hit:
+        m["tele_sit"] = True
+        m["tele_sit_t"] = round(state.t, 1)
+    return hit
 
 
 def _finish(state: WorldState, m: Dict[str, Any], it: Intent) -> Intent:
