@@ -252,7 +252,29 @@ estimate (v4 hide-5 vs base +0.26, v6 hide-3 vs hide-5 +0.29, v7 +0.22; pooled v
 not proven, and in the direction the real showdown data favours. It survives longer (115 vs 109 s) with fewer kills.
 v8 checks that peek (good-54) does not collapse in FFA.
 
-SELFPLAY_V8
+**v8** (seeds 8000–8099, 100 matches): peek vs base in FFA (no-collapse check)
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx+peekx | 400 | 9.08 ± 0.46 | 1.44 | 110 | 54/400 | 12 (383/400) | 58 | 0 |
+| var:laser+nav3x+fixx+steadyx | 400 | 8.76 ± 0.45 | 1.28 | 104 | 39/400 | 12 (389/400) | 45 | 0 |
+
+Reading: peek does not hurt in FFA (+0.32 here).
+
+**Peek's conditional effect** (48 traced squad matches; per 0.1 s frame, peek cycle running vs strafing with a laser
+held, by distinct mechs that hit us in the last 3 s; `eval/diag/peek_cond.py`):
+
+| state | attackers (3 s) | seconds | taken/s | dealt/s |
+| --- | --- | --- | --- | --- |
+| peek cycle | 0 | 260 | 0.0 | 207.5 |
+| peek cycle | 1 | 172 | 50.0 | 192.3 |
+| peek cycle | 2+ | 39 | 118.9 | 261.3 |
+| strafe, laser held | 0 | 470 | 0.0 | 147.9 |
+| strafe, laser held | 1 | 251 | 53.2 | 208.8 |
+| strafe, laser held | 2+ | 117 | 133.7 | 212.6 |
+
+Inside a real peek cycle damage intake is only 6–11 % lower than strafing in the open: cover fighting as built is not
+the step change. Not iterated.
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
@@ -268,6 +290,7 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-59 | 5.33 | **commit** (kill conversion): = base; twin good-60 queued |
 | good-57 | 5.48 | **isolate** (fight one at a time from spots hidden from the other attackers): first draw; twin good-58 decides |
 | good-54 / good-56 | 5.44 / 5.15 | **peek** (fight from cover with the laser) and its twin: mean 5.30 = base. Sim diagnosis: the cycle runs in only 19 % of engage decisions (48 % no laser yet, 29 % no cover within 40 m), damage intake unchanged (20.7 vs 20.5/s): mostly the base policy. Not iterated |
 | good-52 | 5.17 | good-31 + jet climbs to 60 m: worse |
