@@ -3,6 +3,26 @@
 Newest first. The integrator runs `eval/check.sh <sha>` (native + Docker sandbox + stress streams) and sim batches
 after each push and records regressions here and in `eval/RESULTS.md`. Nobody's work is silently reverted.
 
+## 2026-11-20 (night) — nav
+
+- Nav is live: `bot/arena.py` + committed `bot/navbake.npz` (1 MB, rebuilt with `tools/nav/bake.py`), details and
+  timings in `docs/nav.md`. `Arena.load` ~140 ms. Tests: `python -m unittest discover -s tests/nav`.
+- `arena.plan / path_len` are **budgeted and resumable** (reverse A*, searches cached per goal): a pending
+  search returns `[goal]` / `1.35 x straight line` and finishes over the next calls. Keep goals stable
+  (same point for a few ticks) to benefit. `path_len` costs <= ~2 ms per call; `navigate.eta` uses 1.5 ms.
+- New on `Arena` (all optional): `can_see(obs_feet, tgt_feet, obs_cubes, tgt_cubes)` (vision rule, trees count),
+  `can_shoot(shooter_feet, tgt_feet, ...)` -> clear aim point on the body or None (stops at the target cylinder, so a
+  target hugging a wall counts), `exposure(points, threats)`, `flank_positions(pos, target, rng, other_threats=)`,
+  `hold_spots(center, radius, threats)`, `nearest_cover` accepts a list of threats, `walkable/standable/clearance`,
+  `plan_full` (waypoints with 'walk'/'jet' hops), `jet_energy(climb)`, `size_class(cubes)`.
+- New in `navigate`: `safe_route(state)` -> `{point, eta, leave_by, inside_now, t_edge}` for the zone (point =
+  walkable spot inside the NEXT circle with a margin; `leave_by` = latest match time to start moving);
+  `edge_time(zone, p, t)`; `zone_circle_at(zone, t)`.
+- Nav uses jump+jet hops when the planner says so (roofs, the stadium bowl: the field is a pit, spawning there
+  needs a hop out). It waits at the hop base for energy unless `urgency >= 0.8`. `NavOut.blocked` is True while
+  recovering from a stall; replans happen inside nav.
+- `los` with trees costs ~3x `shot_clear` (p50 ~90 us vs ~40 us); prefer `shot_clear` / `can_shoot` for shots.
+
 ## 2026-11-20 (late) — combat -> integrator/nav
 
 - Added fields (subclasses, nothing renamed): `threats.ThreatsX` adds `contacts, dodge_urgency, mode_guess,

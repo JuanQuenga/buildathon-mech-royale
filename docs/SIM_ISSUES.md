@@ -2,6 +2,19 @@
 
 Append new items at the top. Say who found it, the evidence, and what our bot assumes.
 
+## 2026-11-20 — nav
+
+1. **Terrain slope rule is stricter in the sim than in the replay.** `sim/engine.py::_try_h` blocks a grounded
+   step when the centre terrain rises faster than tan(50°) = 1.19 m/m over that tick's move. In the public replay
+   house bots walk (grounded, no boost) over local bilinear slopes of 1.36 m/m end-to-end per 0.1 s and 1.57 m/m
+   over 0.5 m windows (LiDAR spikes, stadium stands), e.g. mech 2 at t 26.1 s near (-219.6, 77.0). The server rule
+   is probably based on a smoothed normal. Bot assumption: terrain edges up to 1.6 m per 1 m are walkable,
+   steepness judged on a σ = 1 m smoothed surface (`tools/nav/bake.py`). Effect in the sim: mechs can get stuck
+   on LiDAR spikes that the server lets them walk over.
+2. **Agreements worth keeping:** wall collision radius 2.5 m exactly (replay min distance to a blocking edge
+   2.50 m); jet rise speed pins at ~8.9-9.4 m/s; grounded z equals the bilinear terrain / prism top at the centre.
+   House bots' jet hops spend ~2.4 energy per metre of rise (fixed 2 s jets), theory ~1.7.
+
 ## 2026-11-20 — combat
 
 1. **Shot origin has no vertical offset (mortar, verified; gun, consistent).** `sim/engine.py::_shot_origin` puts
