@@ -454,6 +454,20 @@ def main_process() -> None:
     place = None
     child_stats = None
     eof = False
+    hello_keep = None     # raw hello, to re-fork the policy if it ever dies mid-match
+    restarts = 0
+    dead = []             # pids of exited children (reaped lazily)
+
+    def child_gone():
+        nonlocal child
+        if child is not None:
+            dead.append(child[0])
+            for fd in child[1:]:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        child = None
 
     def read_stdin(timeout):
         nonlocal buf, eof
@@ -478,7 +492,7 @@ def main_process() -> None:
             pass
         except OSError:
             pending = b""
-            child = None
+            child_gone()
 
     def child_lines(deadline, want_tick):
         """Read child output until a reply for want_tick (or the deadline). Returns the action dict or None."""
@@ -499,7 +513,7 @@ def main_process() -> None:
                     chunk = b""
                 if not chunk:
                     log("policy process exited")
-                    child = None
+                    child_gone()
                     return None
                 cbuf += chunk
                 continue
@@ -575,6 +589,7 @@ def main_process() -> None:
                 continue
             kind = msg.get("type")
             if kind == "hello":
+                hello_keep = raw
                 if start_child(raw):
                     got = child_lines(time.perf_counter() + 15.0, "R")
                     if got is None:
@@ -590,6 +605,17 @@ def main_process() -> None:
         if latest is not None and not done:
             tick = latest.get("tick", 0)
             act = None
+            if child is None and hello_keep is not None and restarts < 3 and not eof:
+                # the policy died mid-match: re-fork it (it rebuilds its state; fallbacks until it answers)
+                restarts += 1
+                for pid in dead:
+                    try:
+                        os.waitpid(pid, os.WNOHANG)
+                    except OSError:
+                        pass
+                cbuf, pending = b"", b""
+                log(f"restarting policy process (#{restarts})")
+                start_child(hello_keep)
             if child is not None:
                 pending += latest_raw + b"\n"
                 act = child_lines(started + HARD_CUTOFF_S, tick)
@@ -611,6 +637,7 @@ def main_process() -> None:
         except Exception:
             pass
     info = _stats(None, lat, fallbacks, skipped, place)
+    info["policy_restarts"] = restarts
     if child_stats:
         info["policy"] = {k: v for k, v in child_stats.items() if k not in ("replies", "fallbacks", "place")}
         for k in ("brain", "errors", "overruns", "mod_p99_ms", "mod_max_ms", "init_ms"):
