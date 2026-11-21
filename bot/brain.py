@@ -607,9 +607,9 @@ def _face_yaw(state: WorldState, m: Dict[str, Any], fresh: List[EnemyThreat], zp
     v = state.vel
     if math.hypot(v[0], v[1]) > 2:
         # slow scan around the travel direction so the 120 deg wedge sees flanks
-        return math.atan2(v[1], v[0]) + 0.9 * math.sin(state.t * 0.8)
+        return math.atan2(v[1], v[0]) + 0.9 * math.sin(state.t * 0.8 + 1.0)
     # standing still: sweep the full circle (~10 s per turn) so nobody walks up on our blind side
-    return ((state.t * 0.6) % (2 * math.pi)) - math.pi
+    return ((state.t * 0.6 + 2.0) % (2 * math.pi)) - math.pi
 
 
 def _track_sounds(state: WorldState, m: Dict[str, Any]) -> None:
