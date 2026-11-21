@@ -205,6 +205,14 @@ def _gun_held(tg, intent, threats, state=None) -> bool:
     return True
 
 
+def _commit() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("commit", False))
+    except Exception:
+        return False
+
+
 def _look_around() -> bool:
     try:
         from .brain import P as BP
@@ -491,6 +499,8 @@ def _value(tg: _Tgt, intent: Intent, threats: Threats, state: WorldState, me: _M
         return 0.0          # brain: leave this one alone (squad conveyor)
     if intent.target_id is not None and tg.id == intent.target_id:
         v = max(v, 0.4) * 3.0
+        if _commit():
+            v *= 3.0           # A/B kill conversion: no convenience switching away from the committed target
     if tg.kind == "crate" and intent.shoot_crate == tg.id:
         v = max(v, 1.2)
     return v

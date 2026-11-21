@@ -85,6 +85,8 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "isolate": False,              # A/B structural: fight one at a time from spots hidden from the other attackers
+    "commit": False,               # A/B: stay on the committed target until it dies; else lowest effective HP
     "peek": False,                 # A/B structural: fight from cover with the laser (peek, fire, hide during cooldown)
     "ffa_strict": False,           # A/B: once squad evidence is strong, need 3 unexplained deaths before guessing ffa
     "open_hold": False,            # A/B: unarmed, first 45 s, round not known squad: never start a fight (only answer fire)
@@ -170,6 +172,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "openholdx": {"open_hold": True},
     "strictffax": {"ffa_strict": True},
     "peekx": {"peek": True},
+    "isolatex": {"isolate": True},
+    "commitx": {"commit": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
@@ -703,6 +707,11 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             if pk is not None:
                 m["heal"] = False
                 return _finish(state, m, pk)
+        if tgt is not None and fight["verdict"] == "engage" and P["isolate"]:
+            iso = _isolate_intent(state, m, tgt, hot)
+            if iso is not None:
+                m["heal"] = False
+                return _finish(state, m, iso)
         if tgt is not None and fight["verdict"] == "engage":
             m["heal"] = False
             it = Intent(mode="engage", goal=None, target_id=tgt.id, desired_range=_desired_range(state, tgt),
@@ -842,6 +851,20 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             r *= P["hunter_pref"]
         if r < best_r:
             best, best_r = e, r
+    if P["commit"] and best is not None:
+        # A/B kill conversion: only kills score (16 - place), so stay on the committed target until it dies, and
+        # otherwise pick the lowest effective HP (HP / our DPS at its range) in sight.
+        mm = _mem(state)
+        cands = [e for e in fresh if e.kind == "mech" and (e.visible or state.t - e.last_seen_t < 2.0) and e.dist < 230
+                 and not _spare(state, threats, e)]
+        cur = next((e for e in cands if e.id == mm.get("commit_id")), None)
+        if cur is None and cands:
+            cur = min(cands, key=lambda e: (e.hp if e.hp is not None else 1400.0) / max(1.0, my_dps(state, e.dist)))
+        if cur is not None and cur.id != best.id:
+            dps = max(1.0, my_dps(state, min(cur.dist, _desired_range(state, cur))))
+            best_r = ((cur.hp if cur.hp is not None else 1400.0) / dps) / their_ttk
+            best = cur
+        mm["commit_id"] = best.id
     out["target"], out["ratio"] = best, best_r
     sq = state.mode_guess == "squad"
     eng = P["engage_ratio_squad"] if sq else P["engage_ratio_ffa"]
@@ -894,6 +917,40 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             out["verdict"] = "engage"
             out["opportunity"] = True
     return out
+
+
+def _isolate_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: List[EnemyThreat]) -> Optional[Intent]:
+    """A/B `isolate` (structural, low damage intake without cover play): when other mechs besides the target have a
+    line on us, move to a spot (<= 40 m) hidden from them that still sees the target, i.e. fight the edge of the pack
+    one at a time. Real showdowns: the practice leaders take 24-28 dmg/s, we take 41/s."""
+    if state.arena is None:
+        return None
+    others = [e for e in sorted(hot, key=lambda e: e.dist) if e.id != tgt.id and e.kind == "mech" and e.visible
+              and e.los and e.dist < 160][:2]
+    ist = m.setdefault("iso_stat", {})
+    if not others:
+        ist["alone"] = ist.get("alone", 0) + 1
+        return None
+    t = state.t
+    im = m.setdefault("iso", {"spot": None, "t": -1e9, "key": None})
+    key = (tgt.id, tuple(sorted(e.id for e in others)))
+    if t - im["t"] > 1.0 or im["key"] != key or im["spot"] is None:
+        spot = None
+        try:
+            c = state.arena.nearest_cover(state.pos, [tuple(e.pos) for e in others], 40.0, budget_ms=2.5)
+            if c is not None and state.arena.can_shoot(c, tuple(tgt.pos)) is not None:
+                spot = c
+        except Exception:
+            spot = None
+        im.update(spot=spot, t=t, key=key)
+    spot = im["spot"]
+    if spot is None or not _inside_zone_soon(state, spot):
+        ist["none"] = ist.get("none", 0) + 1
+        return None
+    ist["active"] = ist.get("active", 0) + 1
+    return Intent(mode="engage", goal=tuple(spot), target_id=tgt.id, desired_range=None, urgency=0.5,
+                  face=yaw_to(state.pos, tgt.pos), allow_fire=True, avoid=[e.pos for e in others],
+                  reason=f"isolate {tgt.id} from {len(others)}")
 
 
 def _peek_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: List[EnemyThreat]) -> Optional[Intent]:
@@ -1455,7 +1512,7 @@ def summary(state: WorldState) -> Dict[str, Any]:
     except Exception:
         pass
     return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence,
-            "mode_first": m.get("mode_first"), "mode_flips": m.get("mode_flips", 0), "peek_stat": m.get("peek_stat"), "modes": m["modes"],
+            "mode_first": m.get("mode_first"), "mode_flips": m.get("mode_flips", 0), "peek_stat": m.get("peek_stat"), "iso_stat": m.get("iso_stat"), "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
             "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),
