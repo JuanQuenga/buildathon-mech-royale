@@ -354,7 +354,7 @@ def _assess(state: WorldState) -> ThreatsX:
         if age > 5.5:
             continue
         cand.append((math.dist(tr.pos, pos), tr, age))
-    cand.sort(key=lambda x: x[0])
+    cand.sort(key=lambda x: (x[1].kind != "mech", x[0]))   # LOS budget: mechs first, nearest first
     los_budget = MAX_LOS
     focus_on_me = 0
     for d, tr, age in cand:

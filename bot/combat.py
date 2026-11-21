@@ -602,7 +602,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
 
     # ---- lightning
     if lig and allow and lig_ready:
-        reserve = 20.0
+        reserve = 40.0 if (mode in ("retreat", "heal") or urgency >= 0.7) else 20.0   # keep jets for the escape
         if tg is not None and (tg.kind == "mech" and (tg.id in getattr(threats, "killable", []) or tg.charging or tg.dist < 25)):
             reserve = 6.0
         if me.energy >= float(zst.get("energy", 3)) + reserve:
@@ -763,10 +763,14 @@ def _laser_ctrl(state, intent, threats, me: _Me, mem, las, lst, tg, best, allow,
                 return False, las_opt[1], False, "laser-early"
             if auto_in <= 0.15:
                 return False, las_opt[1], False, "laser-forced"
+            if (mode in ("retreat", "heal") or urgency >= 0.7) and p >= 0.4:
+                return False, las_opt[1], False, "laser-release-to-run"   # charging halves our speed
             return True, las_opt[1], False, "laser-track"
         # no target in the beam: keep holding until just before the auto-fire, then release where we point
         if auto_in <= 0.15:
             return False, None, False, "laser-forced-blind"
+        if mode in ("retreat", "heal") or urgency >= 0.7:
+            return False, None, False, "laser-drop-to-run"           # full speed beats a blind charge
         return True, None, False, "laser-hold"
 
     # ----- not charging: start?

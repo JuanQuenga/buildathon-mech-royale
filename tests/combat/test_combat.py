@@ -131,6 +131,14 @@ class TestLaser(unittest.TestCase):
         out, _ = run(w, obs(tick=100, aim=(0.0, -0.01), weapons=self.ws(charge=0.75), mechs=[self.e]))
         self.assertTrue(out.fire[1])                 # keep charge, don't waste it into the wall
 
+    def test_release_when_retreat_starts(self):
+        out, _ = run(self.w, obs(tick=100, aim=(0.0, -0.01), weapons=self.ws(charge=0.4), mechs=[self.e]),
+                     Intent(mode="retreat", urgency=0.8))
+        self.assertFalse(out.fire[1])                 # let go: charging halves our speed
+        w = helpers.world(helpers.OpenArena())
+        out, _ = run(w, obs(tick=100, aim=(0.0, 0.0), weapons=self.ws(charge=0.4)), Intent(mode="retreat", urgency=0.8))
+        self.assertFalse(out.fire[1])
+
     def test_kill_shot_early(self):
         e = enemy(5, (120, 0, 0), hp=150)
         out, _ = run(self.w, obs(tick=100, aim=(0.0, -0.01), weapons=self.ws(charge=0.3), mechs=[e]))

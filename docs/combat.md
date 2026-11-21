@@ -1,6 +1,6 @@
 # Combat and threat model (`bot/combat.py`, `bot/threats.py`, `bot/ballistics.py`)
 
-Owner: combat. Standard library only. Tests: `python3 -m unittest discover -s tests/combat` (46 tests, no numpy, ~2 s).
+Owner: combat. Standard library only. Tests: `python3 -m unittest discover -s tests/combat` (48 tests, no numpy, ~2 s).
 Sim measurements: `sim/py tests/combat/duel_harness.py hitrate|duel ...` (needs numpy, uses `sim/`).
 
 ## Interfaces
@@ -141,9 +141,17 @@ strafing (holding 28 m with lightning), 10 seeds each:
 Full squad-mode matches (whole bot, 12 seeds): gun 555/728 = 76%, laser 40/42 = 95%, mortar 3/5, lightning ~100%
 (hit counts include chain hits). Mean score 1.9 (the house squad focuses the entrant; survival is brain/nav).
 
+Value of the module: FFA, 12 seeds, 2 copies each of HEAD vs HEAD with the original placeholder combat/threats
+(same brain/nav), `bot*2,bot2*2,expert*3,hard*4,brawler*3,sniper*2`: mean score 11.04 vs 7.92, kills/match 1.62
+vs 0.71; paired difference +3.1 (95% CI −1.1 … +7.3). FFA, 8 seeds, 2 copies vs built-ins only: 11.5.
+
+Evasion (what nav should do; `duel_harness.py evade`, expert gun, dmg/s taken): stand 107/93/72 at 60/120/180 m,
+strafe 1.2–2.5 s 109/77/61, strafe+dodge 89/61/47, juke 0.3–1.0 s 95/56/27. Juking beats reactive bullet dodging.
+
 Timing (threats.assess + combat.step, real `Arena`, one core, unloaded): over a recorded 865-decision sim match
-p50 0.09 ms, p99 1.8 ms, max 2.8 ms (`tests/combat/replay_smoke.py <obs.jsonl.gz>`); in the 300-obs kit stream
-p99 0.3 ms. Under 3–4 parallel sim jobs the per-module p99 rises to ~3 ms (CPU contention).
+thread-CPU p50 0.07 ms, p99 1.3 ms, max 2.1 ms; recorded FFA match (9 visible mechs, shells): p50 0.28, p99 0.6,
+max 0.7 ms (`tests/combat/replay_smoke.py <obs.jsonl.gz>`, prints wall and CPU). Shell impacts are cached per
+projectile id. Wall-clock numbers on the shared build box (load 60 on 16 cores) are scheduler noise. Under 3–4 parallel sim jobs the per-module p99 rises to ~3 ms (CPU contention).
 
 ## Known gaps
 
