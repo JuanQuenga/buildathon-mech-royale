@@ -85,6 +85,8 @@ class Contact:
 class ThreatsX(Threats):
     contacts: List[Contact] = field(default_factory=list)
     dodge_urgency: float = 0.0
+    dodge_shell: Optional[Tuple[float, float]] = None   # evasive unit vector for mortar shells only
+    shell_urgency: float = 0.0
     mode_guess: str = "unknown"
     killable: List[int] = field(default_factory=list)
     safe_dirs: List[Tuple[float, float]] = field(default_factory=list)
@@ -463,6 +465,7 @@ def _assess(state: WorldState) -> ThreatsX:
     npc_dmg = float(state.cfg.get("npc", {}).get("damage", 25.0))
     ground = _ground(state)
     dodge_x = dodge_y = 0.0
+    sh_x = sh_y = sh_u = 0.0
     urg = 0.0
     inc_dmg = 0.0
     walk = max(1.0, state.stat("walk_speed", 11.7))
@@ -494,6 +497,9 @@ def _assess(state: WorldState) -> ThreatsX:
                     w = max(0.2, u)
                     dodge_x += dvec[0] * w
                     dodge_y += dvec[1] * w
+                    sh_x += dvec[0] * w
+                    sh_y += dvec[1] * w
+                    sh_u = max(sh_u, u)
                     urg = max(urg, u)
                     inc_dmg += exp
             else:
@@ -546,6 +552,10 @@ def _assess(state: WorldState) -> ThreatsX:
         out.dodge = (dodge_x / nd, dodge_y / nd)
         out.dodge_urgency = urg
     out.incoming_damage = inc_dmg
+    ns = math.hypot(sh_x, sh_y)
+    if ns > 1e-6 and sh_u > 0:
+        out.dodge_shell = (sh_x / ns, sh_y / ns)
+        out.shell_urgency = sh_u
 
     # ---------------------------------------------------------------- aggregate
     mechs = [e for e in out.enemies if e.kind == "mech"]

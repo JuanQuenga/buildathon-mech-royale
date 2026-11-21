@@ -307,6 +307,59 @@ def duel(args):
             print("  ", r)
 
 
+def evade(args):
+    """Damage per second a built-in tier deals to us while we only move (no shooting back)."""
+    W = world()
+    for pattern in args.patterns.split(","):
+        for d in [float(x) for x in args.dists.split(",")]:
+            taken = 0.0
+            hits = 0
+            for rep in range(args.reps):
+                seed = 7000 + rep * 13 + int(d)
+                rng = random.Random(seed)
+                M, cfg = new_match(seed)
+                A, Bm = M.mechs[0], M.mechs[1]
+                for x in M.mechs[2:]:
+                    x.alive = False
+                M.alive_count = 2
+                pa, pb, ang = find_spot(W, rng, d)
+                place(M, A, pa, ang)
+                place(M, Bm, pb, ang + math.pi)
+                mk_weapons(M, A, ["gun"])
+                mk_weapons(M, Bm, args.enemy_loadout.split("+"))
+                A.hp = A.max_hp = 1e9
+                Bm.hp = Bm.max_hp = 1e9
+                bot = BuiltinBot(args.tier, W, cfg, seed, 1)
+                bot.p["retreat"] = 0.0
+                bot.p["pref"] = d
+                S = st.WorldState({"type": "hello", "slot": 0, "seed": seed, "config": cfg}, _arena())
+                base = pattern.replace("+dodge", "")
+                mover = Mover(base, random.Random(seed + 5), ang, keep=d)
+                intent = st.Intent(mode="retreat", allow_fire=False)
+                while M.t < args.secs:
+                    if M.tick % 2 == 0:
+                        mover.axis = math.atan2(Bm.pos[1] - A.pos[1], Bm.pos[0] - A.pos[0])
+                        mover.dist = math.hypot(Bm.pos[0] - A.pos[0], Bm.pos[1] - A.pos[1])
+                        vis = M._senses.visible_set([x for x in M.mechs if x.alive], want_items={A.id})
+                        obs = build_obs(M, A, vis[A.id], full=True)
+                        S.update(obs)
+                        th = TH.assess(S)
+                        out = CB.step(S, intent, th)
+                        for ev in obs["events"]:
+                            if ev.get("type") == "damaged" and ev.get("by") == Bm.id:
+                                taken += ev["amount"]
+                                hits += 1
+                        a = {"tick": obs["tick"], "aim": list(out.aim) if out.aim else [ang, 0.0]}
+                        a.update(mover.act(M, A))
+                        if pattern.endswith("+dodge") and th.dodge is not None and th.dodge_urgency > 0.15:
+                            a["move"] = list(th.dodge)
+                        M.apply_action(A, a)
+                        bo = build_obs(M, Bm, M._senses.visible_set([x for x in M.mechs if x.alive], want_items=set())[Bm.id], full=False)
+                        M.apply_action(Bm, bot.act(bo, None))
+                    M.step()
+            print(f"evade {pattern:12s} vs {args.tier}[{args.enemy_loadout}] d={int(d):3d}: dmg taken {taken / (args.reps * args.secs):6.1f}/s  hits {hits}", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -328,7 +381,17 @@ def main():
     d.add_argument("--keep", type=float, default=None, help="our legs hold this range (default: 28 m with lightning, else none)")
     d.add_argument("--secs", type=float, default=60.0)
     d.add_argument("--verbose", action="store_true")
+    e = sub.add_parser("evade")
+    e.add_argument("--tier", default="expert")
+    e.add_argument("--enemy-loadout", default="gun")
+    e.add_argument("--patterns", default="stand,walk,strafe,juke,jump,strafe+dodge,juke+dodge")
+    e.add_argument("--dists", default="60,120,180")
+    e.add_argument("--reps", type=int, default=3)
+    e.add_argument("--secs", type=float, default=15.0)
     a = ap.parse_args()
+    if a.cmd == "evade":
+        evade(a)
+        return
     if a.cmd == "hitrate":
         hitrate(a)
     else:

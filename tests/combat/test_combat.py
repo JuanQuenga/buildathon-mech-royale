@@ -230,6 +230,7 @@ class TestThreats(unittest.TestCase):
         self.assertIsNotNone(th.dodge)
         self.assertAlmostEqual(abs(th.dodge[1]), 1.0, places=3)    # sideways
         self.assertAlmostEqual(th.incoming[0].t_impact, 50 / 252, delta=0.02)
+        self.assertIsNone(th.dodge_shell)
 
     def test_missing_bullet_ignored(self):
         w = helpers.world(helpers.OpenArena())
@@ -252,6 +253,8 @@ class TestThreats(unittest.TestCase):
         self.assertAlmostEqual(r.t_impact, tf - 0.5, delta=0.1)
         self.assertLess(r.miss_dist, 4.0)
         self.assertLess(r.dodge[0], -0.9)            # run away from the blast (blast at +x)
+        self.assertIsNotNone(th.dodge_shell)
+        self.assertLess(th.dodge_shell[0], -0.9)
 
     def test_rear_hit_contact_and_face(self):
         w = helpers.world(helpers.OpenArena())

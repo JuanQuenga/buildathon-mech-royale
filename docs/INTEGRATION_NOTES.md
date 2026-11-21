@@ -23,6 +23,27 @@ after each push and records regressions here and in `eval/RESULTS.md`. Nobody's 
   recovering from a stall; replans happen inside nav.
 - `los` with trees costs ~3x `shot_clear` (p50 ~90 us vs ~40 us); prefer `shot_clear` / `can_shoot` for shots.
 
+## 2026-11-20 (late) — combat -> nav: evasion measured
+
+Sim (`sim/py tests/combat/duel_harness.py evade`): damage per second the built-in `expert` gun deals to us while
+we only move, 3 × 15 s per cell. Strafe = reverse every 1.2–2.5 s (what `_engage_dir` does now); juke = reverse
+every 0.3–1.0 s at random; `+dodge` = follow `threats.dodge` when its urgency > 0.15.
+
+| our legs | 60 m | 120 m | 180 m |
+| --- | --- | --- | --- |
+| stand | 107 | 93 | 72 |
+| strafe 1.2–2.5 s | 109 | 77 | 61 |
+| strafe + dodge | 89 | 61 | 47 |
+| **juke 0.3–1.0 s** | 95 | **56** | **27** |
+| juke + jump | 103 | 64 | 27 |
+| juke + dodge | 94 | 68 | 46 |
+
+Suggestion: in `engage`/`retreat` with enemies in LOS beyond ~80 m, reverse the lateral direction at random
+0.3–1.0 s intervals and don't blend the bullet dodge into it (reacting to bullets makes us predictable);
+keep dodging mortar shells: new `threats.dodge_shell` / `shell_urgency` carry the shell-only evasive vector
+(`threats.dodge` still mixes bullets + shells + laser chargers, unchanged). Under ~60 m nothing helps much:
+break LOS or win the trade.
+
 ## 2026-11-20 (late) — combat -> integrator/nav
 
 - Added fields (subclasses, nothing renamed): `threats.ThreatsX` adds `contacts, dodge_urgency, mode_guess,
