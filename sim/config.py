@@ -19,6 +19,8 @@ def load_config(path: str | None = None) -> dict:
 
 # Simulator switches for ambiguous rules (see ASSUMPTIONS.md). Override with --sim key=value.
 SIM_DEFAULTS = {
+    "slope_baseline": 2.0,            # terrain slope measured from here to 2 m ahead (replay-fitted; see CALIBRATION.md)
+    "fire_first_tick_only": True,     # check stream: held triggers fire only on the first tick of a decision, no cooldown carry
     "spread_is_sigma": True,          # gun spread_deg is the Gaussian sigma (else: 2-sigma)
     "lightning_cone_half": True,      # cone_deg is the half-angle (|dyaw| <= cone_deg); else full width
     "mortar_direct_plus_splash": False,  # replay: a direct hit deals `damage` only (one hit event), full concussion

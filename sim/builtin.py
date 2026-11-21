@@ -347,7 +347,7 @@ class BuiltinBot:
                 pm = self._mortar_pitch(dh, tz, v, g)
                 if pm is not None:
                     a["aim"] = [yaw, pm]
-                    if abs(me["aim"][1] - pm) < 0.05 and err < math.radians(P["tol"] + 1):
+                    if abs(me["aim"][1] - pm) < 0.08 and err < math.radians(P["tol"] + 2.5):
                         fire = [False, True]
         else:
             # look where we walk, or toward hunt target / last sound

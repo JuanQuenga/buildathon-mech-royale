@@ -749,8 +749,14 @@ class Match:
                 g1 = W.ground(nx, ny)
                 if abs(s - g1) < 1e-3 and g1 > g0:
                     d = math.hypot(dx, dy)
-                    if d > 1e-6 and (g1 - g0) / d > math.tan(math.radians(st["max_slope_deg"])):
-                        return nx, ny, False, (-dx / d, -dy / d)
+                    # slope over a look-ahead baseline (replay: 0 of 10,990 grounded steps exceed tan 50deg over 2 m,
+                    # while per-tick rises on LiDAR spikes reach 1.7 m/m)
+                    bl = self.sim["slope_baseline"]
+                    if d > 1e-6:
+                        ux, uy = dx / d, dy / d
+                        rise = (W.ground(x + ux * bl, y + uy * bl) - g0) / bl
+                        if rise > math.tan(math.radians(st["max_slope_deg"])):
+                            return nx, ny, False, (-ux, -uy)
                 # head room after stepping up
                 b2, n2 = W.disc_block(nx, ny, r, s, step, h)
                 if b2:
@@ -801,6 +807,10 @@ class Match:
         return end, d, False
 
     def _weapons(self, m, dt):
+        # check stream: a held gun fires on the first tick after a decision only (gaps of exactly 6 ticks at a
+        # 0.24 s cooldown, observed cooldown never 0.14); the replay shows the same for mortar, lightning, laser start
+        first = (self.tick % self.decide_every == 0) or not self.sim["fire_first_tick_only"]
+        carry = not self.sim["fire_first_tick_only"]
         for slot in (0, 1):
             w = m.weapons[slot]
             if w is None:
@@ -814,27 +824,27 @@ class Match:
                     if w.reload <= 1e-9:
                         w.reload = 0.0
                         w.ammo = int(ws["mag"])
-                if trig and w.cooldown <= 1e-9 and w.reload <= 0 and w.ammo > 0:
+                if trig and first and w.cooldown <= 1e-9 and w.reload <= 0 and w.ammo > 0:
                     self._fire_gun(m, ws)
                     w.ammo -= 1
-                    w.cooldown += ws["cooldown"]
+                    w.cooldown = (w.cooldown if carry else 0.0) + ws["cooldown"]
                     if w.ammo <= 0:
                         w.reload = ws["reload"]
                         self._sound("reload", m.pos, m.id)
                 if w.cooldown < 0:
                     w.cooldown = 0.0
             elif w.kind == "mortar":
-                if trig and w.cooldown <= 1e-9:
+                if trig and first and w.cooldown <= 1e-9:
                     self._fire_mortar(m, ws)
                     w.cooldown = ws["cooldown"]
                 if w.cooldown < 0:
                     w.cooldown = 0.0
             elif w.kind == "lightning":
-                if trig and w.cooldown <= 1e-9 and m.energy >= ws["energy"] - 1e-9:
+                if trig and first and w.cooldown <= 1e-9 and m.energy >= ws["energy"] - 1e-9:
                     m.energy -= ws["energy"]
                     m.last_spend_t = self.t
                     self._fire_lightning(m, ws)
-                    w.cooldown += ws["cooldown"]
+                    w.cooldown = (w.cooldown if carry else 0.0) + ws["cooldown"]
                 if w.cooldown < 0:
                     w.cooldown = 0.0
             elif w.kind == "laser":
@@ -859,7 +869,7 @@ class Match:
                         self._fire_laser(m, w, ws)
                     elif w.hold >= ws["hold_s"] - 1e-9:
                         self._fire_laser(m, w, ws)
-                elif trig and w.cooldown <= 1e-9 and not shorted:
+                elif trig and first and w.cooldown <= 1e-9 and not shorted:
                     w.charging = True
                     w.charge = 0.0
                     w.hold = 0.0

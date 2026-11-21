@@ -110,7 +110,7 @@ place(M, b, X0 + 40, Y0)
 a.aim = a.cmd_aim = [0.0, math.atan2((b.pos[2] + 4.5) - (a.pos[2] + 7), 40)]
 b.aim = b.cmd_aim = [math.pi, 0.0]
 fires = []
-for k in range(80):
+for k in range(90):
     if M.tick % 2 == 0:
         M.apply_action(a, {"tick": M.tick, "fire": [True, False], "aim": a.cmd_aim})
         M.apply_action(b, {"tick": M.tick})
@@ -120,7 +120,7 @@ for k in range(80):
         fires.append(M.tick)
 gaps = [y - x for x, y in zip(fires, fires[1:])]
 check("gun: 12 shots then reload", len(fires) == 12 and a.weapons[0].reload > 0, f"{len(fires)} shots, reload {a.weapons[0].reload:.2f}")
-check("gun: mean interval 0.24 s", abs(sum(gaps) / len(gaps) * 0.05 - 0.24) < 0.02, f"gaps {gaps}")
+check("gun: held fire every 6 ticks (first tick of a decision; check stream)", set(gaps) == {6}, f"gaps {gaps}")
 check("gun: front hits do 45", 1400 - b.hp == 45 * len([1 for _ in range(round((1400 - b.hp) / 45))]) and b.hp < 1400, f"hp {b.hp}")
 
 # ---- rear hit x1.5
