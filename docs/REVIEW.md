@@ -93,7 +93,25 @@ laser holder beyond 100 m.
 summarised by `eval/selfplay.py`): v1 = 8 of our variants + 2 example bots + 6 built-ins, seeds 1000–1199; v2 = 4×
 good-31 policy vs 4× good-31 + ffax + 2 example + 6 built-ins, seeds 2000–2199. Results below when done.
 
-SELFPLAY_PLACEHOLDER
+**v1** (seeds 1000–1099, 100 matches; stopped at half to run v2 first; 95 % CI per row; "ever 'squad'" = the
+detector guessed squad at some point before switching to ffa):
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:base | 100 | 9.15 ± 0.91 | 1.22 | 109 | 16/100 | 11 (96/100) | 7 | 0 |
+| var:laser+nav3x+fixx+hidex | 100 | 9.04 ± 0.91 | 1.30 | 103 | 15/100 | 11 (97/100) | 13 | 0 |
+| var:laser+nav3x+fixx+steadyx | 200 | 8.91 ± 0.64 | 1.31 | 101 | 22/200 | 12 (193/200) | 23 | 0 |
+| var:laser+nav3x+fixx+ragex+steadyx | 100 | 8.79 ± 0.94 | 1.29 | 104 | 10/100 | 12 (97/100) | 14 | 0 |
+| var:laser+nav3x+fixx | 100 | 8.78 ± 0.90 | 1.32 | 101 | 10/100 | 12 (97/100) | 12 | 0 |
+| var:laser+nav3x+fixx+steadyx+discx | 100 | 8.73 ± 0.94 | 1.35 | 102 | 10/100 | 12 (96/100) | 16 | 0 |
+| var:laser+nav3x+fixx+steadyx+sboostx | 100 | 8.48 ± 0.92 | 1.26 | 95 | 6/100 | 12 (96/100) | 15 | 0 |
+
+Reading: in FFA no squad-tuned variant is a liability (steady, rage, hide, laser-first all within ±0.4); boost-strafe
+is lowest (dies earlier) but not significantly. The detector reaches `ffa` at a median 11–12 s; ~3 % of our seats
+die before it does. 20 % of our seats die before 30 s, mostly holding only the gun (mean 2.2 points): the same
+opening-brawl pattern as the real showdowns, and the target of `ffax` (v2).
+
+SELFPLAY_V2
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
