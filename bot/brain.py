@@ -63,6 +63,8 @@ P: Dict[str, Any] = {
                                    # hunter is shooting; loot is devalued only near hunters; cube value cube_value_greed
     "cube_grab_m": 35.0,
     "cube_value_greed": 50.0,
+    "squad_picky": False,          # A/B: squad rounds use the FFA opportunity rule (no other mech within 150 m unless
+                                   # the target is busy); good-3 mostly stayed in "unknown" (picky) mode and scored 4.88
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -81,6 +83,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "greed": {"cube_greed": True},
     "seek": {"cube_greed": True, "seek": True},                       # hunt the next house bot instead of holding
     "hret": {"cube_greed": True, "hunter_retreat": 0.3},              # break contact when a 2nd hunter is in sight
+    "picky": {"cube_greed": True, "squad_picky": True, "engage_ratio_squad": 0.6},  # unknown-mode fight rules in squad
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
 
@@ -706,7 +709,7 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         omin = P["opp_min_hp"] if state.mode_guess == "ffa" else P["opp_min_hp_squad"]
         if _spare(state, threats, best):
             return out
-        if hpf > omin and (best_r < eng or (busy and best_r < eng * 1.6)) and (sq or not others or busy):
+        if hpf > omin and (best_r < eng or (busy and best_r < eng * 1.6)) and ((sq and not P["squad_picky"]) or not others or busy):
             out["verdict"] = "engage"
             out["opportunity"] = True
         elif best.dist < 70 and best_r < 1.0 and (hpf > omin or state.mode_guess == "ffa" or best.facing_me):
