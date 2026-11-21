@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .state import Intent, NavOut, Threats, WorldState, ang_diff, dist2d, unit2
 
-PLAN_BUDGET_MS = 1.5
+PLAN_BUDGET_MS = 1.0
 REPLAN_S = 4.0
 WP_REACH = 2.5
 STALL_WINDOW = 1.2          # s of history used to detect a stall
@@ -439,7 +439,8 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
                     if True:
                         if m.get("jet") is None and _need_replan(state, m, goal):
                             st_, path = ar.plan_full(state.pos, goal, cubes=_cubes(state), budget_ms=PLAN_BUDGET_MS,
-                                                     jet_cap=JET_CAP, avoid=_avoid_list(state, threats, intent))
+                                                     jet_cap=JET_CAP, avoid=_avoid_list(state, threats, intent),
+                                                     smooth_ms=0.8)
                             m["stats"]["replans"] += 1
                             m["goal"] = tuple(goal)
                             m["plan_t"] = state.t
