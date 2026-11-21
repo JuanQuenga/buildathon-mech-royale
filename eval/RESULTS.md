@@ -24,6 +24,9 @@ official numbers and say so here in bold.**
 | 11-21 ~03:37 | 195a423 | good-17 | 5.06 | good-14 + scale (drops first, crate/drone values up): −0.11, no gain |
 | 11-21 ~03:52 | ac81dc0 | good-22 | **5.21** | good-15 + stale jet-hop fix inside nav3. New best |
 | 11-21 ~04:00 | 0e4b36f | good-25 | 4.96 | good-22 + combat hops (jump+jet ~10 m every 2–3 s in fights): **−0.25**. Hops on routes help (good-16), hopping in fights hurts |
+| 11-21 ~04:33 | 6720a56 | good-27 | **5.25** | good-22 + rage (hunt by memory/sound, engage ratio 1.6, fight from 40 % HP, berserk). New best (+0.04) |
+| 11-21 ~04:37 | 4fb7820 | good-26 | 5.04 | good-22 + hide (break LOS from every visible house bot, spare passives): −0.17. The real squad does not lose enough bots without us |
+| 11-21 ~04:40 | 23e597b | good-30 | 5.19 | good-22 + juke (0.3–1.0 s reversals beyond 80 m): neutral |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 

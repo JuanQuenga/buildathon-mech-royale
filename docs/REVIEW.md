@@ -5,32 +5,20 @@ Newest first. Each tag passed the native gate on the MacBook (`NATIVE_ONLY=1 eva
 recorded stream, slow-policy and crash tests, big and late stress streams, 0 missed replies). Run the Docker gate
 before submitting.
 
-| Prio | Tag | Commit | Single hypothesis it tests | Expected official |
+| Prio | Tag | Commit | Single hypothesis it tests (compare with good-27 = rage, 5.25) | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-27` | 6720a56 | **Radical aggression** on good-22 (5.21): hunt house bots remembered within 60 s and 400 m, or toward recent gunfire; engage ratio 1.1→1.6; start fights from 40 % HP; seek from 50 % HP; heal below 40 %; never retreat unless the TTK ratio is above 4 | 5.3 |
-| 2 | `good-26` | 4fb78205 | **Radical survival-first** on good-22: in squad rounds break line of sight from every visible house bot (shared vision is how the squad finds us), spare passive bots, never hunt, no drones, heal from 80 %; fight only mechs that hunt us. Sim: alive 188 s vs ~115 s but 4.23, because sim house bots never die without us before the final zone. This tests whether the real squad loses bots to the zone/drones mid-game | 4.5–5.8 |
-| 3 | `good-30` | 23e597be | **Juke** on good-22: strafe reversals every 0.3–1.0 s beyond 80 m (normal: 1.2–2.4 s). Movement changes have the largest official effects (±0.25–0.4); the sim rejected juke (−0.47), but the sim has been wrong about movement before | 5.3 |
-| 4 | `good-31` | 1f7fa6fa | **Steady strafe** on good-22: reversals every 3–5 s (better own aim, a more predictable target). The opposite of good-30 | 5.2 |
-| 5 | `good-19` | 692371d | **Explore for a laser** until 120 s while armed without one, never take a mortar (sim: gun+lightning ≈4.5 vs gun+laser ≈6) | 5.25 |
-| 6 | `good-23` | 810982c | **Berserk** on good-22 (laser + nav3 + hop fix): in squad/unknown rounds never retreat unless the TTK ratio is above 4. 90 % of sim deaths happen in retreat mode, and retreating in the open from gunners at 80–100 m does not break contact (sim seed 11: 30 s of retreat/heal/engage dithering, 1095 → 69 HP) | 5.2 |
-| 7 | `good-20` | 375d715 | **More aggression** on good-15 (laser + good-3 nav, 5.19): engage ratio 1.1→1.6, start fights from 40 % HP (was 60 %), heal below 40 % (was 55 %). The heal-more variant (good-8) lost 0.17 | 5.3 |
-| 8 | `good-18` | ec61cd7 | **Break contact when a second hunter is in sight** (unless the target is below 30 % HP): the sim's deaths are 2–7 hunters converging | 5.2 |
-| 9 | `good-21` | 2f800aa | **Seek by memory and by sound** on good-15: walk to remembered house bots, or toward gunfire heard in the last 6 s (110 m along the bearing) | 5.3 |
-| 10 | `good-24` | 7788a2d | **Never take a mortar, and give up a run for a weapon under fire after 6 s** on good-22. In the sim gun+mortar matches score ≈2.8, and one 12 s run onto a roof under fire went 1355 → 275 HP | 5.25 |
+| 1 | `good-31` | 1f7fa6fa | (queued already) steady strafe on good-22 | 5.2 |
+| 2 | `good-32` | 0947af6 | **Range**: holding a laser, fight mechs from 170 m (normal: 28 m with lightning, 90 m with gun+laser). Tests whether the house tiers' aim falls off with range while our hitscan laser does not (sim +0.19, noise) | 5.35 |
+| 3 | `good-33` | 18ce57f | **First weapon**: explore for a laser until 120 s while armed without one, never take a mortar (sim: gun+laser ≈6 points vs gun+lightning ≈4.5, gun+mortar ≈2.8) | 5.3 |
+| 4 | `good-34` | 709fd65 | **Duel discipline**: break contact whenever a second hunter is in sight (unless the target is below 30 % HP). This check now overrides rage's never-retreat. Contrasts "one hunter at a time" with rage | 5.25 |
 
-**Conditional: insert right after good-26 only if good-26 (hide) scores ≥ 5.3.**
+Dropped as superseded by rage (which includes aggro, berserk and seek-by-sound): good-18, good-19, good-20, good-21, good-23 and good-24.
+The hybrids good-28/29 were skipped (hide 5.04). Base for new tags: good-27's profile `laser+nav3x+fixx+ragex`.
 
-| Tag | Commit | Hypothesis |
-| --- | --- | --- |
-| `good-28` | adbc3804 | Hybrid: hide (as good-26) until 240 s, then play good-22 normally |
-| `good-29` | 190dcca7 | Hybrid: hide until 6 mechs are dead (≤10 alive), then play good-22 normally |
-
-Submitted: good-25 (combat hops) 4.96, dropped. Base for new tags: good-22's profile `laser+nav3x+fixx`.
-
-Official so far: good-22 5.21, good-25 4.96, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
+Official so far: good-27 5.25, good-22 5.21, good-30 5.19, good-26 5.04, good-25 4.96, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
 ## Recommended final entry
-`good-22` (ac81dc0, laser first + good-3 navigation + stale-hop fix), official **5.21**, until something beats it officially.
+`good-27` (6720a56, rage: laser first + good-3 nav + hop fix + aggressive hunting), official **5.25**, until something beats it officially.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
