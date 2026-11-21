@@ -72,3 +72,4 @@ small effects.
 | 11-21 ~04:20 (sim de87b36) | 0e30c54 | + use_zone_field=0 | squad | 64 | 3.28 | 3.25 | −0.03 (−0.33..+0.27) | neutral; keep field (safer zone ETAs) |
 | 11-21 ~04:50 (sim de87b36) | good-3 | d0e666d (good-4) | squad | 64 | 3.59 | 3.66 | +0.06 (−0.33..+0.47) | zone 2→0 |
 | 11-21 ~04:50 (sim de87b36) | good-3 | d0e666d (good-4) | ffa | 64 | 10.88 | 11.33 | +0.45 (−0.62..+1.58) | survived 21→26, kills 1.78→2.08, zone 0→1 |
+| 11-21 ~05:20 (sim 3c9d011) | good-3 (2 copies) | good-4 (2 copies), **same matches** + 12 built-ins | ffa h2h | 24 (48 samples each) | 10.04 | 9.69 | −0.35 (±2.2) | noise, but good-3 better on 16/24 seeds and more kills (1.92 vs 1.23); good-4 0 zone deaths vs 2. Worth an official practice run of both. |
