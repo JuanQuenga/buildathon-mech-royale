@@ -175,6 +175,12 @@ PROFILES: Dict[str, Dict[str, Any]] = {
 }
 
 
+# Re-roll deltas r1x..r64x: behaviour-neutral idle torso-scan phase shifts. Each re-rolls every trajectory of the policy
+# it is added to, giving an independent official draw of the same policy (qualification insurance; eval/make_rerolls.sh).
+for _n in range(1, 65):
+    PROFILES["r%dx" % _n] = {"scan_phase": round(0.29 + 0.4 * _n, 3)}
+
+
 def _env_overrides() -> None:
     """MECH_BRAIN='heal_below=0.7,engage_ratio_squad=0.8' overrides tunables (eval A/B only)."""
     import os
