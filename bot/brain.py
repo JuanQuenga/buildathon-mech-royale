@@ -154,6 +154,10 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "chaosx": {"scan_phase": 1.0},
     "discx": {"gun_disc_m": 150.0},
     "chaos2x": {"scan_phase": 2.5},
+    "chaos3x": {"scan_phase": 4.0},
+    "chaos4x": {"scan_phase": 5.5},
+    "chaos5x": {"scan_phase": 0.5},
+    "chaos6x": {"scan_phase": 3.3},
     "sboostx": {"strafe_boost": 80.0},
     "sboost50x": {"strafe_boost": 50.0},          # more boost: on above 50 energy, off below 20
     "widex": {"strafe_wide": True},
