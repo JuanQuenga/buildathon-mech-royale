@@ -184,3 +184,4 @@ Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
 | good-77 | cubex + drop95x (supply drops first, reach 60 s) | 5.45 | **5.19** |
 | good-78 | keepgunx: gun valued above lightning (no gun-for-lightning swap) | 5.38 | **5.33** |
 | good-79 | coverfixx: retreat cover hidden from the nearest three threats (bug: `_cover_from` used only the first threat) | 5.42 (88 % of deaths happen in retreat) | |
+| good-80 | cubex twin (r40x) | 5.45 | |

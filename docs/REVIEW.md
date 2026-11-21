@@ -16,11 +16,10 @@
 **The submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it). Predictions vs
 official results: `eval/RESULTS.md` ("Predictions before scoring").
 
-Current queue (15:40): outside-review fixes good-75 (cubes priced by exposure), good-76 (fire-control order fix),
-good-77 (cubes + supply drops first), good-78 (keep the gun), then the isolate re-rolls good-ri42 … ri62. Review
-claims checked against the protocol: first drop called at 70 s, lands at 95 s (full HP, full energy, 3 cubes after
-4 s alone in the 8 m ring), +4 % max HP and damage per cube to 10, 5 % size per cube, rear hits ×1.5: all correct;
-cubes also trigger upgrade offers at 1, 3, 6, 10 cubes.
+Current queue (16:00): good-79 (retreat cover against the three nearest threats), good-80 (cubex twin), then
+the isolate re-rolls good-ri42 … ri62. Outside-review batch: cubes 5.46, fire-control fix 5.23, cubes + drops
+5.19, keep gun 5.33. Review claims checked against the protocol (first drop at 95 s with full HP + 3 cubes,
++4 % HP/damage per cube, rear ×1.5): all correct.
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -351,6 +350,10 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-78 | 5.33 | keep the gun (no gun-for-lightning swap) |
+| good-77 | 5.19 | cubes + supply drops first |
+| good-76 | 5.23 | fire-control order fix (re-check gun shot after laser aim override) |
+| good-75 | 5.46 | **cubes priced by exposure** (outside review); twin good-80 queued |
 | good-ri41 | 5.17 | first isolate re-roll (isolate mean 5.36 over 3 draws) |
 | good-73 | 5.38 | weave: sideways weave while retreating |
 | good-41 | 5.23 | widex: full sideways weight while closing range |
