@@ -88,6 +88,8 @@ P: Dict[str, Any] = {
     "berserk_max_ratio": 4.0,      # ...but still retreat from hopeless fights (TTK ratio above this)
     "hide": False,                 # A/B survival-first: squad/unknown rounds, no fight on us: break line of sight from
                                    # every visible house bot (shared vision is how the squad finds us), never hunt
+    "perch": False,                # A/B: hold on a tall roof (10-35 m above the terrain) inside the next circle instead of
+                                   # on the ground (ground-only routes cost -0.29 officially; roofs make pursuers jet up)
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -133,6 +135,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
               "heal_below_squad": 0.8, "heal_below": 0.7},
     "ragex": {"engage_ratio_squad": 1.6, "opp_min_hp_squad": 0.4, "heal_below_squad": 0.4, "seek": True, "seek_min_hp": 0.5,
               "seek_sound": True, "berserk": True, "seek_mem_s": 60.0, "seek_max_m": 400.0},
+    "perchx": {"perch": True},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
@@ -713,7 +716,7 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     goal = _hold_point(state, zp)
     it = Intent(mode="hold", goal=goal, urgency=0.1, face=face, reason="hold")
     # drift silently when there's time: walking under sound.step_speed makes no step sounds
-    if zp.get("slack", 0) > 25:
+    if zp.get("slack", 0) > 25 and not (P["perch"] and goal is not None):
         it.max_speed = 0.9 * float(state.cfg.get("sound", {}).get("step_speed", 5.0))
     return _finish(state, m, it)
 
@@ -1169,10 +1172,58 @@ def _seek_choice(state: WorldState, m, zp, hpf, face) -> Optional[Intent]:
     return Intent(mode="loot", goal=best.pos, urgency=0.3, face=yaw_to(state.pos, best.pos), reason=f"seek {best.id}")
 
 
+def _perch_point(state: WorldState):
+    """Nearest tall-roof spot inside the next circle (cached per zone phase). None if unavailable."""
+    z, ar = state.zone, state.arena
+    if not z or ar is None or not getattr(ar, "ok_nav", False):
+        return None
+    m = _mem(state)
+    c1, r1 = z["next_center"], float(z["next_radius"])
+    pc = m.get("perch_cache")
+    if pc is None or pc[0] != (round(c1[0]), round(c1[1]), round(r1)) or dist2d(pc[2], state.pos) > 120:
+        key = (round(c1[0]), round(c1[1]), round(r1))
+        cands = []
+        R = max(0.0, r1 - 15.0)
+        step = 12.0
+        n = int(220.0 / step)
+        ox, oy = state.pos[0], state.pos[1]
+        try:
+            for i in range(-n, n + 1):
+                for j in range(-n, n + 1):
+                    x, y = ox + i * step, oy + j * step
+                    if (x - c1[0]) ** 2 + (y - c1[1]) ** 2 > R * R or (i * i + j * j) * step * step > 220.0 ** 2:
+                        continue
+                    sz = ar.surface(x, y)
+                    dz = sz - ar.height(x, y)
+                    if 10.0 <= dz <= 35.0 and ar.standable(x, y, 0) and ar.clearance(x, y) >= 4.0:
+                        cands.append((x, y, sz))
+        except Exception:
+            cands = []
+        pc = (key, cands, (state.pos[0], state.pos[1]))
+        m["perch_cache"] = pc
+    cands = pc[1]
+    if not cands:
+        return None
+    sp = m.get("perch_spot")
+    if sp is not None and sp in cands:
+        return sp
+    best = min(cands, key=lambda c: (c[0] - state.pos[0]) ** 2 + (c[1] - state.pos[1]) ** 2)
+    if dist2d(best, state.pos) > 220:
+        return None
+    m["perch_spot"] = best
+    return best
+
+
 def _hold_point(state: WorldState, zp):
     z = state.zone
     if not z:
         return None
+    if P["perch"]:
+        sp = _perch_point(state)
+        if sp is not None:
+            if dist2d(sp, state.pos) < 3.0 and abs(state.pos[2] - sp[2]) < 2.0:
+                return None
+            return sp
     c1, r1 = z["next_center"], float(z["next_radius"])
     d = dist2d(state.pos, c1)
     # stay put if comfortably inside (sitting still is silent); else drift toward the centre
