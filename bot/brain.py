@@ -84,6 +84,7 @@ P: Dict[str, Any] = {
     "scan_phase": 0.0,             # chaos control: idle torso-scan phase shift (behaviour-neutral re-roll of trajectories)
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
+    "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
     "ffa_stand": False,            # A/B FFA-only: no real cover within reach -> keep fighting instead of an open-ground retreat
     "gun_disc_m": 0.0,             # A/B >0: no gun fire at a mech beyond this unless it fights us / is our target / killable
     "air_lead": False,             # A/B: gun lead for airborne targets from their observed vertical acceleration
@@ -158,6 +159,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "discx": {"gun_disc_m": 150.0},
     "ffax": {"ffa_tactics": True},
     "ffastandx": {"ffa_stand": True},
+    "lookx": {"look_around": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},

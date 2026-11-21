@@ -187,6 +187,14 @@ def _gun_held(tg, intent, threats, state=None) -> bool:
     return True
 
 
+def _look_around() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("look_around", False))
+    except Exception:
+        return False
+
+
 def _air_lead() -> bool:
     try:
         from .brain import P as BP
@@ -949,9 +957,14 @@ def _idle_aim(state: WorldState, intent: Intent, threats: Threats, me: _Me, mem)
             hd = max(1.0, math.hypot(worst.pos[0] - me.pos[0], worst.pos[1] - me.pos[1]))
             pitch = math.atan2(worst.pos[2] + 4.5 - (me.pos[2] + me.muzzle), hd)
         return fy, pitch
+    cs = [c for c in getattr(threats, "contacts", []) if t - c.t < 4.0]
+    if _look_around() and not cs and (state.weapon_kinds() + [None, None])[1] is None:
+        # A/B: unarmed (slot 1 empty): spin the torso near its max rate so the 120 deg vision wedge sweeps 360 deg
+        # every ~1.7 s and reveals every pickup within 200 m (sim FFA: only 45 % armed by 15 s, 22 % never)
+        mem["spin"] = B.wrap(mem.get("spin", me.aim[0]) + 0.35)
+        return mem["spin"], 0.0
     if intent.face is not None:
         return float(intent.face), 0.0
-    cs = [c for c in getattr(threats, "contacts", []) if t - c.t < 4.0]
     if cs:
         c = cs[0]
         return math.atan2(c.pos[1] - me.pos[1], c.pos[0] - me.pos[0]), 0.0
