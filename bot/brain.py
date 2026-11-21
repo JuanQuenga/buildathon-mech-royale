@@ -80,6 +80,7 @@ P: Dict[str, Any] = {
                                    # gunners hit 37-88 % inside 80 m, 20-34 % beyond; the laser is hitscan to 280 m)
     "jet_cap": 40.0,               # nav3 only: max planned jet climb (m); 0 = ground-only routes
     "hopfix3": False,              # nav3 only: good-4's stale jet-hop state fix
+    "combat_hop": False,           # nav3 only: periodic jump + jet hops while fighting
     "nav3": False,                 # A/B: use the frozen good-3 navigation module (bot/navigate3.py)
     "hop_legacy": False,           # A/B: navigate uses good-3's jet-hop energy rules (read by navigate._hop_legacy)
     "berserk": False,              # A/B: squad/unknown rounds: never retreat from a fight (90 % of deaths came in
@@ -124,6 +125,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "fixx": {"hopfix3": True},
     "capx": {"run_for_weapon_cap_s": 6.0},
     "ghostx": {"conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0},
+    "hopcx": {"combat_hop": True},
+    "jet60x": {"jet_cap": 60.0, "roof_weapon_dz": 35.0},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing

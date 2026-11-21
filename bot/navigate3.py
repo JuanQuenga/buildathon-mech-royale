@@ -582,9 +582,22 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
         if state.t - (m.get("last_ok_t") or 0) > 3.0:
             m["n_stall"] = 0
         m["last_ok_t"] = state.t if m.get("n_stall", 0) == 0 else m.get("last_ok_t", state.t)
+    # ---------------- A/B `combat_hop`: in a fight, jump + jet ~10 m every 2.2-3.4 s (house bots spend ~30 % of
+    # their life airborne; vertical motion defeats horizontal lead). Ground-only routes cost -0.29 officially.
+    chop = None
+    if _flag("combat_hop") and mode in ("engage", "retreat") and m.get("jet") is None and m.get("recover") is None:
+        chop = m.setdefault("chop", {"next": 0.0, "until": -1.0, "z0": z})
+        if grounded and state.t >= chop["next"] and energy > 55 and not out.blocked:
+            out.jump = True
+            chop["until"], chop["z0"] = state.t + 1.0, z
+            chop["next"] = state.t + 2.2 + ((state.tick * 7919) % 13) / 10.0
+        if not grounded and state.t < chop["until"] and energy > 15 and z < chop["z0"] + 10.0:
+            out.boost = True
+        else:
+            chop = None
     # In the air `boost` means JET. Outside an explicit jet hop / jet recovery never jet: walking off a roof
     # edge (planned drop) with boost held would rocket us onto the next roof.
-    if not grounded and m.get("jet") is None:
+    if not grounded and m.get("jet") is None and chop is None:
         rec = m.get("recover")
         if not (rec is not None and rec.get("jet")):
             out.boost = False
