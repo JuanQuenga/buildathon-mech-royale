@@ -205,6 +205,14 @@ def _gun_held(tg, intent, threats, state=None) -> bool:
     return True
 
 
+def _no_fire() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("no_fire", False))
+    except Exception:
+        return False
+
+
 def _commit() -> bool:
     try:
         from .brain import P as BP
@@ -793,6 +801,8 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
 
     out.aim = (B.wrap(cmd[0]), min(me.maxp, max(me.minp, cmd[1])))
     out.fire = (bool(fire[0]), bool(fire[1]))
+    if _no_fire():
+        out.fire = (False, False)       # sim study only: pure evasion (no kills -> no squad escalation)
     return out
 
 

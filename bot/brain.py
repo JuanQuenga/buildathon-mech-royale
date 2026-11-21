@@ -85,6 +85,7 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "no_fire": False,              # sim study only: never fire (pure evasion baseline)
     "isolate": False,              # A/B structural: fight one at a time from spots hidden from the other attackers
     "commit": False,               # A/B: stay on the committed target until it dies; else lowest effective HP
     "peek": False,                 # A/B structural: fight from cover with the laser (peek, fire, hide during cooldown)
@@ -174,6 +175,11 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "peekx": {"peek": True},
     "isolatex": {"isolate": True},
     "commitx": {"commit": True},
+    "evadex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
+               "heal_below_squad": 0.8, "heal_below": 0.7, "engage_ratio_squad": 0.0, "engage_ratio_ffa": 0.0,
+               "retreat_ratio": 100.0, "berserk": False, "no_fire": True},       # survival study (a): pure evasion
+    "evade2x": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
+                "heal_below_squad": 0.8, "heal_below": 0.7, "berserk": False},  # survival study (b): fight only hunters
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
