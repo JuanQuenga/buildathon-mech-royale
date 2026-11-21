@@ -1,29 +1,33 @@
-# Handoff (Linux agent), 11-21 ~10:20 ET
+# Handoff (Linux agent), 11-21 ~14:55 ET
 
 Read `docs/REVIEW.md` first: it holds the submit queue (the coordinator syncs to it at :07/:27/:47), the official
 results, family means, the FFA analysis and the final-entry recommendation. This file is the working state.
 
-## Where things stand
-- **Practice board:** our best draw is good-31 = 5.56 (rank ~21 of 250; the cut (32nd) is ~5.27 and rising; leader
-  kyoto-max 6.31). The base policy (`laser+nav3x+fixx+steadyx`) has a true mean of **5.34** (9 official draws,
-  SD 0.13). No single-knob variant has beaten it beyond noise.
-- **Official noise:** behaviour-neutral re-rolls of one policy: SD ≈ 0.13 per 48-match run (the sim overstates it at
-  0.27). One run resolves effects ≳ 0.3; identical builds repeat to ±0.03.
-- **Practice scoring:** 16 − place only. House bots never fight each other, so points = our kills before we die
-  (sim: 98 % of points). We die at ~100–110 s after ~5 kills. The lever is damage taken / survival time.
-- **Structural branch:** good-54 = base + `peekx` (fight from cover with the laser) is at the top of the queue.
-  If it beats the base mean by ≳ 0.25, re-roll it once (`eval/make_rerolls.sh "laser+nav3x+fixx+steadyx+peekx" 17 32`
-  makes gated re-roll tags) and make it the new base; consider extending peek to gun duels.
-- **FFA final candidate:** good-53 = base + `openholdx` (never start a fight while unarmed in the first 45 s unless
-  the round is known squad) + `ffahidex` (FFA-only survival-first while > 5 alive). Evidence: real showdowns (our
-  three opening deaths were fights we started unarmed; FFA placement follows damage taken, not dealt), FFA self-play
-  ffahide +0.26 ± 0.48 (200 matches), openhold sim-neutral, openhold practice 5.35 (no cost).
+## Where things stand (14:55 ET)
+- **Practice board:** best draw good-31 = 5.56, rank ~37; the cut (32nd) is 5.65 and rising. Base policy
+  (`laser+nav3x+fixx+steadyx`) true mean 5.34 (SD 0.13 per draw). Best-supported variant: isolate (`+isolatex`),
+  5.48 / 5.44 = 5.46. The queue (`coord/queue/mech.txt`, submitted automatically by the coordinator's runner) holds
+  isolate re-rolls good-ri41…ri62: draws that can beat the cut.
+- **Official findings today** (see REVIEW "Movement while fighting" and the results table): lateral movement while
+  fighting the squad is worth ~1 point (standing 4.19, 6 m/s 4.77, base 5.34), more lateral is not better (widex
+  5.23); breaking contact is bad (4.73); every other knob or structural idea landed within noise of 5.34.
+- **The sim does not rank variants** (arm-first: sim +0.22 ± 0.12 over 300 paired seeds, official 5.23). Use it for
+  crashes, regressions and mechanism diagnosis (traced runs with `MECH_DEBUG=1`), not for selection.
+- **Scoring:** 16 − place only; the final zone (radius 0 by ~6:55) ends every match; survivors at 8:00 are ranked
+  by HP. In the sim pure evasion survives to ~300 s and dies when the whole squad engages, never reaching the
+  ~380 s window where house bots start dying to the zone, so practice points = our kills before death.
+- **FFA final candidate:** good-55 = base + `openholdx` + `ffahide3x` (see REVIEW "Recommended final entry").
+
+## How to submit and read scores
+- Rewrite `coord/queue/mech.txt` (one pushed, gated tag per line, in priority order). Write a one-line prediction
+  in `eval/RESULTS.md` before queueing. `coord/wait_result.sh mech <tag> 600` blocks until it scores;
+  `coord/results/mech.latest.md` has the last 25 scores and the live board.
 
 ## Running / queued background jobs (all detached; check `ps -eo args | grep run_matches`)
-- FFA self-play chain on cores 0–2 (`taskset`), 25-seed chunks into `mech-royale/work/sim/sp_<v>_<seed>.jsonl`,
-  `.done` marker when finished: v6 (ffahide 5 vs 3 alive) → v7 (good-53 combo vs base, 200 matches) → v8 (peek vs base).
-  Summarise with `python3 eval/selfplay.py <files>`; per-match paired differences are the honest CI (seats in one
-  match are not independent).
+- Nothing long-running except the isolate re-roll factory (`eval/make_rerolls.sh ... 47 62 good-ri`, log in
+  `mech-royale/work/rerolls_iso2.log`). All self-play (v1–v8) and the 300-seed paired runs are finished; results are
+  in REVIEW. Summarise self-play with `python3 eval/selfplay.py <files>` (per-match paired differences are the honest
+  CI).
 - Cast recorder (`eval/diag/cast/cap.mjs`) writes `mech-royale/work/cast/live3.jsonl` / `state3.jsonl` until ~13:00.
   We are not in the Top-16 Showdown lineup while ranked below 16th.
 

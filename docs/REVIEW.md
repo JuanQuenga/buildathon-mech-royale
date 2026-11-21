@@ -311,6 +311,10 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-73 | 5.38 | weave: sideways weave while retreating |
+| good-41 | 5.23 | widex: full sideways weight while closing range |
+| good-70 | 5.21 | isolate + cycle |
+| good-69 / good-58 | 5.21 / 5.44 | cycle twin (cycle mean 5.32) / isolate twin (isolate mean 5.46) |
 | good-66 | **4.19** | stand to fire with ≤ 1 attacker in sight: disastrous |
 | good-65 | **4.77** | slow6: cap speed at 6 m/s while engaging: clearly worse (moving slowly while fighting the squad costs ~0.6) |
 | good-64 | 5.44 | arm-first + cycle |
