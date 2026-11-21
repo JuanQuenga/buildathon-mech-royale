@@ -150,6 +150,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "stillx": {"strafe_mode": "still"},
     "airx": {"air_lead": True},
     "sboostx": {"strafe_boost": 80.0},
+    "sboost50x": {"strafe_boost": 50.0},          # more boost: on above 50 energy, off below 20
     "widex": {"strafe_wide": True},
     "hide240x": {"hide": True, "hide_until": 240.0, "conveyor": True, "conveyor_until": 240.0},
     "hide10x": {"hide": True, "hide_alive_min": 10, "conveyor": True, "conveyor_until": 480.0},
