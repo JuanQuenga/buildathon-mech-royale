@@ -111,7 +111,19 @@ is lowest (dies earlier) but not significantly. The detector reaches `ffa` at a 
 die before it does. 20 % of our seats die before 30 s, mostly holding only the gun (mean 2.2 points): the same
 opening-brawl pattern as the real showdowns, and the target of `ffax` (v2).
 
-SELFPLAY_V2
+**v2** (seeds 2000–2099, 100 matches, 4 copies of each per match):
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx | 400 | 8.97 ± 0.44 | 1.39 | 103 | 46/400 | 11 (390/400) | 38 | 0 |
+| var:laser+nav3x+fixx+steadyx+ffax | 400 | 8.94 ± 0.45 | 1.41 | 102 | 49/400 | 11 (391/400) | 35 | 0 |
+
+Reading: `ffax` changes nothing in the sim (−0.03 ± 0.6); early deaths stay at ~22 % before 30 s. Diagnosis of those
+early deaths (v2): 93 % die in `retreat`, usually gun-only with 2+ attackers, and 77/87 after FFA was detected. The
+problem is open-ground retreats under fire, not starting fights. v3 tests `ffastandx` (FFA-only: without real cover
+within reach, keep fighting instead of retreating in the open).
+
+SELFPLAY_V3
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
