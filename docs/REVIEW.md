@@ -35,10 +35,22 @@ break contact at the 2nd hunter). Steady-base versions follow as good-39+.
   entry by the **family mean over draws** and its FFA behaviour, not the single best draw; a chaos re-roll that
   scores higher is the same policy as good-31 and equally good as an entry.
 
+## Family means (pick the final entry by these, not by the best single draw)
+| Family | Draws | Mean | Notes |
+| --- | --- | --- | --- |
+| **steady strafe on laser + nav3 + hop fix** (good-31 policy and its re-rolls) | 31: 5.56, 46: 5.29 | **5.43** (n=2) | the recommended policy; good-47, good-49, good-50 are further re-rolls |
+| steady family incl. variants | 31, 46, 35, 36, 37, 38, 39 | 5.31 (n=7) | no variant of it beats it beyond noise |
+| non-steady laser + nav3 (+ hop fix) | 15: 5.19, 22: 5.21, 27: 5.25, 30: 5.19 | 5.21 (n=4) | |
+| nav3 without laser first | 14: 5.17, 17: 5.06, 16: 4.88 | 5.04 | |
+| old navigation (good-4 nav) | 4: 4.58, 5: 4.46, 6: 4.96, 7: 5.00, 8: 4.79, 10: 5.10, 11: 5.00 | 4.84 | the one clearly real effect so far: navigation (+0.3–0.4) |
+SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is suggestive, not established.
+
 ## Official results (48 fixed-seed practice matches each; identical-build noise ±0.03, between builds ~±0.1)
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-46 | 5.29 | **re-roll of good-31** (behaviour-neutral chaos control): good-31 drew high |
+| good-39 | 5.27 | good-31 + boost-run strafe above 80 energy |
 | good-38 | 5.35 | good-31 with no reversals (orbit one way) |
 | good-35 | 5.31 | good-31 + rage (stack: does not stack, −0.25) |
 | good-27 | 5.25 | good-22 + rage (hunt by memory/sound, engage ratio 1.6, fight from 40 % HP, berserk) |
@@ -60,7 +72,7 @@ Pending: the queue above. good-45 (boost above 50 energy, 77e995c) is gated and 
 
 
 ## Recommended final entry
-**`good-31` (1f7fa6f, profile `laser+nav3x+fixx+steadyx`: laser first + good-3 nav + stale-hop fix + steady strafe), official 5.56.**
+**The good-31 policy (`laser+nav3x+fixx+steadyx`: laser first + good-3 nav + stale-hop fix + steady strafe)**: best family mean (5.43 over 2 draws). Enter whichever tag of this policy scores best (good-31 at 5.56 today; re-rolls good-46/47/49/50 are the same policy and equally valid entries).
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
