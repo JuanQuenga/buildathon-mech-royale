@@ -3,19 +3,42 @@
 ## Please submit
 The table order is the queue. Every tag listed passed the **full Linux gate** (`eval/check.sh <tag>`: unit tests,
 native + Docker with the exact sandbox flags, big and late stress streams, slow-policy and crash guards, 0 missed
-replies). **good-46 and good-47 are the noise checks (behaviour-neutral re-rolls of good-31): run them first, back to back.**
+replies). Two tracks: experiments (table) first, then re-roll filler (track 1). FFA work (track 2) is in "FFA self-play" below.
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-46` | 8ff6019 | **Noise check (chaos control)**: good-31's exact behaviour with the idle torso-scan phase shifted (as good-9 did for good-3). Re-rolls every trajectory without changing the policy. If it lands ~5.3, good-31's 5.56 was a lucky draw and the true level of everything is ~5.3 | 5.3–5.56 |
-| 2 | `good-47` | b0592f6 | Second chaos control of good-31 (scan phase +2.5). With good-46, gives the mean of good-31's behaviour over three draws | 5.3–5.56 |
-| 3 | `good-39` | 72710d6 | good-31 + **boost-run the engage strafe** (19.5 vs 11.7 m/s) while energy > 80, off below 50 (keeps a jet reserve). Top-16 bots boost 27–44 % of their firing time in the cast; if house bots under-lead, lateral speed is what makes them miss. Sim: squad +0.38 ± 0.58, FFA +0.33 ± 2.0 (no collapse). Profile `…steadyx+sboostx` | 5.65 |
-| 4 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
-| 5 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 6 | `good-48` | 0208ea2 | good-31 + **gun discipline**: no opportunistic gun fire at a mech beyond 150 m unless it already fights us, is the brain's target or is killable. Real FFA (6 AM showdown): gun-only, we opened fire on a laser bot at 176 m and lost 1,400 HP to four full beams in 8 s. In practice it may also stop waking passive house bots with 40 %-accurate long shots. Sim: squad +0.19 ± 0.49, FFA −0.20 ± 2.0. Profile `…steadyx+discx` | 5.4 |
-| 7 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
-| 8 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 9 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 1 | `good-47` | b0592f6 | Second chaos control of good-31 (scan phase +2.5). With good-46, gives the mean of good-31's behaviour over three draws | 5.3–5.56 |
+| 2 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
+| 3 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 4 | `good-48` | 0208ea2 | good-31 + **gun discipline**: no opportunistic gun fire at a mech beyond 150 m unless it already fights us, is the brain's target or is killable. Real FFA (6 AM showdown): gun-only, we opened fire on a laser bot at 176 m and lost 1,400 HP to four full beams in 8 s. In practice it may also stop waking passive house bots with 40 %-accurate long shots. Sim: squad +0.19 ± 0.49, FFA −0.20 ± 2.0. Profile `…steadyx+discx` | 5.4 |
+| 5 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
+| 6 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 7 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+
+### Filler: qualification-insurance re-rolls (track 1)
+Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
+(`r<n>x`), so each is an independent official draw of the best-mean policy. Submit them, in order, in every slot not
+used by an experiment above. Made and gated by `eval/make_rerolls.sh "laser+nav3x+fixx+steadyx" 1 16` (branch
+`var/R<n>`, tag only after a full gate pass). Tags present: see `git tag -l 'good-r*'`; the list below is what passed.
+
+| Order | Tag | Commit |
+| --- | --- | --- |
+| 1 | `good-r1` | 0b3d535 |
+| 2 | `good-r2` | a3de7d6 |
+| 3 | `good-r3` | 3539b7c |
+| 4 | `good-r4` | 0647f5f |
+| 5 | `good-r5` | 964946c |
+| 6 | `good-r6` | fe55d11 |
+| 7 | `good-r7` | 7b21405 |
+| 8 | `good-r8` | 90709e2 |
+| 9 | `good-r9` | e0c167c |
+| 10 | `good-r10` | 0fb8dcd |
+| 11 | `good-r11` | 15b725a |
+| 12 | `good-r12` | cd320aa |
+| 13 | `good-r13` | 17f7e06 |
+| 14 | `good-r14` | 98dc39d |
+| 15 | `good-r15` | 6ebae40 |
+| 16 | `good-r16` | 7f0977e |
 
 Superseded (rage base without steady strafe; gated but less informative now, run only if the queue is empty):
 `good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
