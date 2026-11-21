@@ -23,13 +23,26 @@ Official so far: good-15 5.19, good-14 5.17, good-10 5.10, good-7 5.00, good-11 
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
-brain intent (zone rotation, fight/retreat, heal cycle, loot, supply drop, hold) → navigation (path planner, jet hops)
-→ combat (led gun, laser state machine, lightning) → inventory (weapon take/swap, upgrades). Details in
+brain intent (zone rotation, fight/retreat, heal cycle, loot, supply drop, seek, hold) → navigation (path planner,
+jet hops) → combat (led gun, laser state machine, lightning) → inventory (weapon take/swap, upgrades). Details in
 `docs/HANDOFF.md`, `docs/combat.md`, `docs/nav.md`.
 
+**Variants are profiles.** `bot/brain.py: DEFAULT_PROFILE` selects one (the submitted image has no env). Profiles
+compose with `+` (e.g. `laser+nav3x`), and `MECH_PROFILE=...` overrides locally. Each tag is a one-line commit on
+a `var/*` branch that flips `DEFAULT_PROFILE`, so `main` keeps `base`. `nav3x` swaps in `bot/navigate3.py`, a frozen
+copy of good-3's navigation.
+
 ## Evidence so far
-- Official: good-4 4.58, good-3 4.88 (same 48 fixed seeds). The sim rated them equal (squad 3.66 vs 3.59), so small
-  sim differences do not predict official ones; only official runs decide.
-- Sim calibration (MacBook, good-4, 48 seeds): default squad 3.69; gun cadence 5 ticks 3.29; all-engage at 360 s
-  3.38; **one extra attacker per two losses (join_per_loss=0.5) 4.88**. Escalation speed is the lever that moves the
-  sim toward the official level; the official 4.58 sits between the default and 0.5.
+- **Official runs are the instrument.** An identical resubmission moves the score ±0.03. A behaviour-neutral
+  perturbation (good-9) moved it −0.08. So tag-to-tag noise is about ±0.1.
+- **The sim cannot rank variants.** Paired noise is ±0.4 at 96 seeds, and the same profile on the same seeds scored
+  5.38 and 5.09 on two runs. The sim also rated good-4 ≥ good-3, which reality reversed. Use it for crashes, FFA
+  sanity and large effects only.
+- **Navigation is a real-game lever.** good-4's jet-hop energy rules cost score: good-5 (good-4 + good-3 brain)
+  scored 4.46 vs good-3's 4.88, and reverting navigate.py gave +0.17 on seek (good-14) and +0.09 on laser (good-15).
+- **Post-good-4 brain work helped:** hunter model, weapon-first, pickup-memory fix, 2-death FFA guess and
+  cube_greed together scored 4.96 (good-6) vs 4.58 (good-4).
+- **Laser first** gave +0.14 on greed (good-10) and 0 on seek (good-11).
+- **Seek** gave +0.04 (good-7). **Fresh** (heal after kill, new fights at 85 % HP) gave −0.17 (good-8).
+- Sim calibration: escalation speed is the lever (`--squad join_per_loss=0.6` puts good-4 near its official
+  level). The sim's FFA scores for the nav3 profiles are not worse than the old nav.
