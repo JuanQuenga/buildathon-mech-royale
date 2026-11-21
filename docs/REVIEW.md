@@ -16,10 +16,16 @@ before submitting.
 | 7 | `good-21` | 2f800aa | **Seek by memory and by sound** on good-15: walk to remembered house bots, or toward gunfire heard in the last 6 s (110 m along the bearing) | 5.3 |
 | 8 | `good-24` | 7788a2d | **Never take a mortar, and give up a run for a weapon under fire after 6 s** on good-22. In the sim gun+mortar matches score ≈2.8, and one 12 s run onto a roof under fire went 1355 → 275 HP | 5.25 |
 
-Submitted: good-22 5.21 (new best), good-25 (combat hops) scoring.
-Base for new tags: good-22's profile `laser+nav3x+fixx`.
+**Conditional: insert right after good-26 only if good-26 (hide) scores ≥ 5.3.**
 
-Official so far: good-22 5.21, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
+| Tag | Commit | Hypothesis |
+| --- | --- | --- |
+| `good-28` | adbc3804 | Hybrid: hide (as good-26) until 240 s, then play good-22 normally |
+| `good-29` | 190dcca7 | Hybrid: hide until 6 mechs are dead (≤10 alive), then play good-22 normally |
+
+Submitted: good-25 (combat hops) 4.96, dropped. Base for new tags: good-22's profile `laser+nav3x+fixx`.
+
+Official so far: good-22 5.21, good-25 4.96, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
 ## Recommended final entry
 `good-22` (ac81dc0, laser first + good-3 navigation + stale-hop fix), official **5.21**, until something beats it officially.
