@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .state import Intent, NavOut, Threats, WorldState, ang_diff, dist2d, unit2
 
-PLAN_BUDGET_MS = 2.5
+PLAN_BUDGET_MS = 1.5
 REPLAN_S = 4.0
 WP_REACH = 2.5
 STALL_WINDOW = 1.2          # s of history used to detect a stall

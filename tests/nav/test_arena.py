@@ -147,6 +147,32 @@ class TestReplay(unittest.TestCase):
         self.assertEqual(bad, 0, f"{bad}/{n} body samples inside prisms")
 
     @unittest.skipUnless(os.path.exists(REPLAY), "replay not available")
+    def test_server_beams_agree_with_shot_clear(self):
+        """Laser beams / lightning arcs in the replay are server-traced: clear up to their end, and a beam
+        that stopped early (no hit, < range) stopped at a prism or the terrain."""
+        n = stops = 0
+        with gzip.open(REPLAY, "rt") as f:
+            f.readline()
+            for line in f:
+                for e in json.loads(line).get("ev", []):
+                    if e["e"] not in ("laser", "zap"):
+                        continue
+                    pts = [e["from"], e["to"]] if e["e"] == "laser" else e["path"]
+                    for a, b in zip(pts, pts[1:]):
+                        L = math.dist(a, b)
+                        if L < 1:
+                            continue
+                        u = [(b[i] - a[i]) / L for i in range(3)]
+                        self.assertTrue(A.shot_clear(a, [b[i] - u[i] * 0.6 for i in range(3)]), (a, b))
+                        n += 1
+                        if e["e"] == "laser" and not e.get("hits") and L < 279:
+                            stops += 1
+                            beyond = [b[i] + u[i] * 1.0 for i in range(3)]
+                            self.assertTrue(not A.shot_clear(a, beyond) or abs(b[2] - A.height(b[0], b[1])) < 0.1)
+        self.assertGreater(n, 50)
+        self.assertGreater(stops, 5)
+
+    @unittest.skipUnless(os.path.exists(REPLAY), "replay not available")
     def test_grounded_mechs_on_baked_surface(self):
         errs = []
         with gzip.open(REPLAY, "rt") as f:

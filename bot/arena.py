@@ -225,6 +225,9 @@ class Arena:
         self.CZ = self.TZ + 0.5 * (self.CB + self.TH)
         self.CHZ = np.maximum(0.5, 0.5 * (self.TH - self.CB))
         self.n_trees = len(T)
+        # one gather per query: columns TX TY TZ CB TR CX CY CZ CR CHZ
+        self.TREES = np.ascontiguousarray(np.stack([self.TX, self.TY, self.TZ, self.CB, self.TR, self.CX, self.CY,
+                                                    self.CZ, np.maximum(self.CR, 0.3), self.CHZ], axis=1))
         cells: Dict[int, list] = {}
         for t in range(self.n_trees):
             r = max(self.CR[t], 0.5) + 0.5
@@ -292,9 +295,11 @@ class Arena:
         self.DOFF = [di + dj * self.BX for di, dj in DIRS]
         self.DLEN = [B * (SQ2 if di and dj else 1.0) for di, dj in DIRS]
         self._DOFFSET = set(self.DOFF)
+        self._dmap = {o: d for d, o in enumerate(self.DOFF)}
         jd = [tuple(v) for v in meta.get("jdirs", [])]
         self.JOFF = [di + dj * self.BX for di, dj in jd]
         self.JLEN = [B * math.hypot(di, dj) for di, dj in jd]
+        self._jmap = {o: d for d, o in enumerate(self.JOFF)}
         if "jmask" in z.files and jd:
             self.jmask = [array.array("H", z["jmask"][k].astype("<u2").tobytes()) for k in range(self.K)]
             self.jclimb = [z["jclimb"][k].tobytes() for k in range(self.K)]
@@ -528,19 +533,18 @@ class Arena:
             return False
         ids = np.unique(np.concatenate(parts)) if len(parts) > 1 else parts[0]
         dx, dy, dz = bx - ax, by - ay, bz - az
+        P = self.TREES[ids]
+        tx, ty, tz, cb, tr, ccx, ccy, ccz, cr, hz = P.T
         # trunks: vertical cylinders from z to z + crownBase
-        tx, ty = self.TX[ids], self.TY[ids]
         L2 = dx * dx + dy * dy
         if L2 > 1e-9:
             s = np.clip(((tx - ax) * dx + (ty - ay) * dy) / L2, 0.0, 1.0)
             d = np.hypot(ax + dx * s - tx, ay + dy * s - ty)
             zs = az + dz * s
-            if ((d <= self.TR[ids]) & (zs >= self.TZ[ids]) & (zs <= self.TZ[ids] + self.CB[ids])).any():
+            if ((d <= tr) & (zs >= tz) & (zs <= tz + cb)).any():
                 return True
         # crowns: ellipsoid chords
-        cr = np.maximum(self.CR[ids], 0.3)
-        hz = self.CHZ[ids]
-        px, py, pz = (ax - self.CX[ids]) / cr, (ay - self.CY[ids]) / cr, (az - self.CZ[ids]) / hz
+        px, py, pz = (ax - ccx) / cr, (ay - ccy) / cr, (az - ccz) / hz
         qx, qy, qz = dx / cr, dy / cr, dz / hz
         A = qx * qx + qy * qy + qz * qz
         Bq = 2 * (px * qx + py * qy + pz * qz)
@@ -835,15 +839,12 @@ class Arena:
     def edge_kind(self, a: int, b: int, k=0):
         """('walk', 0) or ('jet', climb_m) for consecutive path nodes a -> b."""
         dd = b - a
-        em = self.emask[k]
-        for d in range(8):
-            if self.DOFF[d] == dd and (em[a] >> d) & 1:
-                return ("walk", 0.0)
-        jm = self.jmask[k]
-        nj = len(self.JOFF)
-        for d in range(nj):
-            if self.JOFF[d] == dd and (jm[a] >> d) & 1:
-                return ("jet", self.jclimb[k][a * nj + d] * 0.25)
+        d = self._dmap.get(dd)
+        if d is not None and (self.emask[k][a] >> d) & 1:
+            return ("walk", 0.0)
+        d = self._jmap.get(dd)
+        if d is not None and (self.jmask[k][a] >> d) & 1:
+            return ("jet", self.jclimb[k][a * len(self.JOFF) + d] * 0.25)
         return ("walk", 0.0)
 
     def plan_nodes(self, start: Vec3, goal: Vec3, k=0, budget_ms=3.0, jet_cap=40.0):
@@ -873,10 +874,13 @@ class Arena:
             out.append(n)
         return "ok", out
 
-    def smooth(self, x0, y0, nodes: List[int], k=0, max_checks=80) -> List[Tuple[float, float]]:
-        """String-pull a walk-only node path from (x0, y0) with walk-line checks (2D waypoints excl. start)."""
+    def smooth(self, x0, y0, nodes: List[int], k=0, max_checks=80, t_end=None) -> List[Tuple[float, float]]:
+        """String-pull a walk-only node path from (x0, y0) with walk-line checks (2D waypoints excl. start).
+        Past max_checks or the t_end deadline the remaining nodes are returned raw (navigate shortcuts them
+        on the fly and the periodic replan smooths them later)."""
         xs, ys = self.NXY[k]
-        pts = [(xs[n], ys[n]) for n in nodes]
+        nz = self.NZ[k]
+        pts = [(xs[n], ys[n], nz[n]) for n in nodes]
         if not pts:
             return []
         out = []
@@ -885,7 +889,7 @@ class Arena:
         n = len(pts)
         checks = 0
         while i < n:
-            if checks >= max_checks:
+            if checks >= max_checks or (t_end is not None and time.perf_counter() > t_end):
                 out.extend(pts[i:])
                 break
             hi = min(n - 1, i + 12)
@@ -905,11 +909,12 @@ class Arena:
                     else:
                         b = mid - 1
             out.append(pts[j])
-            ax, ay = pts[j]
+            ax, ay = pts[j][0], pts[j][1]
             i = j + 1
         return out
 
-    def plan_full(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 3.0, jet_cap: float = 40.0):
+    def plan_full(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 3.0, jet_cap: float = 40.0,
+                  smooth_ms: float = 1.0):
         """(status, waypoints) with waypoints [(x, y, z, act, climb)], act 'walk' or 'jet' (the hop that
         ARRIVES at this waypoint is a jump+jet of `climb` metres from the previous waypoint)."""
         if not self.ok_nav:
@@ -921,6 +926,7 @@ class Arena:
             return st, []
         xs, ys = self.NXY[k]
         self.last_raw_path = [(xs[n], ys[n]) for n in nodes]
+        t_sm = time.perf_counter() + smooth_ms / 1000.0
         # split into walk runs at jet edges
         out = []
         run = [nodes[0]]
@@ -928,16 +934,16 @@ class Arena:
         for a, b in zip(nodes, nodes[1:]):
             kind, climb = self.edge_kind(a, b, k)
             if kind == "jet":
-                for (x, y) in self.smooth(ax, ay, run, k, max_checks=40):
-                    out.append((x, y, self.surface(x, y), "walk", 0.0))
+                for (x, y, z) in self.smooth(ax, ay, run, k, max_checks=40, t_end=t_sm):
+                    out.append((x, y, z, "walk", 0.0))
                 bx_, by_ = xs[b], ys[b]
-                out.append((bx_, by_, self.surface(bx_, by_), "jet", climb))
+                out.append((bx_, by_, self.NZ[k][b], "jet", climb))
                 ax, ay = bx_, by_
                 run = [b]
             else:
                 run.append(b)
-        for (x, y) in self.smooth(ax, ay, run, k, max_checks=60):
-            out.append((x, y, self.surface(x, y), "walk", 0.0))
+        for (x, y, z) in self.smooth(ax, ay, run, k, max_checks=60, t_end=t_sm):
+            out.append((x, y, z, "walk", 0.0))
         gx, gy = float(goal[0]), float(goal[1])
         gz = float(goal[2]) if len(goal) > 2 else self.surface(gx, gy)
         if out and math.hypot(out[-1][0] - gx, out[-1][1] - gy) > 0.5:
