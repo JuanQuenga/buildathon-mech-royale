@@ -52,6 +52,16 @@ break contact at the 2nd hunter). Steady-base versions follow as good-39+.
   entry by the **family mean over draws** and its FFA behaviour, not the single best draw; a chaos re-roll that
   scores higher is the same policy as good-31 and equally good as an entry.
 
+## 300-seed paired sim cross-check (fresh seeds 100–399, squad, paired differences vs base ± SE)
+| arm | sim diff | official |
+| --- | --- | --- |
+| isolate | +0.08 ± 0.12 | 5.48, 5.44 (mean 5.46) |
+| commit | −0.14 ± 0.12 | 5.33 |
+| fight-regen cycle | +0.06 ± 0.10 | 5.42, 5.21 (mean 5.32) |
+| arm-first | +0.22 ± 0.12 | 5.19, 5.27 (mean 5.23) |
+The sim and the official scorer disagree on arm-first (sim +0.22, official −0.11): the sim's weapon-starved seeds are
+not what limits us officially. Gated follow-ups ready: good-71 (widex twin), good-72 (isolate + widex).
+
 ## Practice: can survival to the end pay? (sim study 11-21 11:15, 48 squad matches each)
 Scoring (protocol §4/§9): placement = death order; matches end when one mech is left or at 8:00 (survivors ranked by
 HP); the zone reaches radius 0 by ~6:55 at 260 HP/s, so the final zone ends every match. In the sim the house squad
