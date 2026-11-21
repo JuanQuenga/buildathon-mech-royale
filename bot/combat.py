@@ -605,6 +605,9 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
         reserve = 40.0 if (mode in ("retreat", "heal") or urgency >= 0.7) else 20.0   # keep jets for the escape
         if tg is not None and (tg.kind == "mech" and (tg.id in getattr(threats, "killable", []) or tg.charging or tg.dist < 25)):
             reserve = 6.0
+        nav_m = state.scratch.get("nav") or {}
+        if state.t - nav_m.get("hop_wait_t", -1e9) < 0.5 and not (tg is not None and tg.kind == "mech" and tg.dist < 25):
+            reserve = max(reserve, float(nav_m.get("hop_need", 0.0)))  # nav is saving up for a jet hop
         if me.energy >= float(zst.get("energy", 3)) + reserve:
             victim = _arc_victim(state, me, fa, float(zst.get("range", 45.0)), threats, mem)
             if victim is not None:

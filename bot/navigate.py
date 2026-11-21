@@ -648,7 +648,9 @@ def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
         if not grounded:
             return NavOut(move=(dirx, diry), boost=energy > 5)
         if energy < need:
-            # wait at the base for energy (regen starts energy_regen_delay after the last spend)
+            # wait at the base for energy (regen starts energy_regen_delay after the last spend);
+            # combat reads hop_wait_t/hop_need and stops spending lightning energy meanwhile
+            m["hop_wait_t"], m["hop_need"] = state.t, need
             return NavOut(move=(0.0, 0.0), eta=(need - energy) / 18.0 + 1.0)
         m["jet"] = {"t0": state.t, "z0": z, "climb": climb, "to": wp, "air": False}
         m["stats"]["jets"] += 1
