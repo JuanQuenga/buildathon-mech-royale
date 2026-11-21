@@ -1,13 +1,23 @@
 # Review: Mech Royale entry (for the human and the coordinator)
 
-## Please submit
-**Since 13:10 the submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it); this
-section mirrors it. Predictions vs official results are in `eval/RESULTS.md` ("Predictions before scoring").
+## Status (11-21 14:50 ET)
+- **Board:** best draw good-31 = 5.56, rank ~37 of 250; the cut (32nd) is 5.65 and rising ~0.1 per hour this
+  afternoon; 16th 6.10; leader 6.31. We are outside the qualifying 32 until a draw beats the cut.
+- **Base policy** `laser+nav3x+fixx+steadyx`: true mean 5.34 (9 official draws, SD 0.13).
+- **Best-supported variant:** isolate (`+isolatex`, fight one at a time from spots hidden from the other attackers):
+  5.48, 5.44 → mean 5.46 (+0.12, ~1.3 SE; sim +0.08 ± 0.12). Its re-rolls are the queue's qualification draws.
+- **Tested today, no gain** (official): airborne lead 5.25, boost strafe 5.27, gun discipline 5.35, opening hold-fire
+  5.35, ffax 5.46, jet60 5.17, laser hunt 5.33, peek 5.44/5.15, commit 5.33, arm-first 5.19/5.27, cycle 5.42/5.21,
+  isolate+cycle 5.21, arm-first+cycle 5.44, widex 5.23, weave 5.38. **Clearly worse:** break contact at the 2nd
+  hunter 4.73, slow6 4.77, stand-to-fire 4.19 (lateral movement while fighting the squad is worth ~1 point).
 
-Current queue (14:00, we fell to 33rd: cut 5.58 > our 5.56): good-70 (isolate + cycle), then re-rolls of the isolate
-policy good-ri41…ri46 (isolate is the best two-draw mean, 5.48 / 5.44 = 5.46; each draw has ≈ 16 % chance of ≥ 5.59,
-the base policy ≈ 2 %). Cycle twin good-69 = 5.21 (cycle mean 5.32, no). good-55 withdrawn (practice cost already
-measured).
+## Please submit
+**The submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it). Predictions vs
+official results: `eval/RESULTS.md` ("Predictions before scoring").
+
+Current queue: isolate re-rolls good-ri41 … ri46, then good-ri47 … ri62 as they pass the gate. Each draw of a
+mean-5.46 policy has ~6 % chance of beating today's 5.65 cut (the base policy ~1 %); slot in any new experiment with
+a plausible ≥ 0.3 gain ahead of them.
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -347,13 +357,15 @@ Pending: the queue above. good-45 (boost above 50 energy, 77e995c) is gated and 
 
 
 ## Recommended final entry
-- **Practice board / qualification:** the best official draw of the base policy (`laser+nav3x+fixx+steadyx`), today
-  good-31 at 5.56; re-rolls good-r* keep adding draws.
-- **Final (16-entrant FFA, new seeds):** **good-55** (70874eb): the same base policy plus opening hold-fire and FFA
-  survival-first until 3 mechs remain, provided its practice check is clean and FFA self-play v7 does not contradict it. Fall back to
-  good-50 (hold-fire only, practice 5.35), then to the base policy (good-31). Reason: in 20 real showdowns placement
-  follows damage taken and survival, our bot takes the most damage of the field and dies at 95 s, and all three of our
-  opening deaths were fights we started unarmed. Both switches are inactive or measured-neutral in practice.
+- **Practice board / qualification:** the best official draw (default). Today good-31 at 5.56; any isolate re-roll
+  (good-ri*) that scores higher is an equally valid entry (same code family, mean 5.46).
+- **Final (16-entrant FFA, new seeds), if we qualify:** **good-55** (70874eb): base policy + opening hold-fire
+  (`openholdx`, never start a fight while unarmed in the first 45 s unless the round is known squad) + FFA
+  survival-first until 3 mechs remain (`ffahide3x`, FFA-only). Evidence: 20+ real showdowns (placement follows damage
+  taken and survival; our three opening deaths were fights we started unarmed); FFA self-play +0.22 ± 0.48 over 200
+  matches (v7) with consistent positive point estimates (v4 +0.26, v6 +0.29); practice cost measured nil (good-50
+  5.35, good-53 5.31). Fallback: the base policy (good-31). If an isolate re-roll becomes our best draw, the
+  isolate + openhold + ffahide3 combination would be the natural FFA entry (not yet built: one `mkvar.sh` + gate).
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
