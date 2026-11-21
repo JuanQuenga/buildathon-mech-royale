@@ -65,6 +65,12 @@ P: Dict[str, Any] = {
     "cube_value_greed": 50.0,
     "squad_picky": False,          # A/B: squad rounds use the FFA opportunity rule (no other mech within 150 m unless
                                    # the target is busy); good-3 mostly stayed in "unknown" (picky) mode and scored 4.88
+    "crate_value": 18.0,           # crate = 1 cube (+50 % weapon roll)
+    "drone_value": 45.0,           # drone = 2 cubes
+    "drop_max_eta": 45.0,          # supply drop = 3 cubes + full HP + full energy
+    "drop_base": 30.0,
+    "laser_first": False,          # A/B: laser valued above lightning (6/8 real top-4 finishers ended with a laser)
+    "drop_first": False,           # A/B: consider the supply drop before heal-hiding and opportunistic fights
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -84,6 +90,9 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "seek": {"cube_greed": True, "seek": True},                       # hunt the next house bot instead of holding
     "hret": {"cube_greed": True, "hunter_retreat": 0.3},              # break contact when a 2nd hunter is in sight
     "picky": {"cube_greed": True, "squad_picky": True, "engage_ratio_squad": 0.6},  # unknown-mode fight rules in squad
+    "scale": {"cube_greed": True, "crate_value": 32.0, "drone_value": 60.0, "drop_max_eta": 70.0, "drop_base": 60.0,
+              "drop_first": True},                                       # cubes / drops / crates for scaling
+    "laser": {"cube_greed": True, "laser_first": True},                  # prefer a laser as the first secondary
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
 
@@ -112,6 +121,8 @@ def _env_overrides() -> None:
 _env_overrides()
 
 WEAPON_VALUE = {"lightning": 3.0, "laser": 2.8, "mortar": 1.2, "gun": 1.5}
+if P["laser_first"]:
+    WEAPON_VALUE["laser"] = 3.6
 UPGRADE_VALUE = {
     "plating": 10, "armor": 9.5, "nanites": 8, "lightning_efficiency": 7, "laser_damage": 7, "gun_damage": 6.5,
     "laser_charge": 6.5, "gun_rate": 6, "servos": 5.5, "lightning_range": 5.5, "capacitor": 5, "reactor": 5,
@@ -571,6 +582,12 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             return _finish(state, m, it)
         # otherwise carry on (combat turns the torso to the damage bearing via threats.face_yaw)
 
+    # 2c. supply drop first (3 cubes + full HP beats hiding to regen)
+    if P["drop_first"]:
+        cap = _drop_choice(state, m, fresh, zp)
+        if cap is not None:
+            return _finish(state, m, cap)
+
     # 3. heal cycle (stop shooting, break LOS, wait for regen)
     if P["heal_after_kill"] and state.mode_guess != "ffa" and any(ev.get("type") == "kill" for ev in state.events) \
             and hpf < P["opp_min_hp_squad"]:
@@ -866,14 +883,14 @@ def _drop_choice(state: WorldState, m, fresh, zp) -> Optional[Intent]:
         holder = d.get("holder")
         if holder is not None and holder != state.me.get("id"):
             continue
-        if eta > 45 or not _in_safe_future(state, p, 4.0):
+        if eta > P["drop_max_eta"] or not _in_safe_future(state, p, 4.0):
             continue
         contest = [e for e in fresh if dist2d(e.pos, p) < 60]
         if contest and state.mode_guess != "squad" and hpf < 0.8:
             continue
         if len(contest) >= 2:
             continue
-        score = 30 + (1 - hpf) * 40 - eta - 10 * len(contest) - max(0.0, lands - eta) * 0.3
+        score = P["drop_base"] + (1 - hpf) * 40 - eta - 10 * len(contest) - max(0.0, lands - eta) * 0.3
         if score > bs:
             best, bs = (d, p, eta, lands), score
     if best is None or bs < 0:
@@ -926,7 +943,7 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
             unarmed = P["weapon_first"] and kinds[1] is None
             if hpf < P["crate_min_hp_frac"] and not unarmed:
                 continue
-            val = 18.0 if cubes < 10 else 6.0
+            val = P["crate_value"] if cubes < 10 else 6.0
             if unarmed:
                 val = max(val, P["crate_value_unarmed"])
         eta = d * 1.2 / walk
@@ -995,7 +1012,7 @@ def _drone_choice(state: WorldState, m, hpf) -> Optional[Tuple[EnemyThreat, floa
         if d > 120:
             continue
         hp = tr.hp if tr.hp is not None else 350
-        val = (45.0 if cubes < 10 else 10.0) * (1.4 - hp / 350.0 * 0.4)
+        val = (P["drone_value"] if cubes < 10 else 10.0) * (1.4 - hp / 350.0 * 0.4)
         score = val / (1.0 + d / 11.7 / 6.0)
         if score > bs and _in_safe_future(state, tr.pos) and _inside_zone_soon(state, tr.pos, 3.0):
             best, bs = tr, score
