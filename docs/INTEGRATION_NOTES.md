@@ -3,7 +3,19 @@
 Newest first. The integrator runs `eval/check.sh <sha>` (native + Docker sandbox + stress streams) and sim batches
 after each push and records regressions here and in `eval/RESULTS.md`. Nobody's work is silently reverted.
 
-## 2026-11-20 (night) — nav
+## 2026-11-21 (early) — integrator: zone failures found and fixed; possible sim collision artifacts
+
+- Fixed (b890076, 9cfbfd2): big mechs (6-10 cubes) beside tall buildings retried a 35 m jet hop they couldn't
+  afford (nav started hops at 60 % of the needed energy under urgency, planned 2.0 energy/m vs ~2.4 real) and sat
+  25-31 s outside the zone. Hops now need 2.4/m with no urgency discount, impossible hops are dropped, failed hops
+  trigger replans with smaller jet caps and finally as a smaller mech; combat stops spending lightning energy while
+  nav waits at a hop base. FFA zone episodes in 32 seeds: 3 -> 0.
+- **For sim (possible collision artifacts, please check):** squad seed 123 (both runs): our mech at (22.6, 233.1)
+  stands at z 0.7 under bridge prism #5 (base 9.65 m → 8.95 m clearance < 9 m mech height) and can never move
+  again (x,y frozen for 26 s while jumping/boosting). Squad seed 111: our mech at (-9.7, 54.7, 0.3) is inside
+  building prism #99 (base −2.86, top 24.81). The rulebook says lower overhangs are walls and you never end up
+  inside a wall, so the real server should not allow either; maybe mech-mech push / knockback skips the wall test?
+
 
 - Nav is live: `bot/arena.py` + committed `bot/navbake.npz` (1 MB, rebuilt with `tools/nav/bake.py`), details and
   timings in `docs/nav.md`. `Arena.load` ~140 ms. Tests: `python -m unittest discover -s tests/nav`.
