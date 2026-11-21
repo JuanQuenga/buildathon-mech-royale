@@ -261,7 +261,8 @@ def _reader(q: "queue.Queue") -> None:
     q.put(None)
 
 
-def main() -> None:
+def main_thread() -> None:
+    """Fallback guard: policy in a worker thread (used only if fork is unavailable)."""
     sys.setswitchinterval(0.001)
     q: "queue.Queue" = queue.Queue()
     threading.Thread(target=_reader, args=(q,), daemon=True).start()
@@ -337,7 +338,309 @@ def main() -> None:
     _report(pilot, lat, fallbacks, skipped, place)
 
 
+# ------------------------------------------------------------------------------------------- process guard
+# The policy runs in a forked child process. The parent only does I/O: it never shares a GIL with numpy-heavy
+# policy code, so its reply deadline holds even when a module call blocks for 100 ms inside C code.
+
+def _set_pipe_size(fd: int, size: int = 1 << 20) -> None:
+    try:
+        import fcntl
+        fcntl.fcntl(fd, 1031, size)  # F_SETPIPE_SZ
+    except Exception:
+        pass
+
+
+def _child(hello_raw: bytes, rfd: int, wfd: int) -> None:
+    """Child: build the Pilot, then answer the newest obs line from rfd with an action line on wfd."""
+    try:
+        os.dup2(2, 1)  # nothing the child prints may reach the protocol stdout
+    except OSError:
+        pass
+    global _OUT
+    _OUT = sys.stderr
+    try:
+        os.nice(8)  # the I/O parent must always win the CPU when an observation arrives
+    except OSError:
+        pass
+    hello = json.loads(hello_raw)
+    pilot = None
+    try:
+        pilot = Pilot(hello)
+        log(f"init {pilot.init_s * 1000:.0f} ms, arena={'yes' if pilot.state.arena is not None else 'NO'}")
+    except Exception:
+        log("pilot init failed:\n" + traceback.format_exc())
+    gc.collect()
+    gc.freeze()
+    os.write(wfd, b"R\n")
+    buf = b""
+    lat = []
+    skipped = 0
+    place = None
+    while True:
+        try:
+            chunk = os.read(rfd, 1 << 20)
+        except InterruptedError:
+            continue
+        except OSError:
+            chunk = b""
+        if not chunk:
+            break
+        buf += chunk
+        # drain whatever else is already queued so we only answer the newest observation
+        while True:
+            import select as _sel
+            r, _, _ = _sel.select([rfd], [], [], 0)
+            if not r:
+                break
+            more = os.read(rfd, 1 << 20)
+            if not more:
+                break
+            buf += more
+        if b"\n" not in buf:
+            continue
+        *lines, buf = buf.split(b"\n")
+        latest, end = None, False
+        for raw in lines:
+            if not raw.strip():
+                continue
+            if raw.startswith(b"E"):
+                end = True
+                try:
+                    place = json.loads(raw[1:]).get("place")
+                except ValueError:
+                    pass
+                continue
+            if latest is not None:
+                skipped += 1
+            latest = raw
+        if latest is not None and not end:
+            started = time.perf_counter()
+            try:
+                obs = json.loads(latest)
+                act = pilot.decide(obs, started) if pilot is not None else {"tick": obs.get("tick", 0)}
+                out = (json.dumps(act, separators=(",", ":"), allow_nan=False) + "\n").encode()
+                _write_all(wfd, out)
+            except Exception:
+                log("decide crashed:\n" + traceback.format_exc())
+            lat.append(time.perf_counter() - started)
+        if end:
+            break
+    info = _stats(pilot, lat, 0, skipped, place)
+    try:
+        _write_all(wfd, b"S" + json.dumps(info).encode() + b"\n")
+    except Exception:
+        pass
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    while data:
+        n = os.write(fd, data)
+        data = data[n:]
+
+
+def main_process() -> None:
+    import select
+    import signal
+    fd_in = 0
+    os.set_blocking(fd_in, True)
+    buf = b""
+    child = None          # (pid, to_child_fd, from_child_fd)
+    cbuf = b""
+    pending = b""         # bytes not yet written to the child
+    prev_action: dict = {}
+    lat = []
+    fallbacks = 0
+    skipped = 0
+    place = None
+    child_stats = None
+    eof = False
+
+    def read_stdin(timeout):
+        nonlocal buf, eof
+        r, _, _ = select.select([fd_in], [], [], timeout)
+        if not r:
+            return False
+        chunk = os.read(fd_in, 1 << 20)
+        if not chunk:
+            eof = True
+            return False
+        buf += chunk
+        return True
+
+    def flush_child():
+        nonlocal pending, child
+        if child is None or not pending:
+            return
+        try:
+            n = os.write(child[1], pending)
+            pending = pending[n:]
+        except BlockingIOError:
+            pass
+        except OSError:
+            pending = b""
+            child = None
+
+    def child_lines(deadline, want_tick):
+        """Read child output until a reply for want_tick (or the deadline). Returns the action dict or None."""
+        nonlocal cbuf, child, child_stats
+        while child is not None:
+            flush_child()
+            rem = deadline - time.perf_counter()
+            if b"\n" not in cbuf:
+                if rem <= 0:
+                    return None
+                wl = [child[1]] if pending else []
+                r, _, _ = select.select([child[2]], wl, [], rem)
+                if not r:
+                    continue
+                try:
+                    chunk = os.read(child[2], 1 << 20)
+                except OSError:
+                    chunk = b""
+                if not chunk:
+                    log("policy process exited")
+                    child = None
+                    return None
+                cbuf += chunk
+                continue
+            line, cbuf = cbuf.split(b"\n", 1)
+            if line.startswith(b"S"):
+                try:
+                    child_stats = json.loads(line[1:])
+                except ValueError:
+                    pass
+                continue
+            if line == b"R":
+                if want_tick == "R":
+                    return {}
+                continue
+            try:
+                act = json.loads(line)
+            except ValueError:
+                continue
+            if want_tick is not None and isinstance(act, dict) and act.get("tick") == want_tick:
+                return act
+        return None
+
+    def start_child(hello_raw):
+        nonlocal child
+        try:
+            a_r, a_w = os.pipe()   # parent -> child
+            b_r, b_w = os.pipe()   # child -> parent
+            _set_pipe_size(a_w)
+            _set_pipe_size(b_w)
+            pid = os.fork()
+        except OSError:
+            log("fork failed:\n" + traceback.format_exc())
+            return False
+        if pid == 0:
+            try:
+                os.close(a_w)
+                os.close(b_r)
+                _child(hello_raw, a_r, b_w)
+            except BaseException:
+                try:
+                    log("child failed:\n" + traceback.format_exc())
+                except Exception:
+                    pass
+            os._exit(0)
+        os.close(a_r)
+        os.close(b_w)
+        os.set_blocking(a_w, False)
+        child = (pid, a_w, b_r)
+        return True
+
+    while not eof:
+        if b"\n" not in buf:
+            read_stdin(None)
+            continue
+        started = time.perf_counter()
+        # drain everything already queued, plus a 1 ms grace for a split write
+        while read_stdin(0):
+            pass
+        if not eof:
+            read_stdin(0.001)
+            while read_stdin(0):
+                pass
+        *lines, buf = buf.split(b"\n")
+        latest_raw, latest, done = None, None, False
+        for raw in lines:
+            if not raw.strip():
+                continue
+            try:
+                msg = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(msg, dict):
+                continue
+            kind = msg.get("type")
+            if kind == "hello":
+                if start_child(raw):
+                    got = child_lines(time.perf_counter() + 15.0, "R")
+                    if got is None:
+                        log("policy process not ready in 15 s; replying with fallbacks")
+                send({"type": "ready", "name": BOT_NAME})
+            elif kind == "obs":
+                if latest is not None:
+                    skipped += 1
+                latest, latest_raw = msg, raw
+            elif kind == "end":
+                place = msg.get("place")
+                done = True
+        if latest is not None and not done:
+            tick = latest.get("tick", 0)
+            act = None
+            if child is not None:
+                pending += latest_raw + b"\n"
+                act = child_lines(started + HARD_CUTOFF_S, tick)
+            if act is None:
+                fallbacks += 1
+                act = fallback(prev_action, tick)
+            send(act)
+            prev_action = act
+            lat.append(time.perf_counter() - started)
+        if done:
+            break
+    # end: let the child report, then stop it
+    if child is not None:
+        pending += b"E" + json.dumps({"place": place}).encode() + b"\n"
+        child_lines(time.perf_counter() + 0.5, None)
+        try:
+            os.kill(child[0], signal.SIGKILL)
+            os.waitpid(child[0], 0)
+        except Exception:
+            pass
+    info = _stats(None, lat, fallbacks, skipped, place)
+    if child_stats:
+        info["policy"] = {k: v for k, v in child_stats.items() if k not in ("replies", "fallbacks", "place")}
+        for k in ("brain", "errors", "overruns", "mod_p99_ms", "mod_max_ms", "init_ms"):
+            if k in child_stats:
+                info[k] = child_stats[k]
+    _emit(info)
+
+
+def main() -> None:
+    if os.environ.get("MECH_GUARD", "process") == "thread" or not hasattr(os, "fork"):
+        main_thread()
+    else:
+        main_process()
+
+
 def _report(pilot, lat, fallbacks, skipped, place) -> None:
+    _emit(_stats(pilot, lat, fallbacks, skipped, place))
+
+
+def _emit(info) -> None:
+    try:
+        log("stats " + json.dumps(info))
+        if STATS_PATH:
+            with open(STATS_PATH, "w") as f:
+                json.dump(info, f)
+    except Exception:
+        pass
+
+
+def _stats(pilot, lat, fallbacks, skipped, place) -> dict:
     try:
         lat.sort()
         pct = lambda p: lat[min(len(lat) - 1, int(p * len(lat)))] * 1000 if lat else 0.0
@@ -361,12 +664,9 @@ def _report(pilot, lat, fallbacks, skipped, place) -> None:
                     info["brain"] = b.summary(pilot.state)
                 except Exception:
                     pass
-        log("stats " + json.dumps(info))
-        if STATS_PATH:
-            with open(STATS_PATH, "w") as f:
-                json.dump(info, f)
+        return info
     except Exception:
-        pass
+        return {}
 
 
 if __name__ == "__main__":

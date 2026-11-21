@@ -532,12 +532,21 @@ def _desired_range(state: WorldState, e: EnemyThreat) -> float:
 def _cover_from(state: WorldState, threat_pos: List, zp: Dict[str, Any]):
     """A hidden spot from the threats that keeps us zone-safe; else away from threats toward the safe circle."""
     if state.arena is not None and threat_pos:
-        try:
-            c = state.arena.nearest_cover(state.pos, threat_pos[0], 60.0)
-            if c is not None and _in_safe_future(state, c):
-                return tuple(c)
-        except Exception:
-            pass
+        # nearest_cover is a few ms: reuse the last answer while the threat and we haven't moved much
+        m = _mem(state)
+        cc = m.get("cover_cache")
+        tp = threat_pos[0]
+        c = None
+        if cc is not None and state.t - cc[0] < 2.0 and dist2d(cc[1], tp) < 10 and dist2d(cc[2], state.pos) < 15:
+            c = cc[3]
+        else:
+            try:
+                c = state.arena.nearest_cover(state.pos, tp, 60.0)
+            except Exception:
+                c = None
+            m["cover_cache"] = (state.t, tp, state.pos, c)
+        if c is not None and _in_safe_future(state, c):
+            return tuple(c)
     # run away from the centroid of threats, biased toward the next circle
     if threat_pos:
         cx = sum(p[0] for p in threat_pos) / len(threat_pos)

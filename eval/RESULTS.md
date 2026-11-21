@@ -31,3 +31,5 @@ tracebacks / no fallbacks.
 
 | Date | A (base) | B (cand) | Mode | Matches | mean(16-place) A | B | Δ (95% CI) | Death causes B (zone/outgunned/stuck/fall) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11-20 ~22:30 | example | 7ff832a (brain v1 + combat v1 + Arena, navigate.py = placeholder) | squad | 24 | 0.08 | 0.92 | +0.83 (+0.42..+1.29) | gun 20, zone 2, laser 1, mortar 1; 0 missed, 0 tracebacks; alive 66s→118s |
+| 11-20 ~22:30 | example | 7ff832a | ffa (1 bot + 15 builtin) | 24 | 5.25 | 8.08 | +2.83 (+0.50..+5.29) | gun 14, laser 3, mortar 1, survived 6; alive 58s→171s |
