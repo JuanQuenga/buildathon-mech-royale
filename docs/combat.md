@@ -1,6 +1,6 @@
 # Combat and threat model (`bot/combat.py`, `bot/threats.py`, `bot/ballistics.py`)
 
-Owner: combat. Standard library only. Tests: `python3 -m unittest discover -s tests/combat` (48 tests, no numpy, ~2 s).
+Owner: combat. Standard library only. Tests: `python3 -m unittest discover -s tests/combat` (47 tests, no numpy, ~2 s).
 Sim measurements: `sim/py tests/combat/duel_harness.py hitrate|duel ...` (needs numpy, uses `sim/`).
 
 ## Interfaces
