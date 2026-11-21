@@ -216,6 +216,10 @@ def main():
                   f"(95% CI {lo:+.2f}..{hi:+.2f})  [{tb:.0f}s/{tc:.0f}s]")
             print(f"    causes base {causes(rb)}")
             print(f"    causes cand {causes(rc)}  missed_replies={miss} tracebacks={tbk}")
+            zs_b = sorted({r["seed"] for r in rb if r.get("death_cause") == "zone"})
+            zs_c = sorted({r["seed"] for r in rc if r.get("death_cause") == "zone"})
+            if zs_b or zs_c:
+                print(f"    ZONE deaths: base seeds {zs_b}  cand seeds {zs_c}")
             kb = statistics.mean(float(r.get("kills", 0) or 0) for r in rb) if rb else 0
             kc = statistics.mean(float(r.get("kills", 0) or 0) for r in rc) if rc else 0
             w2b = 100 * statistics.mean(1.0 if r.get("two_weapons") else 0.0 for r in rb) if rb else 0

@@ -46,3 +46,5 @@ Note: the sim itself changed between 52a06b3 and 0458b19 (house bots' zone pathi
 are only comparable within one sim commit (see the "sim" column).
 | 11-21 ~00:45 (sim 0fb1d99) | example | f8db786 (good-3) | squad | 32 | 0.91 | 3.38 | +2.47 (+1.97..+3.00) | gun 27, laser 3, mortar 1, zone 1; kills 3.31; alive 159s→103s; round guess squad 6/unknown 23/ffa 3 |
 | 11-21 ~00:45 (sim 0fb1d99) | example | f8db786 (good-3) | ffa | 32 | 7.34 | 10.91 | +3.56 (+1.81..+5.38) | gun 17, laser 3, survived 12; kills 1.72; alive 87s→218s |
+| 11-21 ~01:10 (sim f8db786) | f8db786 | ef732c2 (juke 0.3–1.0 s beyond 80 m, travel further/roofs for 1st secondary) | squad | 32 | 3.28 | 3.44 | +0.16 (−0.38..+0.69) | 2 weapons at end 78%→88%; 1 zone death (new) |
+| 11-21 ~01:10 (sim f8db786) | f8db786 | ef732c2 | ffa | 32 | 11.41 | 11.22 | −0.19 (−1.62..+1.31) | neutral; 1 zone death (new) |
