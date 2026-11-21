@@ -14,9 +14,10 @@ if ROOT not in sys.path:
 
 from bot import state as st  # noqa: E402
 
-KIT = "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/mech-royale/starter"
-REPLAY = os.path.join(KIT, "mechanics-v2-16.jsonl.gz")
-STREAM = os.path.join(KIT, "mechfight-kit/check/stream.jsonl.gz")
+_KITDIR = os.environ.get("MECH_KIT", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/mech-royale/starter/mechfight-kit")
+KIT = os.path.dirname(os.path.abspath(_KITDIR))
+REPLAY = os.environ.get("MECH_REPLAY", os.path.join(KIT, "mechanics-v2-16.jsonl.gz"))
+STREAM = os.path.join(_KITDIR, "check/stream.jsonl.gz")
 
 _CFG = None
 

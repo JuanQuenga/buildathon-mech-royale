@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, ROOT)
 from bot import state as st, threats, combat  # noqa: E402
 
-KIT = "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/mech-royale/starter/mechfight-kit"
+KIT = os.environ.get("MECH_KIT", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/mech-royale/starter/mechfight-kit")
 path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(KIT, "check/stream.jsonl.gz")
 map_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "arena")
 arena = None

@@ -24,7 +24,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT = os.environ.get("MECH_KIT", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/mech-royale/starter/mechfight-kit")
-PY = os.environ.get("PY", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/venv/bin/python")
+PY = os.environ.get("PY", os.environ.get("MECH_PY", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/venv/bin/python"))
 if not os.path.exists(PY):
     PY = sys.executable
 RUNNER = os.environ.get("MECH_RUNNER",
