@@ -31,6 +31,8 @@ P: Dict[str, Any] = {
     "heal_below_squad": 0.55,      # same in squad rounds (A/B: heal more often between kills)
     "retreat_needs_cover": False,  # A/B: without reachable cover (< 45 m) keep fighting instead of fleeing
     "no_cover_fight_ratio": 4.0,   # ...unless clearly hopeless (TTK ratio above this)
+    "hunter_retreat": 0.0,         # A/B >0: non-FFA, >=2 hunters in sight within 160 m: break contact unless the
+                                   # target's HP fraction is below this (finish it first)
     "multi_retreat": 0.0,          # >0: with >=2 attackers on us, retreat unless target HP frac < this
     "heal_until": 0.92,
     "retreat_ratio": 0.8,          # retreat if my TTK on them > ratio * their TTK on me
@@ -61,14 +63,33 @@ P: Dict[str, Any] = {
                                    # hunter is shooting; loot is devalued only near hunters; cube value cube_value_greed
     "cube_grab_m": 35.0,
     "cube_value_greed": 50.0,
+    "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
+                                   # house bot instead of holding (more kills before the hunters stack up)
+    "seek_min_hp": 0.8,
+    "seek_max_m": 260.0,
+    "seek_mem_s": 30.0,
     "squad_standoff": 0.0,         # A/B >0: vs gun/mortar mechs in squad rounds hold this range with gun/laser
                                    # (sim: house gunners hit 37-88% inside 80 m, 20-34% beyond; our led shots drop less)      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
+}
+
+
+# Named variants for official A/B runs. The submitted image has no env, so a tag selects its variant by changing
+# DEFAULT_PROFILE (one line). MECH_PROFILE=<name> overrides it locally; MECH_BRAIN then overrides single tunables.
+DEFAULT_PROFILE = "base"
+PROFILES: Dict[str, Dict[str, Any]] = {
+    "base": {},
+    "greed": {"cube_greed": True},
 }
 
 
 def _env_overrides() -> None:
     """MECH_BRAIN='heal_below=0.7,engage_ratio_squad=0.8' overrides tunables (eval A/B only)."""
     import os
+    prof = os.environ.get("MECH_PROFILE", DEFAULT_PROFILE)
+    for k, v in PROFILES.get(prof, {}).items():
+        if k in P:
+            P[k] = v
+    P["profile"] = prof
     spec = os.environ.get("MECH_BRAIN", "")
     for part in spec.split(","):
         if "=" not in part:
@@ -583,6 +604,11 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     if ex is not None:
         return _finish(state, m, ex)
 
+    # 6c. squad: go find the next house bot instead of waiting for the hunters to come in a pack
+    sk = _seek_choice(state, m, zp, hpf, face)
+    if sk is not None:
+        return _finish(state, m, sk)
+
     # 7. hold inside the next circle, drift toward its centre, near cover
     goal = _hold_point(state, zp)
     it = Intent(mode="hold", goal=goal, urgency=0.1, face=face, reason="hold")
@@ -662,6 +688,9 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         if best_r > thr or (state.hp / state.max_hp < 0.25 and best_r > 0.5):
             out["verdict"] = "retreat"
         elif P["multi_retreat"] > 0 and n_att >= 2 and tgt_frac > P["multi_retreat"]:
+            out["verdict"] = "retreat"
+        elif (P["hunter_retreat"] > 0 and state.mode_guess != "ffa" and tgt_frac > P["hunter_retreat"]
+              and len([e for e in fresh if (e.id in hunters or e.id in attackers) and e.dist < 160]) >= 2):
             out["verdict"] = "retreat"
         else:
             out["verdict"] = "engage"
@@ -1009,6 +1038,21 @@ def _explore_choice(state: WorldState, m, zp) -> Optional[Intent]:
     return Intent(mode="loot", goal=p, urgency=0.2, face=None, reason=f"explore {c[0]},{c[1]}")
 
 
+def _seek_choice(state: WorldState, m, zp, hpf, face) -> Optional[Intent]:
+    if not P["seek"] or state.mode_guess == "ffa" or hpf < P["seek_min_hp"] or state.weapon_kinds()[1] is None:
+        return None
+    best, bd = None, P["seek_max_m"]
+    for tr in state.tracks.values():
+        if tr.kind != "mech" or tr.dead or state.t - tr.last_seen_t > P["seek_mem_s"]:
+            continue
+        d = dist2d(tr.pos, state.pos)
+        if d < bd and _in_safe_future(state, tr.pos) and _inside_zone_soon(state, tr.pos, 3.0):
+            best, bd = tr, d
+    if best is None:
+        return None
+    return Intent(mode="loot", goal=best.pos, urgency=0.3, face=yaw_to(state.pos, best.pos), reason=f"seek {best.id}")
+
+
 def _hold_point(state: WorldState, zp):
     z = state.zone
     if not z:
@@ -1097,7 +1141,7 @@ def summary(state: WorldState) -> Dict[str, Any]:
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
             "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),
-            "first_weapon_t": m.get("first_weapon_t")}
+            "first_weapon_t": m.get("first_weapon_t"), "profile": P.get("profile")}
 
 
 def debug(state: WorldState, intent: Intent, threats: Threats, nav, cmb) -> Dict[str, Any]:
