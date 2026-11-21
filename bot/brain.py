@@ -132,7 +132,7 @@ P: Dict[str, Any] = {
 
 # Named variants for official A/B runs. The submitted image has no env, so a tag selects its variant by changing
 # DEFAULT_PROFILE (one line). MECH_PROFILE=<name> overrides it locally; MECH_BRAIN then overrides single tunables.
-DEFAULT_PROFILE = "base"
+DEFAULT_PROFILE = "laser+nav3x+fixx+steadyx+isolatex+openholdx+ffahide3x"
 PROFILES: Dict[str, Dict[str, Any]] = {
     "base": {},
     "greed": {"cube_greed": True},
