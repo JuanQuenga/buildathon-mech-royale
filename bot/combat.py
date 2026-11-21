@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import ballistics as B
 from .state import CombatOut, Intent, Threats, WorldState
+from .threats import telegraph_factor
 
 TICK = 0.05
 
@@ -89,10 +90,12 @@ class _Me:
 
 class _Tgt:
     __slots__ = ("id", "kind", "pos", "vel", "lead_vel", "radius", "height", "hp", "hp_frac", "los", "dist", "agility",
-                 "airborne", "rear", "mortar", "charging", "danger", "visible", "age", "threat", "facing_me", "bearing")
+                 "airborne", "rear", "mortar", "charging", "danger", "visible", "age", "threat", "facing_me", "bearing",
+                 "flip_rate")
 
     def __init__(self):
         self.agility = 0.3
+        self.flip_rate = 0.0
         self.airborne = False
         self.rear = False
         self.mortar = False
@@ -136,25 +139,37 @@ def _ground(state: WorldState, x: float, y: float, z: float) -> float:
 
 
 # ============================================================================== solutions
-def gun_solution(me: _Me, tg: _Tgt, st: Dict[str, float], g: float = 22.0):
-    """(yaw, pitch, t_flight, aim_point, dist) for the gun against a target, or None."""
+def fire_tick(cooldown: float) -> int:
+    """Which sim tick of the coming decision a held trigger fires on: 1 if the weapon is ready within the
+    first tick, else 2 (the sim accumulates cooldown, so a 0.24 s gun alternates ticks 1 and 2)."""
+    return 1 if cooldown <= TICK + 1e-6 else 2
+
+
+def gun_solution(me: _Me, tg: _Tgt, st: Dict[str, float], g: float = 22.0, k: int = 1):
+    """(yaw, pitch, t_flight, aim_point, dist) for the gun against a target, or None.
+
+    Timing (sim; consistent with the replay): a shot leaving on tick k of the decision spawns at the muzzle
+    after both mechs moved k ticks and flies one tick in that same tick, so the target is effectively
+    observed (k-1) ticks before launch."""
     speed = float(st.get("speed", 252.0))
     center = (tg.pos[0], tg.pos[1], tg.pos[2] + 0.5 * tg.height)
-    # lead velocity: current velocity blended toward its recent mean for juking targets
+    # lead velocity: telegraph model (direction reversals at rate flip_rate): expected displacement
+    # over the flight is v * f(tau), f = (1 - e^{-2 r tau}) / (2 r tau). Straight movers: f ~ 1.
     d0 = math.dist(center, me.launch_pos)
     tf0 = d0 / speed
-    w = math.exp(-tf0 * (0.3 + 3.0 * tg.agility))
-    lv = (w * tg.vel[0] + (1 - w) * tg.lead_vel[0], w * tg.vel[1] + (1 - w) * tg.lead_vel[1],
-          tg.vel[2] if tg.airborne else 0.0)
+    f = telegraph_factor(tg.flip_rate, tf0)
+    lv = (f * tg.vel[0], f * tg.vel[1], tg.vel[2] if tg.airborne else 0.0)
     tacc = (0.0, 0.0, -g if (tg.airborne and tg.vel[2] < 0) else (-0.5 * g if tg.airborne else 0.0))
-    origin = B.shot_origin(me.launch_pos, me.aim[0], me.aim[1], me.muzzle)
-    sol = B.lead_aim(origin, center, lv, speed, 0.0, tacc)
+    extra = (k - 1) * TICK
+    lp = me.launch_pos if k == 1 else (me.pos[0] + me.vel[0] * k * TICK, me.pos[1] + me.vel[1] * k * TICK, me.pos[2] + me.vel[2] * k * TICK)
+    origin = B.shot_origin(lp, me.aim[0], me.aim[1], me.muzzle)
+    sol = B.lead_aim(origin, center, lv, speed, extra, tacc)
     if sol is None:
         return None
     yaw, pitch, tf, ap = sol
     # recompute origin with the solved yaw (3 m horizontal offset) once
-    origin = B.shot_origin(me.launch_pos, yaw, pitch, me.muzzle)
-    sol = B.lead_aim(origin, center, lv, speed, 0.0, tacc)
+    origin = B.shot_origin(lp, yaw, pitch, me.muzzle)
+    sol = B.lead_aim(origin, center, lv, speed, extra, tacc)
     if sol is None:
         return None
     yaw, pitch, tf, ap = sol
@@ -212,7 +227,8 @@ def mortar_solution(state: WorldState, me: _Me, tg: _Tgt, st: Dict[str, float], 
         return None
     # aim low on the body: a body hit = direct (200 + splash), a near miss lands at its feet (splash)
     aim_z = tg.pos[2] + min(1.0, 0.3 * tg.height)
-    tv = (tg.lead_vel[0] * 0.5 + tg.vel[0] * 0.5, tg.lead_vel[1] * 0.5 + tg.vel[1] * 0.5, 0.0)
+    f = telegraph_factor(tg.flip_rate, hd / (0.8 * v) + 0.3)
+    tv = (tg.vel[0] * f, tg.vel[1] * f, 0.0)
     if tg.kind == "crate":
         tv = (0.0, 0.0, 0.0)
     best = None
@@ -291,6 +307,7 @@ def _targets(state: WorldState, intent: Intent, threats: Threats, me: _Me, mem) 
         tg.los = bool(e.los)
         tg.dist = e.dist
         tg.agility = getattr(e, "agility", 0.3)
+        tg.flip_rate = getattr(e, "flip_rate", 0.15)
         tg.airborne = getattr(e, "airborne", False)
         tg.rear = getattr(e, "rear_exposed", False)
         tg.mortar = "mortar" in (e.weapons or [])
@@ -410,6 +427,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
     cook = float(lst.get("cookoff", 0.6)) if las else 0.0
 
     gun_ready = bool(gun) and float(gun[1].get("ammo", 0) or 0) > 0 and float(gun[1].get("reload", 0) or 0) <= 0
+    gun_k = fire_tick(float(gun[1].get("cooldown", 0) or 0)) if gun else 1
     las_c = float(las[1].get("charge", 0) or 0) if las else 0.0
     las_cd = float(las[1].get("cooldown", 0) or 0) if las else 9.0
     las_ready = bool(las) and (las_c > 0 or (las_cd <= 0.1 and not shorted))
@@ -433,7 +451,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
             if tg.kind == "crate" and not tg.los:
                 continue
             if gun_ready or (gun and tg.dist < 230):
-                gs = gun_solution(me, tg, gst, g)
+                gs = gun_solution(me, tg, gst, g, gun_k)
                 if gs is not None and gs[4] < float(gst.get("range", 230.0)) - 2:
                     p0 = gun_p(me, tg, gs, (gs[0], gs[1]), gst)
                     rate = float(gst.get("damage", 45)) / max(0.1, float(gst.get("cooldown", 0.24)))
@@ -505,7 +523,9 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
     # ---- gun
     if gun and tg is not None and allow and gun_ready and "gun" in best[3]:
         gs = best[3]["gun"][2]
-        p = 0.5 * (gun_p(me, tg, gs, fa, gst) + gun_p(me, tg, gs, me.aim, gst))
+        fa_g = B.slew(me.aim, cmd, me.yr, me.pr, gun_k * TICK, me.minp, me.maxp)
+        fa_g0 = B.slew(me.aim, cmd, me.yr, me.pr, (gun_k - 1) * TICK, me.minp, me.maxp)
+        p = 0.5 * (gun_p(me, tg, gs, fa_g, gst) + gun_p(me, tg, gs, fa_g0, gst))
         ammo = float(gun[1].get("ammo", 0) or 0)
         thr = 0.22
         if tg.dist < 60 or (tg.kind == "mech" and tg.id in getattr(threats, "killable", [])):

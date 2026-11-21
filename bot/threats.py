@@ -56,6 +56,7 @@ class EnemyX(EnemyThreat):
     height: float = 9.0
     agility: float = 0.3                  # 0 straight-line mover .. 1 constant juking
     lead_vel: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    flip_rate: float = 0.0                # estimated direction reversals per second (strafing)
     airborne: bool = False
     rear_exposed: bool = False            # its back (outside its front arc) faces us: our hits x1.5
     age: float = 0.0                      # seconds since last in obs
@@ -131,6 +132,38 @@ def _ground(state: WorldState):
             except Exception:
                 return -1e9
     return g
+
+
+def _flip_rate(hist, t: float, window: float = 4.0) -> float:
+    """Direction reversals per second over the last `window` s of visible velocity samples.
+
+    A reversal = the (speed > 3 m/s) velocity turned by more than ~100 deg within 0.6 s. Prior: 0.15/s
+    over a 2 s pseudo-window (straight-line movers stay near 0.03)."""
+    pts = [h for h in hist if t - h[0] <= window]
+    flips = 0
+    last = None
+    for (tt, vx, vy) in pts:
+        sp = math.hypot(vx, vy)
+        if sp < 3.0:
+            continue
+        if last is not None:
+            lt, lx, ly = last
+            c = (vx * lx + vy * ly) / (sp * math.hypot(lx, ly))
+            if c < -0.2 and tt - lt <= 0.6:
+                flips += 1
+                last = (tt, vx, vy)
+                continue
+        last = (tt, vx, vy)
+    span = (pts[-1][0] - pts[0][0]) if len(pts) >= 2 else 0.0
+    return (flips + 0.15) / (span + 2.0)
+
+
+def telegraph_factor(rate: float, tau: float) -> float:
+    """E[displacement] / (v tau) for a velocity that reverses at Poisson rate `rate`: (1-e^{-2 r tau}) / (2 r tau)."""
+    x = 2.0 * rate * tau
+    if x < 1e-4:
+        return 1.0
+    return (1.0 - math.exp(-x)) / x
 
 
 def gun_hit_p(dist: float) -> float:
@@ -319,25 +352,15 @@ def _assess(state: WorldState) -> ThreatsX:
         else:
             e.radius, e.height = base_r * scale, base_h * scale
         e.bearing = math.atan2(tr.pos[1] - pos[1], tr.pos[0] - pos[0])
-        # velocity history -> agility (fraction of max accel used) and mean velocity
+        # velocity history -> reversal rate (telegraph model) -> agility
         hist = vh.setdefault(tr.id, [])
         if tr.visible_now and (not hist or hist[-1][0] < t - 1e-6):
             hist.append((t, tr.vel[0], tr.vel[1]))
-            if len(hist) > 20:
+            if len(hist) > 50:
                 del hist[0]
-        if len(hist) >= 3:
-            acc = 0.0
-            n = 0
-            for (t0, x0, y0), (t1, x1, y1) in zip(hist[-10:], hist[-9:]):
-                dtt = max(0.05, t1 - t0)
-                acc += math.hypot(x1 - x0, y1 - y0) / dtt
-                n += 1
-            e.agility = max(0.05, min(1.0, (acc / max(1, n)) / 40.0))
-            mx = sum(h[1] for h in hist[-15:]) / len(hist[-15:])
-            my = sum(h[2] for h in hist[-15:]) / len(hist[-15:])
-        else:
-            mx, my = tr.vel[0], tr.vel[1]
-        e.lead_vel = (mx, my, 0.0)
+        e.flip_rate = _flip_rate(hist, t)
+        e.agility = max(0.05, min(1.0, e.flip_rate / 2.0))
+        e.lead_vel = tuple(tr.vel)
         e.airborne = abs(tr.vel[2]) > 0.8
         if tr.max_hp:
             e.hp_frac = float(tr.hp or 0) / max(1.0, float(tr.max_hp))
