@@ -29,18 +29,12 @@ P: Dict[str, Any] = {
     "zone_margin_max": 35.0,
     "heal_below": 0.55,            # start a heal cycle below this HP fraction (when no fight)
     "heal_below_squad": 0.55,      # same in squad rounds (A/B: heal more often between kills)
-    "retreat_needs_cover": False,  # A/B: without reachable cover (< 45 m) keep fighting instead of fleeing
-    "no_cover_fight_ratio": 4.0,   # ...unless clearly hopeless (TTK ratio above this)
     "multi_retreat": 0.0,          # >0: with >=2 attackers on us, retreat unless target HP frac < this
     "heal_until": 0.92,
     "retreat_ratio": 0.8,          # retreat if my TTK on them > ratio * their TTK on me
     "engage_ratio_squad": 1.1,     # in squad mode take fights that are roughly even (kills are the score)
     "engage_ratio_ffa": 0.6,       # in FFA only clearly favourable fights
     "loot_max_dist": 160.0,
-    "loot_max_dist_weapon": 260.0,  # empty slot 1: travel further for a weapon
-    "roof_weapon_dz": 25.0,
-    "weapon_first_value": 60.0,
-    "use_zone_field": True,        # A/B: nav's travel-time field in zone ETAs
     "drone_min_hp_frac": 0.6,
     "crate_min_hp_frac": 0.5,
     "memory_item_s": 90.0,
@@ -132,7 +126,6 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
         foreign = max(0, drop - ours)
         if foreign and t < 200:
             m["infight"] += 3.0 * foreign
-            m["early_foreign"] = m.get("early_foreign", 0) + foreign
         m["foreign_deaths"] += foreign
         m["alive_seen"] = state.alive
     # beams not aimed at us
@@ -159,14 +152,9 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
     # combat's threats module also gathers evidence (e.g. enemy HP drops we didn't cause): take the stronger
     se = getattr(threats, "squad_evidence", None)
     if isinstance(se, dict):
-        ev_ffa = max(ev_ffa, float(se.get("infight", 0.0) or 0.0))
-    # Sim calibration: in squad rounds unexplained enemy HP drops still happen (drones, chains), so infighting
-    # evidence alone is noisy (squad runs: infight 0-15 vs focus 17-45; FFA: infight ~9 vs focus ~3).
-    # A mech dying early that we did not kill is the decisive FFA signal; otherwise compare the two.
-    if m.get("early_foreign", 0) >= 1 or (ev_ffa >= 3 and ev_ffa > 1.5 * ev_squad):
+        ev_ffa = max(ev_ffa, 1.5 * float(se.get("infight", 0.0) or 0.0))
+    if ev_ffa >= 3 and ev_ffa > ev_squad:
         state.mode_guess = "ffa"
-    elif ev_squad >= 6 and ev_ffa < ev_squad:
-        state.mode_guess = "squad"
     elif ev_squad >= 2 and ev_ffa < 1.5:
         state.mode_guess = "squad"
     else:
@@ -223,30 +211,6 @@ def _eta_real(state: WorldState, goal) -> float:
         except Exception:
             pass
     return d * P["zone_path_factor"] / speed
-
-
-def _inside_zone_soon(state: WorldState, p, margin: float = 8.0) -> bool:
-    """p will still be inside the shrinking circle when we arrive (straight-line ETA) and a few s later."""
-    if not state.zone:
-        return True
-    t_arr = state.t + _eta_quick(state, p) + 5.0
-    c, r = state.zone_circle_at(t_arr)
-    return dist2d(p, c) <= r - margin
-
-
-def _field_eta(state: WorldState, p) -> Optional[float]:
-    """Seconds of walking from p into the next circle (nav's cheap travel-time field), None if unavailable."""
-    try:
-        from . import navigate
-        f = getattr(navigate, "zone_eta_at", None)
-        if f is None:
-            return None
-        v = f(state, p[0], p[1], p[2] if len(p) > 2 else None)
-        if v is None or v != v:
-            return None
-        return float(v)
-    except Exception:
-        return None
 
 
 def _safe_point(state: WorldState, c, r, frm=None) -> Tuple[float, float, float]:
@@ -319,10 +283,6 @@ def zone_plan(state: WorldState) -> Dict[str, Any]:
     target = _safe_point(state, c1, r1)
     inside_next = dist2d(state.pos, c1) <= max(0.0, r1 - 2.0)
     eta = _eta(state, target) if not inside_next else 0.0
-    if not inside_next and P["use_zone_field"]:
-        fe = _field_eta(state, state.pos)  # nav's travel-time field: real walking time around buildings
-        if fe is not None and fe != math.inf:
-            eta = max(eta, fe)
     t_exit = _exit_time(state, state.pos)
     # arrival deadline: before the edge passes our position, and inside the next circle by shrink_end
     deadline = min(t_exit, float(z["shrink_end"])) if not inside_next else t_exit
@@ -341,9 +301,6 @@ def _in_safe_future(state: WorldState, p, extra_eta=0.0) -> bool:
     c1, r1 = z["next_center"], float(z["next_radius"])
     t_here = _eta_quick(state, p)
     back = dist2d(p, _safe_point(state, c1, r1, p)) * P["zone_path_factor"] / max(1.0, state.stat("walk_speed", 11.7))
-    fb = _field_eta(state, p) if P["use_zone_field"] else None
-    if fb is not None:
-        back = max(back, fb)
     deadline = min(float(z["shrink_end"]), _exit_time(state, p)) if dist2d(p, c1) > r1 else _exit_time(state, p)
     return state.t + t_here + extra_eta + back + P["zone_buffer_s"] < deadline
 
@@ -411,8 +368,6 @@ def _ehp(state: WorldState) -> float:
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
     m = _mem(state)
-    if m.get("first_weapon_t") is None and (state.weapon_kinds() + [None])[1] is not None:
-        m["first_weapon_t"] = round(state.t, 1)
     _remember_items(state, m)
     _update_round(state, threats, m)
     _track_sounds(state, m)
@@ -426,7 +381,6 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     for e in fresh:
         m["last_threat_pos"], m["last_threat_t"] = e.pos, state.t
     attackers = set(threats.attackers)
-    m["att_now"] = tuple(attackers)
     hot = [e for e in fresh if e.id in attackers or e.can_hit_me or e.dist < 60]
     face = _face_yaw(state, m, fresh, zp)
     mode_g = state.mode_guess
@@ -448,15 +402,8 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     if hot:
         tgt = fight.get("target")
         if fight["verdict"] == "retreat":
-            goal = _cover_from(state, [e.pos for e in hot], zp)
-            real_cover = m.get("cover_real", False)
-            # Running in the open while chased rarely saves us (FFA sim: ~12/32 deaths in the first 30 s were
-            # open-ground retreats at low HP). Optionally keep trading when there is no cover to run to.
-            if (P["retreat_needs_cover"] and not real_cover and tgt is not None and tgt.dist < 90
-                    and fight["ratio"] < P["no_cover_fight_ratio"]):
-                fight["verdict"] = "engage"
-        if fight["verdict"] == "retreat":
             m["heal"] = True
+            goal = _cover_from(state, [e.pos for e in hot], zp)
             it = Intent(mode="retreat", goal=goal, urgency=0.9, face=face,
                         target_id=tgt.id if tgt is not None else None, allow_fire=True,
                         avoid=[e.pos for e in hot], reason=f"retreat r={fight['ratio']:.2f}")
@@ -510,10 +457,6 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
 
 def _finish(state: WorldState, m: Dict[str, Any], it: Intent) -> Intent:
     m["mode"] = it.mode
-    m["last_reason"] = it.reason
-    f = m.get("fight") or {}
-    m["last_ctx"] = {"mode": it.mode, "reason": it.reason[:40], "hp": round(state.hp), "t": round(state.t, 1),
-                     "n_att": len(state.scratch.get("brain", {}).get("att_now", ())), "ratio": round(f.get("ratio", 9.9), 2)}
     m["modes"][it.mode] = m["modes"].get(it.mode, 0) + 1
     if not state.me.get("in_zone", True):
         m["zone_out_s"] += state.dt
@@ -628,10 +571,8 @@ def _cover_from(state: WorldState, threat_pos: List, zp: Dict[str, Any]):
             except Exception:
                 c = None
             m["cover_cache"] = (state.t, tp, state.pos, c)
-        if c is not None and _in_safe_future(state, c) and _inside_zone_soon(state, c) and dist2d(c, state.pos) < 45:
-            m["cover_real"] = True
+        if c is not None and _in_safe_future(state, c):
             return tuple(c)
-    _mem(state)["cover_real"] = False
     # run away from the centroid of threats, biased toward the next circle
     if threat_pos:
         cx = sum(p[0] for p in threat_pos) / len(threat_pos)
@@ -641,16 +582,11 @@ def _cover_from(state: WorldState, threat_pos: List, zp: Dict[str, Any]):
         ax, ay = 0.0, 0.0
     tgt = zp.get("target") or state.pos
     bx, by = unit2(tgt[0] - state.pos[0], tgt[1] - state.pos[1])
-    # Regen is disabled outside the zone: never pick a spot the (moving) circle won't cover when we get there.
-    w0 = 0.5 if zp.get("slack", 99) > 20 else 1.5
-    for w in (w0, 1.5, 3.0, 8.0):
-        dx, dy = unit2(ax + w * bx, ay + w * by)
-        if dx == 0 and dy == 0:
-            return tgt
-        p = (state.pos[0] + dx * 40.0, state.pos[1] + dy * 40.0, state.pos[2])
-        if _inside_zone_soon(state, p):
-            return p
-    return tgt
+    w = 0.5 if zp.get("slack", 99) > 20 else 1.5
+    dx, dy = unit2(ax + w * bx, ay + w * by)
+    if dx == 0 and dy == 0:
+        return tgt
+    return (state.pos[0] + dx * 40.0, state.pos[1] + dy * 40.0, state.pos[2])
 
 
 def _face_yaw(state: WorldState, m: Dict[str, Any], fresh: List[EnemyThreat], zp) -> Optional[float]:
@@ -748,12 +684,10 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
         if bl.get(i, -1e9) > state.t:
             continue
         d = dist2d(r["pos"], state.pos)
-        need_weapon = r["type"] == "pickup" and kinds[1] is None
-        if d > (P["loot_max_dist_weapon"] if need_weapon else P["loot_max_dist"]):
+        if d > P["loot_max_dist"]:
             continue
         dz = r["pos"][2] - state.pos[2]
-        # roof loot: nav can jet-hop onto roofs (~60 m climb with full energy); only worth it for a first secondary
-        if dz > (P["roof_weapon_dz"] if need_weapon else 6):
+        if dz > 6:  # roof loot: only nav knows if reachable; skip unless very close
             continue
         val = 0.0
         if r["type"] == "pickup":
@@ -762,7 +696,7 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
                 continue
             v = WEAPON_VALUE.get(k, 1.0)
             if kinds[1] is None:
-                val = P["weapon_first_value"] * v  # a second weapon early is the biggest combat lever
+                val = 40 * v
             else:
                 worst = min(WEAPON_VALUE.get(kinds[1], 1), WEAPON_VALUE.get(kinds[0] or "gun", 1))
                 if v <= worst + 0.5:
@@ -792,9 +726,8 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
     if best is None or bs < 2.0:
         m["loot"] = None
         return None
-    first_weapon = best["type"] == "pickup" and kinds[1] is None
-    if not _in_safe_future(state, best["pos"]) or (not first_weapon and not _inside_zone_soon(state, best["pos"], 3.0)):
-        bl[best["id"]] = state.t + 15
+    if not _in_safe_future(state, best["pos"]):
+        bl[best["id"]] = state.t + 30
         return None
     m["loot"] = best["id"]
     if m["stuck_s"] > 4.0 and dist2d(best["pos"], state.pos) > 5:
@@ -824,7 +757,7 @@ def _drone_choice(state: WorldState, m, hpf) -> Optional[Tuple[EnemyThreat, floa
         hp = tr.hp if tr.hp is not None else 350
         val = (45.0 if cubes < 10 else 10.0) * (1.4 - hp / 350.0 * 0.4)
         score = val / (1.0 + d / 11.7 / 6.0)
-        if score > bs and _in_safe_future(state, tr.pos) and _inside_zone_soon(state, tr.pos, 3.0):
+        if score > bs and _in_safe_future(state, tr.pos):
             best, bs = tr, score
     if best is None:
         return None
@@ -904,18 +837,10 @@ def summary(state: WorldState) -> Dict[str, Any]:
         cause = "zone" if zone > other else "outgunned"
     if m.get("stuck_s", 0) > 8:
         cause += "+stuck"
-    combat_stats = None
-    try:
-        from . import combat as _combat
-        if hasattr(_combat, "summary"):
-            combat_stats = _combat.summary(state)
-    except Exception:
-        pass
-    return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence, "modes": m["modes"],
+    return {"mode_guess": state.mode_guess, "evidence": state.mode_evidence, "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
-            "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),
-            "first_weapon_t": m.get("first_weapon_t")}
+            "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"]}
 
 
 def debug(state: WorldState, intent: Intent, threats: Threats, nav, cmb) -> Dict[str, Any]:
