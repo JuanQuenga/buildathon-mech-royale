@@ -24,6 +24,19 @@ SQUAD_DEFAULTS = {"early": 1, "join_per_loss": 1.0, "all_engage_t": 300.0, "forg
 
 
 # ---------------------------------------------------------------------------- controllers
+def _jsnum(v):
+    """serialise like the (JavaScript) server: integral floats as ints (560 not 560.0); numpy scalars as numbers"""
+    if isinstance(v, float):
+        return int(v) if v.is_integer() and abs(v) < 1e15 else v
+    if isinstance(v, dict):
+        return {k: _jsnum(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_jsnum(x) for x in v]
+    if hasattr(v, "item") and not isinstance(v, (str, bytes)):
+        return _jsnum(v.item())
+    return v
+
+
 class ProcBot:
     """External bot process speaking mechfight/1 on stdin/stdout."""
 
@@ -52,7 +65,7 @@ class ProcBot:
         if self.dead:
             return
         try:
-            self.p.stdin.write((json.dumps(msg, separators=(",", ":")) + "\n").encode())
+            self.p.stdin.write((json.dumps(_jsnum(msg), separators=(",", ":")) + "\n").encode())
             self.p.stdin.flush()
         except (BrokenPipeError, OSError):
             self.dead = True

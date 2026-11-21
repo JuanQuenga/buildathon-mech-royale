@@ -23,15 +23,15 @@ TIERS = {
     # correct lead; react: seconds before firing at a newly acquired target; range: max engage range;
     # pref: preferred fighting distance; strafe: lateral movement amplitude 0..1; loot: takes weapons;
     # retreat: HP fraction to disengage and heal (0 = never); burst: fire only when aim error < tol deg
-    "easy":   dict(aim_sigma=2.2, bias=1.6, lead=0.0, react=0.9, range=120, pref=55, strafe=0.0, loot=False, retreat=0.0, tol=4.0, jets=False, hop=3, secondary=False),
-    "medium": dict(aim_sigma=1.4, bias=1.0, lead=0.5, react=0.6, range=160, pref=70, strafe=0.4, loot=True, retreat=0.0, tol=3.0, jets=True, hop=4, secondary=True),
-    "hard":   dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.35, range=200, pref=80, strafe=0.7, loot=True, retreat=0.25, tol=2.0, jets=True, hop=6, secondary=True),
-    "expert": dict(aim_sigma=0.45, bias=0.25, lead=1.0, react=0.2, range=220, pref=90, strafe=1.0, loot=True, retreat=0.35, tol=1.5, jets=True, hop=6, secondary=True),
+    "easy":   dict(aim_sigma=2.2, bias=1.6, lead=0.0, react=0.9, range=120, pref=70, strafe=0.0, loot=False, retreat=0.0, tol=4.0, jets=False, hop=3, jink=(1.2, 2.5), secondary=False),
+    "medium": dict(aim_sigma=1.4, bias=1.0, lead=0.5, react=0.6, range=160, pref=95, strafe=0.4, loot=True, retreat=0.0, tol=3.0, jets=True, hop=4, jink=(0.5, 1.2), secondary=True),
+    "hard":   dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.35, range=200, pref=115, strafe=0.7, loot=True, retreat=0.25, tol=2.0, jets=True, hop=6, jink=(0.4, 0.9), secondary=True),
+    "expert": dict(aim_sigma=0.45, bias=0.25, lead=1.0, react=0.2, range=220, pref=130, strafe=1.0, loot=True, retreat=0.35, tol=1.5, jets=True, hop=6, jink=(0.4, 0.8), secondary=True),
     # FFA archetypes (scripted opponents)
-    "brawler": dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.3, range=150, pref=30, strafe=0.8, loot=True, retreat=0.0, tol=2.5, jets=True, hop=7, secondary=True),
-    "sniper":  dict(aim_sigma=0.5, bias=0.3, lead=1.0, react=0.3, range=230, pref=150, strafe=0.3, loot=True, retreat=0.4, tol=1.2, jets=True, hop=6, secondary=True),
-    "camper":  dict(aim_sigma=0.7, bias=0.4, lead=0.9, react=0.3, range=200, pref=120, strafe=0.2, loot=False, retreat=0.5, tol=1.5, jets=False, hop=2, secondary=False),
-    "idle":    dict(aim_sigma=9, bias=0, lead=0, react=9, range=0, pref=0, strafe=0, loot=False, retreat=0, tol=0, jets=False, hop=0, secondary=False),
+    "brawler": dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.3, range=150, pref=30, strafe=0.8, loot=True, retreat=0.0, tol=2.5, jets=True, hop=7, jink=(0.4, 0.9), secondary=True),
+    "sniper":  dict(aim_sigma=0.5, bias=0.3, lead=1.0, react=0.3, range=230, pref=150, strafe=0.3, loot=True, retreat=0.4, tol=1.2, jets=True, hop=6, jink=(0.5, 1.0), secondary=True),
+    "camper":  dict(aim_sigma=0.7, bias=0.4, lead=0.9, react=0.3, range=200, pref=120, strafe=0.2, loot=False, retreat=0.5, tol=1.5, jets=False, hop=2, jink=(1.0, 2.0), secondary=False),
+    "idle":    dict(aim_sigma=9, bias=0, lead=0, react=9, range=0, pref=0, strafe=0, loot=False, retreat=0, tol=0, jets=False, hop=0, jink=(1, 2), secondary=False),
 }
 
 UPGRADE_PREF = ["armor", "plating", "nanites", "gun_damage", "gun_rate", "laser_damage", "servos", "gyros", "lightning_efficiency",
@@ -232,7 +232,7 @@ class BuiltinBot:
             self.strafe_t -= 0.1
             if self.strafe_t <= 0:
                 self.strafe_dir = -self.strafe_dir
-                self.strafe_t = self.rng.uniform(0.8, 2.2)
+                self.strafe_t = self.rng.uniform(*P["jink"])
             if d > P["pref"] * 1.25:
                 goal = (tgt["pos"][0], tgt["pos"][1])
             elif d < P["pref"] * 0.6:
