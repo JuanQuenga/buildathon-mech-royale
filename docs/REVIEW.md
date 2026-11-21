@@ -68,6 +68,23 @@ break contact at the 2nd hunter). Steady-base versions follow as good-39+.
   entry by the **family mean over draws** and its FFA behaviour, not the single best draw; a chaos re-roll that
   scores higher is the same policy as good-31 and equally good as an entry.
 
+## Practice: can survival to the end pay? (sim study 11-21 11:15, 48 squad matches each)
+Scoring (protocol §4/§9): placement = death order; matches end when one mech is left or at 8:00 (survivors ranked by
+HP); the zone reaches radius 0 by ~6:55 at 260 HP/s, so the final zone ends every match. In the sim the house squad
+dies to the final zone at 382–420 s if nobody kills it, so a bot alive at ~385 s would outplace most of it.
+
+| policy | mean pts | kills | median death s | p90 death s | alive at 300 s | alive at 380 s |
+| --- | --- | --- | --- | --- | --- | --- |
+| base (good-31 policy) | 5.00 | 4.88 | 105 | 192 | 0 % | 0 % |
+| (a) pure evasion, never fires (`evadex`) | 0.08 | 0.00 | 300 | 307 | 48 % | 0 % |
+| (b) evasion, fights only hunters (`evade2x`) | 4.31 | 4.23 | 186 | 271 | 2 % | 0 % |
+
+Reading: pure evasion survives to ~300 s half the time and then dies within seconds when the whole squad engages
+(sim `all_engage_t` 300 s); nothing reaches the ~380 s window where house bots start dying to the zone. Surviving
+longer without outliving house bots earns nothing (they do not die before ~380 s), so a fight-then-run hybrid only
+delays our death. Dropped for practice, unless official evidence shows the real squad's late game differs. The
+real squad's all-engage timing is unknown, and this conclusion rests on the sim director.
+
 ## FFA (track 2: where the prize is decided)
 **Real FFA evidence** (public Top-16 Showdown casts, 11 matches / 176 seats; tools in `eval/diag/cast/`):
 - 26 % of seats die before 30 s, and those seats were fighting: median 840 damage dealt in the opening. Places 5–10
