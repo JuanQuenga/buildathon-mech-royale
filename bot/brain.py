@@ -123,6 +123,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "soundx": {"seek": True, "seek_sound": True},
     "fixx": {"hopfix3": True},
     "capx": {"run_for_weapon_cap_s": 6.0},
+    "ghostx": {"conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
