@@ -85,6 +85,7 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "ffa_strict": False,           # A/B: once squad evidence is strong, need 3 unexplained deaths before guessing ffa
     "open_hold": False,            # A/B: unarmed, first 45 s, round not known squad: never start a fight (only answer fire)
     "ffa_hide": False,             # A/B FFA-only survival-first: hide from non-hunters, fight only attackers/killable,
     "ffa_hide_alive": 5,           # ...while more than this many mechs are alive
@@ -166,6 +167,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ffahidex": {"ffa_hide": True},
     "ffahide3x": {"ffa_hide": True, "ffa_hide_alive": 3},
     "openholdx": {"open_hold": True},
+    "strictffax": {"ffa_strict": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
@@ -345,7 +347,12 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
     # A mech dying early that we did not kill is the decisive FFA signal; otherwise compare the two.
     # one unexplained early death can be the zone or a drone (seen in real lobbies): need a second, or infighting
     ef = m.get("early_foreign", 0)
-    if ef >= 2 or (ef >= 1 and ev_ffa >= 2) or (ev_ffa >= 3 and ev_ffa > 1.5 * ev_squad):
+    strong_squad = P["ffa_strict"] and ev_squad >= 12 and ev_squad > 2.0 * ev_ffa
+    if strong_squad and ef < 3:
+        # A/B: sim squad rounds flipped to 'ffa' late (30-150 s) on one unexplained death plus a little infighting noise
+        # despite focus_on_me 15-50; a real FFA is detected at ~11 s while focus is still small
+        state.mode_guess = "squad"
+    elif ef >= 2 or (ef >= 1 and ev_ffa >= 2) or (ev_ffa >= 3 and ev_ffa > 1.5 * ev_squad):
         state.mode_guess = "ffa"
     elif ev_squad >= 6 and ev_ffa < ev_squad:
         state.mode_guess = "squad"
