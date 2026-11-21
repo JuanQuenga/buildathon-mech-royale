@@ -48,3 +48,11 @@ are only comparable within one sim commit (see the "sim" column).
 | 11-21 ~00:45 (sim 0fb1d99) | example | f8db786 (good-3) | ffa | 32 | 7.34 | 10.91 | +3.56 (+1.81..+5.38) | gun 17, laser 3, survived 12; kills 1.72; alive 87s→218s |
 | 11-21 ~01:10 (sim f8db786) | f8db786 | ef732c2 (juke 0.3–1.0 s beyond 80 m, travel further/roofs for 1st secondary) | squad | 32 | 3.28 | 3.44 | +0.16 (−0.38..+0.69) | 2 weapons at end 78%→88%; 1 zone death (new) |
 | 11-21 ~01:10 (sim f8db786) | f8db786 | ef732c2 | ffa | 32 | 11.41 | 11.22 | −0.19 (−1.62..+1.31) | neutral; 1 zone death (new) |
+| 11-21 ~01:50 (sim f8db786) | a28e180 | a28e180 + MECH_BRAIN=multi_retreat=0.35 | squad | 32 | 3.25 | 3.47 | +0.22 (−0.16..+0.59) | neutral/slightly positive, not adopted yet |
+| 11-21 ~01:50 (sim f8db786) | a28e180 | + heal_below_squad=0.75 | squad | 32 | 3.66 | 3.56 | −0.09 (−0.47..+0.28) | **3 zone deaths** → led to a28fc26 (heal/retreat goals inside the circle) |
+| 11-21 ~01:50 (sim f8db786) | a28e180 | + engage_ratio_squad=0.8 | squad | 32 | 3.53 | 3.53 | +0.00 (−0.78..+0.81) | neutral |
+| 11-21 ~01:50 (sim f8db786) | a28e180 | + retreat_ratio=1.1 | squad | 32 | 3.66 | 3.44 | −0.22 (−0.84..+0.44) | neutral/negative |
+
+**Noise floor:** the same commit run twice on the same 32 seeds scores 3.25–3.66 in squad (real-process timing
+makes matches non-deterministic). Differences under ~0.5 per 32 seeds are not detectable; use ≥ 96 seeds for
+small effects.
