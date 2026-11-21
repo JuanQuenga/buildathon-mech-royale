@@ -11,7 +11,6 @@ catches everything and falls back to straight-line steering toward the goal.
 from __future__ import annotations
 
 import math
-import random
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -27,10 +26,6 @@ ROUTE_AVOID = False         # exposure-aware A* (Arena.plan_full avoid=); see _a
 JET_CAP = 40.0              # max climb (m) the planner may use; energy is waited for at the hop base
 JET_TIMEOUT = 5.0
 PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 2.6, -2.6)
-
-
-JUKE_MIN_RANGE = float(__import__("os").environ.get("MECH_JUKE_RANGE", "1e9"))   # juke OFF: sim squad A/B +0.47 without it (our own hit rate drops); "80" re-enables
-NAVLOG = bool(__import__("os").environ.get("MECH_NAVLOG"))
 
 
 def _mem(state: WorldState) -> Dict[str, Any]:
@@ -96,19 +91,6 @@ def step(state: WorldState, intent: Intent, threats: Threats) -> NavOut:
     if dt > st["ms_max"]:
         st["ms_max"] = dt
     m["last_move"] = out.move
-    if NAVLOG and state.t - m.get("log_t", -1e9) >= 1.0:
-        m["log_t"] = state.t
-        try:
-            import sys
-            p = m.get("path") or []
-            print(f"[navlog] t={state.t:.1f} pos=({state.pos[0]:.1f},{state.pos[1]:.1f},{state.pos[2]:.1f}) en={state.energy:.0f} "
-                  f"mode={getattr(intent, 'mode', None)} urg={getattr(intent, 'urgency', 0):.1f} goal={tuple(round(v) for v in intent.goal) if intent and intent.goal else None} "
-                  f"mv=({out.move[0]:.2f},{out.move[1]:.2f}) b={out.boost} j={out.jump} blk={out.blocked} jet={bool(m.get('jet'))} "
-                  f"rec={bool(m.get('recover'))} jf={m.get('jet_fail', 0)} wait={state.t - m.get('hop_wait_t', -1e9) < 0.5} "
-                  f"pend={m.get('pending')} unr={m.get('unreachable')} path={[(round(w[0]), round(w[1]), round(w[2]), w[3] if len(w) > 3 else '') for w in p[:2]]}",
-                  file=sys.stderr)
-        except Exception:
-            pass
     return out
 
 
@@ -374,15 +356,8 @@ def _engage_dir(state: WorldState, intent: Intent, m) -> Optional[Tuple[float, f
     radial = max(-1.0, min(1.0, (d - want) / 15.0))
     if state.t >= m["strafe_t"]:
         m["strafe_sign"] = -m["strafe_sign"]
-        # Beyond ~80 m random reversals every 0.3-1.0 s ("juke") cut incoming gun damage far more than a slow
-        # strafe (sim duel harness vs expert gun: 93 -> 56 dmg/s at 120 m, 72 -> 27 at 180 m). Up close
-        # nothing helps much, so keep the steadier strafe there (more of our own shots land).
-        if d > JUKE_MIN_RANGE:
-            m["strafe_t"] = state.t + 0.3 + 0.7 * random.random()
-            m["juking"] = True
-        else:
-            m["strafe_t"] = state.t + 1.2 + 1.2 * random.random()
-            m["juking"] = False
+        # deterministic jitter from tick so the period is not predictable
+        m["strafe_t"] = state.t + 1.2 + ((state.tick * 7919) % 13) / 10.0
     s = m["strafe_sign"]
     tx, ty = -uy * s, ux * s
     w_t = 0.85 if abs(radial) < 0.7 else 0.4
@@ -429,17 +404,6 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     speed = 1.0
     eta_s: Optional[float] = None
 
-    # ---------------- stale hop state: a hop is only executed while its waypoint leads the path. If the path or
-    # goal changed mid-hop, m["jet"] used to stay set forever, which disabled replanning (straight-line steering
-    # into pits and walls: sim zone deaths). Clear it once the hop is over or abandoned.
-    j = m.get("jet")
-    if j is not None:
-        if not grounded:
-            j["air"] = True
-        lead = (m.get("path") or [None])[0]
-        if (state.t - j["t0"] > JET_TIMEOUT or (grounded and j.get("air")) or
-                (grounded and lead is not j.get("to") and state.t - j["t0"] > 0.5)):
-            m["jet"] = None
     # ---------------- recovery in progress
     rec = m.get("recover")
     if rec is not None and state.t < rec["until"]:
@@ -474,20 +438,9 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
                 if nav_ok:
                     if True:
                         if m.get("jet") is None and _need_replan(state, m, goal):
-                            # After failed hops, stop planning big climbs (and finally plan as a smaller mech:
-                            # the size-class lattices are conservative). Sim: an 8-cube mech beside a 37 m
-                            # building retried a 35 m hop it could never finish for 30 s outside the zone.
-                            jf = m.get("jet_fail", 0)
-                            if jf and state.t - m.get("jet_fail_t", -1e9) > 25.0:
-                                m["jet_fail"] = jf = 0
-                            cap = JET_CAP if jf == 0 else (16.0 if jf == 1 else 0.0)
-                            cub = _cubes(state) if jf < 3 else 0.0
-                            st_, path = ar.plan_full(state.pos, goal, cubes=cub, budget_ms=PLAN_BUDGET_MS,
-                                                     jet_cap=cap, avoid=_avoid_list(state, threats, intent),
+                            st_, path = ar.plan_full(state.pos, goal, cubes=_cubes(state), budget_ms=PLAN_BUDGET_MS,
+                                                     jet_cap=JET_CAP, avoid=_avoid_list(state, threats, intent),
                                                      smooth_ms=0.8)
-                            if st_ == "fail" and jf:
-                                st_, path = ar.plan_full(state.pos, goal, cubes=0.0, budget_ms=PLAN_BUDGET_MS,
-                                                         jet_cap=JET_CAP, avoid=(), smooth_ms=0.8)
                             m["stats"]["replans"] += 1
                             m["goal"] = tuple(goal)
                             m["plan_t"] = state.t
@@ -524,9 +477,6 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
 
     # ---------------- dodge incoming projectiles
     dodge = threats.dodge if threats is not None else None
-    if mode == "engage" and m.get("juking") and threats is not None and hasattr(threats, "dodge_shell"):
-        # while juking, reacting to bullets makes us predictable: only dodge mortar shells
-        dodge = getattr(threats, "dodge_shell", None)
     if dodge is not None and (dodge[0] or dodge[1]):
         soon = min((p.t_impact for p in (threats.incoming or [])), default=1.0)
         w = 1.0 if soon < 0.6 else 0.5
@@ -658,24 +608,15 @@ def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
     grounded = bool(state.me.get("grounded", True))
     energy = state.energy
     climb = float(wp[4]) if len(wp) > 4 else max(0.0, wp[2] - z)
-    # plan cost is 2.0/m; replays and the sim show ~2.4/m in practice: start only with the realistic amount
-    need = max(ar.jet_energy(climb) if ar is not None else 0.0, 2.4 * max(0.0, climb - 2.0) + 8.0)
-    emax = float(state.me.get("max_energy", 100.0) or 100.0)
-    if need > emax * 0.98 and m.get("jet") is None:
-        m["path"] = []
-        m["jet_fail"] = m.get("jet_fail", 0) + 1
-        m["jet_fail_t"] = state.t
-        return None
+    need = ar.jet_energy(climb) if ar is not None else 2.0 * climb + 6.0
     j = m.get("jet")
     d = math.hypot(wp[0] - x, wp[1] - y)
     dirx, diry = unit2(wp[0] - x, wp[1] - y)
     if j is None:
         if not grounded:
             return NavOut(move=(dirx, diry), boost=energy > 5)
-        if energy < need:
-            # wait at the base for energy (regen starts energy_regen_delay after the last spend);
-            # combat reads hop_wait_t/hop_need and stops spending lightning energy meanwhile
-            m["hop_wait_t"], m["hop_need"] = state.t, need
+        if energy < need and not (urgency >= 0.8 and energy >= 0.6 * need):
+            # wait at the base for energy (regen starts energy_regen_delay after the last spend)
             return NavOut(move=(0.0, 0.0), eta=(need - energy) / 18.0 + 1.0)
         m["jet"] = {"t0": state.t, "z0": z, "climb": climb, "to": wp, "air": False}
         m["stats"]["jets"] += 1
@@ -693,7 +634,6 @@ def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
         else:
             m["path"] = []        # failed hop: replan from where we are
             m["jet_fail"] = m.get("jet_fail", 0) + 1
-            m["jet_fail_t"] = state.t
         return None
     if grounded and not j["air"] and state.t - j["t0"] > 0.4:
         # jump did not take (blocked?): retry once next tick
