@@ -222,6 +222,15 @@ def _eta_real(state: WorldState, goal) -> float:
     return d * P["zone_path_factor"] / speed
 
 
+def _inside_zone_soon(state: WorldState, p, margin: float = 8.0) -> bool:
+    """p will still be inside the shrinking circle when we arrive (straight-line ETA) and a few s later."""
+    if not state.zone:
+        return True
+    t_arr = state.t + _eta_quick(state, p) + 5.0
+    c, r = state.zone_circle_at(t_arr)
+    return dist2d(p, c) <= r - margin
+
+
 def _field_eta(state: WorldState, p) -> Optional[float]:
     """Seconds of walking from p into the next circle (nav's cheap travel-time field), None if unavailable."""
     try:
@@ -607,7 +616,7 @@ def _cover_from(state: WorldState, threat_pos: List, zp: Dict[str, Any]):
             except Exception:
                 c = None
             m["cover_cache"] = (state.t, tp, state.pos, c)
-        if c is not None and _in_safe_future(state, c):
+        if c is not None and _in_safe_future(state, c) and _inside_zone_soon(state, c):
             return tuple(c)
     # run away from the centroid of threats, biased toward the next circle
     if threat_pos:
@@ -618,11 +627,16 @@ def _cover_from(state: WorldState, threat_pos: List, zp: Dict[str, Any]):
         ax, ay = 0.0, 0.0
     tgt = zp.get("target") or state.pos
     bx, by = unit2(tgt[0] - state.pos[0], tgt[1] - state.pos[1])
-    w = 0.5 if zp.get("slack", 99) > 20 else 1.5
-    dx, dy = unit2(ax + w * bx, ay + w * by)
-    if dx == 0 and dy == 0:
-        return tgt
-    return (state.pos[0] + dx * 40.0, state.pos[1] + dy * 40.0, state.pos[2])
+    # Regen is disabled outside the zone: never pick a spot the (moving) circle won't cover when we get there.
+    w0 = 0.5 if zp.get("slack", 99) > 20 else 1.5
+    for w in (w0, 1.5, 3.0, 8.0):
+        dx, dy = unit2(ax + w * bx, ay + w * by)
+        if dx == 0 and dy == 0:
+            return tgt
+        p = (state.pos[0] + dx * 40.0, state.pos[1] + dy * 40.0, state.pos[2])
+        if _inside_zone_soon(state, p):
+            return p
+    return tgt
 
 
 def _face_yaw(state: WorldState, m: Dict[str, Any], fresh: List[EnemyThreat], zp) -> Optional[float]:
@@ -764,8 +778,9 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
     if best is None or bs < 2.0:
         m["loot"] = None
         return None
-    if not _in_safe_future(state, best["pos"]):
-        bl[best["id"]] = state.t + 30
+    first_weapon = best["type"] == "pickup" and kinds[1] is None
+    if not _in_safe_future(state, best["pos"]) or (not first_weapon and not _inside_zone_soon(state, best["pos"], 3.0)):
+        bl[best["id"]] = state.t + 15
         return None
     m["loot"] = best["id"]
     if m["stuck_s"] > 4.0 and dist2d(best["pos"], state.pos) > 5:
@@ -795,7 +810,7 @@ def _drone_choice(state: WorldState, m, hpf) -> Optional[Tuple[EnemyThreat, floa
         hp = tr.hp if tr.hp is not None else 350
         val = (45.0 if cubes < 10 else 10.0) * (1.4 - hp / 350.0 * 0.4)
         score = val / (1.0 + d / 11.7 / 6.0)
-        if score > bs and _in_safe_future(state, tr.pos):
+        if score > bs and _in_safe_future(state, tr.pos) and _inside_zone_soon(state, tr.pos, 3.0):
             best, bs = tr, score
     if best is None:
         return None

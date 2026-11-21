@@ -99,6 +99,20 @@ def test_heal_when_low_and_alone():
     assert it.mode == "heal" and not it.allow_fire, it
 
 
+def test_heal_goal_stays_inside_zone():
+    # at the edge of a shrinking circle, threat inside the circle: running "away" would leave the zone
+    z = {"center": [0, 0], "radius": 200, "next_center": [0, 0], "next_radius": 140, "shrink_start": 100, "shrink_end": 150, "dps": 20}
+    o = mk(pos=(185, 0, 0), t=110, zone=z, hp=500)
+    s = st.WorldState(HELLO, None)
+    s.update(o)
+    m = brain._mem(s)
+    m["last_threat_pos"], m["last_threat_t"] = (120.0, 0.0, 0.0), 109.0
+    it = brain.choose_intent(s, Threats())
+    assert it.goal is not None
+    c, r = s.zone_circle_at(s.t + 10)
+    assert math.hypot(it.goal[0] - c[0], it.goal[1] - c[1]) < r, (it, r)
+
+
 def threat(id_, pos, hp=1400, weapons=("gun",), dist=None, attacker=False, s=None):
     d = dist if dist is not None else math.dist(pos, (0, 0, 0))
     return EnemyThreat(id=id_, kind="mech", pos=pos, vel=(0, 0, 0), hp=hp, max_hp=1400, weapons=list(weapons), dist=d,
