@@ -29,6 +29,14 @@ JET_TIMEOUT = 5.0
 PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 2.6, -2.6)
 
 
+def _flag(name: str) -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get(name, False))
+    except Exception:
+        return False
+
+
 def _jet_cap() -> float:
     """A/B: brain profile `jet_cap` (0 = ground-only routes, no planned jet hops)."""
     try:
@@ -414,6 +422,16 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     speed = 1.0
     eta_s: Optional[float] = None
 
+    # ---------------- A/B `hopfix3` (good-4 fix): a hop is only executed while its waypoint leads the path. If the path
+    # or goal changed mid-hop, m["jet"] stayed set forever and disabled replanning (sim zone deaths). Clear it.
+    j = m.get("jet")
+    if j is not None and _flag("hopfix3"):
+        if not grounded:
+            j["air"] = True
+        lead = (m.get("path") or [None])[0]
+        if (state.t - j["t0"] > JET_TIMEOUT or (grounded and j.get("air")) or
+                (grounded and lead is not j.get("to") and state.t - j["t0"] > 0.5)):
+            m["jet"] = None
     # ---------------- recovery in progress
     rec = m.get("recover")
     if rec is not None and state.t < rec["until"]:

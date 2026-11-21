@@ -77,6 +77,7 @@ P: Dict[str, Any] = {
     "laser_standoff": 0.0,         # A/B >0: holding a laser, fight mechs from this range even with lightning (house
                                    # gunners hit 37-88 % inside 80 m, 20-34 % beyond; the laser is hitscan to 280 m)
     "jet_cap": 40.0,               # nav3 only: max planned jet climb (m); 0 = ground-only routes
+    "hopfix3": False,              # nav3 only: good-4's stale jet-hop state fix
     "nav3": False,                 # A/B: use the frozen good-3 navigation module (bot/navigate3.py)
     "hop_legacy": False,           # A/B: navigate uses good-3's jet-hop energy rules (read by navigate._hop_legacy)
     "berserk": False,              # A/B: squad/unknown rounds: never retreat from a fight (90 % of deaths came in
@@ -117,6 +118,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "berserkx": {"berserk": True},
     "aggrox": {"engage_ratio_squad": 1.6, "opp_min_hp_squad": 0.4, "heal_below_squad": 0.4, "seek_min_hp": 0.6},
     "soundx": {"seek": True, "seek_sound": True},
+    "fixx": {"hopfix3": True},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
