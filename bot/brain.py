@@ -84,6 +84,8 @@ P: Dict[str, Any] = {
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
+    "seek_sound": False,           # A/B: no remembered house bot: walk toward recent gunfire/laser sounds
+    "seek_sound_m": 110.0,
     "seek_max_m": 260.0,
     "seek_mem_s": 30.0,
     "squad_standoff": 0.0,         # A/B >0: vs gun/mortar mechs in squad rounds hold this range with gun/laser
@@ -113,6 +115,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "hopx": {"hop_legacy": True},
     "nav3x": {"nav3": True},
     "berserkx": {"berserk": True},
+    "aggrox": {"engage_ratio_squad": 1.6, "opp_min_hp_squad": 0.4, "heal_below_squad": 0.4, "seek_min_hp": 0.6},
+    "soundx": {"seek": True, "seek_sound": True},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
@@ -1121,6 +1125,11 @@ def _seek_choice(state: WorldState, m, zp, hpf, face) -> Optional[Intent]:
         if d < bd and _in_safe_future(state, tr.pos) and _inside_zone_soon(state, tr.pos, 3.0):
             best, bd = tr, d
     if best is None:
+        if P["seek_sound"] and m.get("sound_yaw") is not None and state.t - m.get("sound_t", -1e9) < 6.0:
+            b = m["sound_yaw"]
+            p = (state.pos[0] + P["seek_sound_m"] * math.cos(b), state.pos[1] + P["seek_sound_m"] * math.sin(b), state.pos[2])
+            if _in_safe_future(state, p) and _inside_zone_soon(state, p, 3.0):
+                return Intent(mode="loot", goal=p, urgency=0.3, face=b, reason="seek sound")
         return None
     return Intent(mode="loot", goal=best.pos, urgency=0.3, face=yaw_to(state.pos, best.pos), reason=f"seek {best.id}")
 
