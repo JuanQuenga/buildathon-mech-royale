@@ -305,6 +305,22 @@ rate (75 %) is among the best. Lead/latency is not the gap to 6.3, and the sim's
 not far from reality. (A frame-interpolated bullet reconstruction matched real outcomes on only ~48 % of shots, so I
 do not report miss geometry from it.) Only shots beyond 180 m are poor (9 % of our mech-aimed shots).
 
+## House-bot tiers: can we fight the easy ones first? (11-21 15:20) — no
+- **Not observable.** `hello` carries only type, protocol, slot, seed, map and the rule config. An observed mech is
+  `id, kind, pos, vel, aim, hp, max_hp, cubes, weapons, charging`: no name or tier, and max HP is 1400 for every
+  house bot. Ids are not a tier key either: the entrant's slot varies by match and house bots fill the rest.
+- **No real evidence that tiers differ the way the labels suggest.** We have no practice replays. The only real
+  data with tier labels is the old demo (previous balance): gun hits on mechs Expert 47 %, Hard 35 %, Medium 60 %
+  (2–3 mechs each), no monotonic ordering. The current lobbies use `house:expert` plus `probe-*` archetypes, not the
+  practice tiers.
+- **The sim cannot answer it.** Its tiers (`sim/builtin.py: TIERS`: aim noise, lead, reaction, range) are our own
+  guesses, so its result is circular: in 300 sim matches we are killed by easy 143, medium 128, hard 18, expert 3,
+  because in our reconstruction the early, close attackers are easy/medium.
+- **Behavioural recognition already exists** in the form that matters: the hunter model prioritises whoever is
+  actually hitting us (×2) and discounts passive mechs. Recognising accuracy before being shot is not possible from
+  the observation stream.
+Verdict: no tier variant. With the aim audit and the movement table, this closes the practice idea list.
+
 ## Movement while fighting the squad (official dose-response)
 | engage movement | tag | official |
 | --- | --- | --- |
