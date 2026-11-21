@@ -33,6 +33,16 @@ JUKE_MIN_RANGE = float(__import__("os").environ.get("MECH_JUKE_RANGE", "1e9"))  
 NAVLOG = bool(__import__("os").environ.get("MECH_NAVLOG"))
 
 
+def _hop_legacy() -> bool:
+    """A/B (brain profile `hop_legacy`): good-3's jet-hop energy rules (2 m/energy plan cost, urgent hops at 60 %
+    energy, no 'impossible hop' drop, no smaller jet caps after failures). good-5 vs good-3 official: -0.42."""
+    try:
+        from .brain import P as BP
+        return bool(BP.get("hop_legacy", False))
+    except Exception:
+        return False
+
+
 def _mem(state: WorldState) -> Dict[str, Any]:
     m = state.scratch.get("nav")
     if m is None:
@@ -477,7 +487,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
                             # After failed hops, stop planning big climbs (and finally plan as a smaller mech:
                             # the size-class lattices are conservative). Sim: an 8-cube mech beside a 37 m
                             # building retried a 35 m hop it could never finish for 30 s outside the zone.
-                            jf = m.get("jet_fail", 0)
+                            jf = m.get("jet_fail", 0) if not _hop_legacy() else 0
                             if jf and state.t - m.get("jet_fail_t", -1e9) > 25.0:
                                 m["jet_fail"] = jf = 0
                             cap = JET_CAP if jf == 0 else (16.0 if jf == 1 else 0.0)
@@ -659,9 +669,13 @@ def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
     energy = state.energy
     climb = float(wp[4]) if len(wp) > 4 else max(0.0, wp[2] - z)
     # plan cost is 2.0/m; replays and the sim show ~2.4/m in practice: start only with the realistic amount
-    need = max(ar.jet_energy(climb) if ar is not None else 0.0, 2.4 * max(0.0, climb - 2.0) + 8.0)
+    legacy = _hop_legacy()
+    if legacy:
+        need = ar.jet_energy(climb) if ar is not None else 2.0 * climb + 6.0
+    else:
+        need = max(ar.jet_energy(climb) if ar is not None else 0.0, 2.4 * max(0.0, climb - 2.0) + 8.0)
     emax = float(state.me.get("max_energy", 100.0) or 100.0)
-    if need > emax * 0.98 and m.get("jet") is None:
+    if not legacy and need > emax * 0.98 and m.get("jet") is None:
         m["path"] = []
         m["jet_fail"] = m.get("jet_fail", 0) + 1
         m["jet_fail_t"] = state.t
@@ -672,10 +686,11 @@ def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
     if j is None:
         if not grounded:
             return NavOut(move=(dirx, diry), boost=energy > 5)
-        if energy < need:
+        if energy < need and not (legacy and urgency >= 0.8 and energy >= 0.6 * need):
             # wait at the base for energy (regen starts energy_regen_delay after the last spend);
             # combat reads hop_wait_t/hop_need and stops spending lightning energy meanwhile
-            m["hop_wait_t"], m["hop_need"] = state.t, need
+            if not legacy:
+                m["hop_wait_t"], m["hop_need"] = state.t, need
             return NavOut(move=(0.0, 0.0), eta=(need - energy) / 18.0 + 1.0)
         m["jet"] = {"t0": state.t, "z0": z, "climb": climb, "to": wp, "air": False}
         m["stats"]["jets"] += 1
