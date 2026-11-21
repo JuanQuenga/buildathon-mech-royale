@@ -128,6 +128,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
     "standx": {"laser_standoff": 120.0},
+    "snipex": {"laser_standoff": 170.0},
     "laserx": {"laser_first": True, "no_mortar": True},
     "picky_x": {"squad_picky": True, "engage_ratio_squad": 0.6},
     "laser2": {"cube_greed": True, "laser_first": True, "no_mortar": True},
