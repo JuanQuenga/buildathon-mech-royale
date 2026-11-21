@@ -145,7 +145,18 @@ too narrow). It survives longer with fewer kills, the same pattern as the real s
 not established; 100 more matches (v4b) are queued. Gated tag: **good-51** (028206c, FFA-only, so practice is
 unaffected except through detector errors).
 
-SELFPLAY_V5
+**v5** (seeds 5000–5099, 100 matches): opening hold-fire `openholdx`
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx | 400 | 8.93 ± 0.46 | 1.41 | 103 | 47/400 | 11 (383/400) | 39 | 0 |
+| var:laser+nav3x+fixx+steadyx+openholdx | 400 | 8.60 ± 0.46 | 1.35 | 100 | 49/400 | 11 (385/400) | 35 | 0 |
+
+Reading: −0.33 ± 0.77 per match, i.e. no measurable effect in the sim (early deaths 23 % → 25 %). In the sim our
+opening deaths are mostly not fights we start, unlike the three real cases. Official practice: good-50 = 5.35
+(no cost). Verdict: harmless and mechanistically clear against real bots, but unproven.
+
+SELFPLAY_V6
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
