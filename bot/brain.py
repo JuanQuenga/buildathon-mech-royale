@@ -74,6 +74,8 @@ P: Dict[str, Any] = {
     "drop_first": False,           # A/B: consider the supply drop before heal-hiding and opportunistic fights
     "explore_armed_until": 0.0,    # A/B: keep exploring unvisited ground for crates/drones while armed until this time
     "explore_for_laser_until": 0.0,  # A/B: armed but no laser yet: keep exploring for one until this match time
+    "laser_standoff": 0.0,         # A/B >0: holding a laser, fight mechs from this range even with lightning (house
+                                   # gunners hit 37-88 % inside 80 m, 20-34 % beyond; the laser is hitscan to 280 m)
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -102,6 +104,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "farm": {"cube_greed": True, "crate_value": 32.0, "drone_value": 60.0, "explore_armed_until": 150.0, "seek": True},
     "lseek": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True},   # good-7 + laser2
     "lhunt": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "explore_for_laser_until": 120.0},
+    "lstand": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "laser_standoff": 120.0},
     "laser2": {"cube_greed": True, "laser_first": True, "no_mortar": True},
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
@@ -775,6 +778,8 @@ def _desired_range(state: WorldState, e: EnemyThreat) -> float:
     their = set(e.weapons or [])
     if e.kind == "npc":
         return 40.0
+    if P["laser_standoff"] > 0 and "laser" in kinds:
+        return P["laser_standoff"]
     if "lightning" in kinds:
         if "mortar" in their:
             return 25.0
