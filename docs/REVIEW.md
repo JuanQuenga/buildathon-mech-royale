@@ -4,8 +4,9 @@
 - **Board:** best draw good-31 = 5.56, rank ~37 of 250; the cut (32nd) is 5.65 and rising ~0.1 per hour this
   afternoon; 16th 6.10; leader 6.31. We are outside the qualifying 32 until a draw beats the cut.
 - **Base policy** `laser+nav3x+fixx+steadyx`: true mean 5.34 (9 official draws, SD 0.13).
-- **Best-supported variant:** isolate (`+isolatex`, fight one at a time from spots hidden from the other attackers):
-  5.48, 5.44 → mean 5.46 (+0.12, ~1.3 SE; sim +0.08 ± 0.12). Its re-rolls are the queue's qualification draws.
+- **Isolate** (`+isolatex`, fight one at a time from spots hidden from the other attackers): 5.48, 5.44, then its
+  first re-roll good-ri41 5.17 → mean 5.36 over 3 draws, i.e. the base level. No variant has a true mean measurably
+  above 5.34; every draw (base or isolate re-roll) has only ~1–2 % chance of beating a 5.65 cut.
 - **Tested today, no gain** (official): airborne lead 5.25, boost strafe 5.27, gun discipline 5.35, opening hold-fire
   5.35, ffax 5.46, jet60 5.17, laser hunt 5.33, peek 5.44/5.15, commit 5.33, arm-first 5.19/5.27, cycle 5.42/5.21,
   isolate+cycle 5.21, arm-first+cycle 5.44, widex 5.23, weave 5.38. **Clearly worse:** break contact at the 2nd
@@ -15,9 +16,8 @@
 **The submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it). Predictions vs
 official results: `eval/RESULTS.md` ("Predictions before scoring").
 
-Current queue: isolate re-rolls good-ri41 … good-ri62 (22 gated tags, about 5.5 hours of slots). Each draw of a
-mean-5.46 policy has ~6 % chance of beating today's 5.65 cut (the base policy ~1 %); slot in any new experiment with
-a plausible ≥ 0.3 gain ahead of them.
+Current queue: isolate re-rolls good-ri41 … good-ri62 (22 gated tags, about 5.5 hours of slots). They are lottery tickets of a ~5.35 policy
+(≈ 1–2 % per draw against a 5.65 cut); put any new experiment with a plausible ≥ 0.3 gain ahead of them.
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -311,6 +311,7 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-ri41 | 5.17 | first isolate re-roll (isolate mean 5.36 over 3 draws) |
 | good-73 | 5.38 | weave: sideways weave while retreating |
 | good-41 | 5.23 | widex: full sideways weight while closing range |
 | good-70 | 5.21 | isolate + cycle |
