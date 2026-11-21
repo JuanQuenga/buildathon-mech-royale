@@ -382,6 +382,10 @@ def _assess(state: WorldState) -> ThreatsX:
             dps *= max(0.2, 1.0 - age / 6.0)
         if e.charging and e.facing_me and e.los and "laser" in weps:
             dps += 150.0
+        if tr.kind == "mech" and not e.los and age < 3.0:
+            # no line of fire right now, but it can peek around the corner any moment
+            latent = 0.2 * sum(weapon_threat(w, d, True) for w in weps) * mult
+            dps = max(dps, latent)
         e.model_dps = dps
         # observed damage per second on us
         obs_dmg = sum(a for (tt, a, by, w) in state.damage_log if by == tr.id and tt >= t - 5.0)
