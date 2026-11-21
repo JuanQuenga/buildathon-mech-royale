@@ -232,6 +232,10 @@ def parse_lineup(mode, bot_cmds, seed, ffa_spec=None):
             tracked.add(i)
         elif it.startswith("cmd:"):
             lineup.append(("proc", it[4:], "cmd"))
+        elif it.startswith("var:"):
+            # self-play: a tracked copy of --bot running brain profile <name> (name kept for per-variant results)
+            lineup.append(("proc", f"env MECH_PROFILE={it[4:]} {bot_cmds[0]}", it))
+            tracked.add(i)
         else:
             raise ValueError(f"bad lineup item {it}")
     return lineup, tracked

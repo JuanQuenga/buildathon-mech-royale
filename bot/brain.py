@@ -341,6 +341,12 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
     else:
         state.mode_guess = "unknown"
     state.mode_evidence = {"infighting": round(ev_ffa, 2), "focus_on_me": round(ev_squad, 2)}
+    mf = m.setdefault("mode_first", {})          # stats only: when each guess first appeared, and how often it flipped
+    if state.mode_guess not in mf:
+        mf[state.mode_guess] = round(t, 1)
+    if m.get("mode_prev") not in (None, state.mode_guess):
+        m["mode_flips"] = m.get("mode_flips", 0) + 1
+    m["mode_prev"] = state.mode_guess
 
 
 def _aims_at(src, yaw, dst, tol) -> bool:
@@ -1346,7 +1352,8 @@ def summary(state: WorldState) -> Dict[str, Any]:
             combat_stats = _combat.summary(state)
     except Exception:
         pass
-    return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence, "modes": m["modes"],
+    return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence,
+            "mode_first": m.get("mode_first"), "mode_flips": m.get("mode_flips", 0), "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
             "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),

@@ -174,7 +174,7 @@ def main():
                     if not m["tracked"]:
                         continue
                     kb = m["killed_by"]
-                    rec = {"seed": r["seed"], "mode": r["mode"], "label": r["label"], "bot": args.bot if r["label"] == "A" else args.bot_b,
+                    rec = {"seed": r["seed"], "mode": r["mode"], "label": r["label"], "name": m["name"], "bot": args.bot if r["label"] == "A" else args.bot_b,
                            "slot": m["id"], "place": m["place"], "score": 16 - m["place"], "death_t": m["death_t"],
                            "death_cause": m["killed_with"] or ("survived" if m["alive"] else "unknown"),
                            "killed_by": kb, "killed_by_name": None if kb is None else r["mechs"][kb]["name"], "kills": m["kills"],
