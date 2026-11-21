@@ -1,7 +1,7 @@
 # Handoff (Linux agent), 11-21 ~14:55 ET
 
-Read `docs/REVIEW.md` first: it holds the submit queue (the coordinator syncs to it at :07/:27/:47), the official
-results, family means, the FFA analysis and the final-entry recommendation. This file is the working state.
+Read `docs/REVIEW.md` first: status, official results, family means, the FFA analysis and the final-entry
+recommendation. The submit queue itself is `coord/queue/mech.txt`. This file is the working state.
 
 ## Where things stand (14:55 ET)
 - **Practice board:** best draw good-31 = 5.56, rank ~37; the cut (32nd) is 5.65 and rising. Base policy
