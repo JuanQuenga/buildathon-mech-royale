@@ -15,6 +15,7 @@ official numbers and say so here in bold.**
 | 11-21 ~01:35 | 37f5786 | good-5 | 4.46 | good-4 + good-3 brain.py: did NOT recover good-3. Either the regression is outside the brain, or tag-to-tag noise is ~±0.3 |
 | 11-21 ~01:40 | 3dd9bcd | good-7 | **5.00** | main + seek profile (sim +0.22 vs greed). New best, but only +0.04 over good-6 |
 | 11-21 ~01:55 | 696e4ec | good-8 | 4.79 | main + fresh profile (heal after kill, new fights at 85 %). Sim said +0.20 vs greed; official −0.17 vs good-6 |
+| 11-21 ~02:10 | e6718e7 | good-9 | 4.79 | chaos control: good-3 with only the idle torso-scan phase shifted. −0.08 vs good-3 → tag-to-tag noise ≈ ±0.1 |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
@@ -130,3 +131,8 @@ full HP to dead in 10-15 s and the retreat verdict flips at ~20 % HP.
 
 Loadout at death vs points (sim, greed / laser profiles): gun+laser 5.8 / 6.1, laser+lightning 5.8 / 6.0,
 gun+lightning 4.3 / 4.9, gun+mortar 2.6 / 2.9, gun only 2.3 / 1.7.
+| farm (seek + explore for crates/drones while armed until 150 s) | 4.97 (+0.15 vs greed, −0.07 vs seek) | 4.92 | 116 s |
+| laser2 (greed + laser first + no mortar) | 5.29 (+0.47 vs greed) | 5.20 | 115 s |
+| lseek (seek + laser first + no mortar) | 4.76 (**−0.28 vs seek**) | 4.70 | 109 s |
+
+**The sim's paired noise at 96 seeds is about ±0.4.** Laser-first looked +0.55 on greed but −0.28 on seek. Official runs (±0.1) decide.
