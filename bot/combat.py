@@ -205,6 +205,14 @@ def _gun_held(tg, intent, threats, state=None) -> bool:
     return True
 
 
+def _passive_first() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("passive_first", False))
+    except Exception:
+        return False
+
+
 def _fire_fix() -> bool:
     try:
         from .brain import P as BP
@@ -498,7 +506,11 @@ def _value(tg: _Tgt, intent: Intent, threats: Threats, state: WorldState, me: _M
             v *= 2.5
         if tg.charging and tg.facing_me:
             v *= 1.5
-        if _HUNTER_ON:
+        if _passive_first() and state.mode_guess != "ffa":
+            hunters = getattr(threats, "hunters", None) or []
+            if tg.id not in hunters and tg.id not in (getattr(threats, "attackers", None) or []):
+                v *= 2.0            # policy v2: passive (stronger-tier) house bots first, the weak hunters last
+        elif _HUNTER_ON:
             hunters = getattr(threats, "hunters", None) or []
             if tg.id in hunters:
                 v *= 2.0            # whoever is actually shooting us comes first

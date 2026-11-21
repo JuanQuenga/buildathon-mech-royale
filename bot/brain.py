@@ -135,6 +135,24 @@ P: Dict[str, Any] = {
     "tele_kills": 0,               # within 3 s / our kills reach tele_kills / we took a laser hit (tele_laser). The score is
     "tele_laser": False,           # then the mean number of kills at that moment: the real kill curve and escalation.
     "tele_dmg": 0.0,               # ...or once total mech damage taken reaches tele_dmg
+    # ---- policy v2 (bot/apex.py): objective layers over the base brain, each one switch
+    "drop_king": False,            # supply drops are an objective from the call: run there fighting, capture under fire
+    "dk_max_eta": 35.0,            # ...only drops we can reach within this many seconds (dk_max_eta_hurt below half HP)
+    "dk_max_eta_hurt": 60.0,
+    "dk_lead_s": 4.0,              # ...leave when the trip takes as long as the fall plus this
+    "vacuum": False,               # collect cubes at once (boosting, under fire) up to vac_max_cubes
+    "vac_reach": 90.0,
+    "vac_max_cubes": 10,
+    "duck": False,                 # a visible laser charging at us: sprint behind cover / across its aim line
+    "duck_reach": 14.0,
+    "roof": False,                 # fight from a tall roof (ground pursuers lose line of sight)
+    "roof_max_m": 260.0,           # ...nearest usable roof within this distance
+    "roof_heal_below": 0.55,       # ...step back to the roof centre and regenerate below this HP fraction
+    "roof_unarmed_t": 45.0,        # ...only once we hold a secondary weapon, or after this match time
+    "roof_ffa": False,             # ...also in rounds detected as FFA
+    "passive_first": False,        # squad/unknown: prefer mechs that are NOT hunting us. Hunters = the kills + 1 weakest
+                                   # house bots alive, so killing a hunter promotes a stronger one; killing the passive
+                                   # (stronger) bots first keeps the weakest tiers as our hunters for the whole match
     "squad_standoff": 0.0,         # A/B >0: vs gun/mortar mechs in squad rounds hold this range with gun/laser
                                    # (sim: house gunners hit 37-88% inside 80 m, 20-34% beyond; our led shots drop less)      # A/B: after a kill below opp_min_hp_squad, break LOS and heal before anything else     # under fire without a secondary: run to a known weapon this close instead of fleeing
 }
@@ -213,6 +231,12 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "telek2x": {"tele_kills": 2}, "telek3x": {"tele_kills": 3}, "telek4x": {"tele_kills": 4}, "telek5x": {"tele_kills": 5},
     "telek6x": {"tele_kills": 6}, "telek7x": {"tele_kills": 7}, "telelaserx": {"tele_laser": True},
     "teledmg1400x": {"tele_dmg": 1400.0}, "teledmg2800x": {"tele_dmg": 2800.0},
+    "dropx": {"drop_king": True},
+    "vacx": {"vacuum": True},
+    "close55x": {"laser_range": 55.0},
+    "headx": {"passive_first": True, "seek": True},
+    "duckx": {"duck": True},
+    "roofx": {"roof": True},
     "evadex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
                "heal_below_squad": 0.8, "heal_below": 0.7, "engage_ratio_squad": 0.0, "engage_ratio_ffa": 0.0,
                "retreat_ratio": 100.0, "berserk": False, "no_fire": True},       # survival study (a): pure evasion
@@ -665,6 +689,22 @@ def _ehp(state: WorldState) -> float:
 
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
+    it = _choose_base(state, threats)
+    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"]:
+        try:
+            from . import apex
+            it = apex.refine(state, threats, it, _mem(state))
+        except Exception:
+            m = _mem(state)
+            n = m["apex_err"] = m.get("apex_err", 0) + 1
+            if n <= 3:
+                import sys
+                import traceback
+                print("[apex] refine failed:\n" + traceback.format_exc(limit=4), file=sys.stderr)
+    return it
+
+
+def _choose_base(state: WorldState, threats: Threats) -> Intent:
     m = _mem(state)
     m["threats_ref"] = threats
     if m.get("first_weapon_t") is None and (state.weapon_kinds() + [None])[1] is not None:
@@ -988,10 +1028,18 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         dps = max(1.0, my_dps(state, min(d, _desired_range(state, e))))
         my_ttk = hp / dps + (0.0 if d < 150 else (d - 150) / 10.0)
         r = my_ttk / their_ttk
-        if e.id in attackers:
-            r *= 0.9
-        if P["hunter_model"] and e.id in hunters and state.weapon_kinds()[1] is not None:
-            r *= P["hunter_pref"]
+        if P["passive_first"] and state.mode_guess != "ffa" and e.kind == "mech":
+            # policy v2: kill the mechs that are not hunting us first (a hunter only when it is nearly dead)
+            if e.id in hunters or e.id in attackers:
+                if e.id in (getattr(threats, "killable", None) or []) or hp < 0.25 * (e.max_hp or 1400.0):
+                    r *= 0.5
+            elif e.visible and d < 220.0:
+                r *= 0.4
+        else:
+            if e.id in attackers:
+                r *= 0.9
+            if P["hunter_model"] and e.id in hunters and state.weapon_kinds()[1] is not None:
+                r *= P["hunter_pref"]
         if r < best_r:
             best, best_r = e, r
     if P["commit"] and best is not None:
@@ -1736,7 +1784,16 @@ def summary(state: WorldState) -> Dict[str, Any]:
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
             "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),
-            "first_weapon_t": m.get("first_weapon_t"), "profile": P.get("profile")}
+            "first_weapon_t": m.get("first_weapon_t"), "profile": P.get("profile"), "apex": _apex_summary(m),
+            "apex_err": m.get("apex_err", 0)}
+
+
+def _apex_summary(m: Dict[str, Any]):
+    try:
+        from . import apex
+        return apex.summary(m)
+    except Exception:
+        return None
 
 
 def debug(state: WorldState, intent: Intent, threats: Threats, nav, cmb) -> Dict[str, Any]:

@@ -179,6 +179,15 @@ class Pilot:
         if nv is None:
             self.overruns["navigate"] = self.overruns.get("navigate", 0) + 1
             nv = st.NavOut(move=P["nav"].move, boost=P["nav"].boost)
+        rm = getattr(intent, "raw_move", None)
+        if rm is not None and nv is not None:
+            # policy v2 (bot/apex.py): short scripted moves (ring capture dance, beam duck) steer directly
+            try:
+                grounded = bool(s.me.get("grounded", True))
+                nv = st.NavOut(move=(float(rm[0]), float(rm[1])), boost=bool(getattr(intent, "raw_boost", False)) and grounded,
+                               jump=False, eta=nv.eta, blocked=False)
+            except Exception:
+                pass
         P["nav"] = nv
         cb = self._call("combat", combat.step, P["combat"], s, intent, th) if combat and not over() else None
         if cb is None:

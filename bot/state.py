@@ -37,6 +37,9 @@ class Intent:
     reason: str = ""                     # short debug text
     max_speed: Optional[float] = None    # cap ground speed (m/s); < sound.step_speed (5) = silent movement
     spare_ids: List[int] = field(default_factory=list)  # mechs combat must not shoot (squad: passive house bots)
+    raw_move: Optional[Vec2] = None      # policy v2 (bot/apex.py): direct move vector, bypasses path following
+    raw_boost: bool = False              # ...with ground boost
+    weave: bool = False                  # nav3: add a sideways weave (relative to the nearest attacker) to the route
 
 
 @dataclass
