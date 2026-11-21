@@ -28,7 +28,8 @@ PY = os.environ.get("PY", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordin
 if not os.path.exists(PY):
     PY = sys.executable
 RUNNER = os.environ.get("MECH_RUNNER",
-                        PY + " {root}/sim/run_matches.py --bot {bot} --mode {mode} --seeds {seeds} --out {out} --jobs {jobs}")
+                        PY + " {root}/sim/run_matches.py --quiet --mode {mode} --bot {bot} --seeds {seeds} --out {out} --jobs {jobs} --logs {logs} {extra}")
+FFA_SPEC = os.environ.get("MECH_FFA", "bot*1,builtin:expert*5,builtin:hard*5,builtin:brawler*3,builtin:sniper*2")
 
 
 def sh(cmd, **kw):
@@ -52,19 +53,69 @@ def bot_cmd(path):
 
 
 def run(ref_path, mode, seeds, jobs, tmp, tag):
+    """Returns one row per tracked-bot sample: seed, place, score, death_t, cause, kills, missed, late, tracebacks."""
     out = os.path.join(tmp, f"{tag}-{mode}.jsonl")
+    logs = os.path.join(tmp, f"logs-{tag}-{mode}")
     sim_root = REPO  # always use the CURRENT sim so both bots face the same opponents
-    cmd = RUNNER.format(bot=shlex.quote(bot_cmd(ref_path)), mode=mode, seeds=seeds, out=out, jobs=jobs, root=sim_root)
+    extra = f"--ffa {shlex.quote(FFA_SPEC)}" if mode == "ffa" else ""
+    cmd = RUNNER.format(bot=shlex.quote(bot_cmd(ref_path)), mode=mode, seeds=seeds, out=out, jobs=jobs, root=sim_root,
+                        logs=logs, extra=extra)
     t0 = time.time()
     p = subprocess.run(cmd, shell=True, text=True, capture_output=True, cwd=sim_root)
     if p.returncode != 0:
         print(p.stdout[-2000:], p.stderr[-4000:], file=sys.stderr)
         raise SystemExit(f"runner failed for {tag} {mode}")
+    tb = 0
+    summaries = []
+    for dp, _, fs in os.walk(logs):
+        for fn in fs:
+            try:
+                with open(os.path.join(dp, fn), errors="replace") as f:
+                    txt = f.read()
+            except OSError:
+                continue
+            tb += txt.count("Traceback")
+            for line in txt.splitlines():
+                if line.startswith("stats {"):
+                    try:
+                        summaries.append(json.loads(line[6:]))
+                    except ValueError:
+                        pass
+    if summaries:
+        modes, guess, fb, p99 = {}, {}, 0, []
+        for sm in summaries:
+            b = sm.get("brain") or {}
+            for k, v in (b.get("modes") or {}).items():
+                modes[k] = modes.get(k, 0) + v
+            g = b.get("mode_guess", "?")
+            guess[g] = guess.get(g, 0) + 1
+            fb += int(sm.get("fallbacks", 0) or 0)
+            p99.append(float(sm.get("p99_ms", 0) or 0))
+        tot = max(1, sum(modes.values()))
+        print(f"    [{tag}] brain modes " + " ".join(f"{k}:{100 * v / tot:.0f}%" for k, v in sorted(modes.items(), key=lambda x: -x[1]))
+              + f"  round guess at death {guess}  fallbacks {fb}  bot p99 max {max(p99):.1f}ms")
     rows = []
     with open(out) as f:
         for line in f:
-            if line.strip():
-                rows.append(json.loads(line))
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            if "error" in r:
+                print(f"  sim error seed {r.get('seed')}: {r['error'][:300]}", file=sys.stderr)
+                continue
+            for m in r["mechs"]:
+                if not m.get("tracked"):
+                    continue
+                cause = m.get("killed_with") or "survived"
+                if cause == "zone":
+                    cause = "zone"
+                elif m.get("killed_by") is None and cause != "survived":
+                    cause = "other:" + str(cause)
+                rows.append({"seed": r["seed"], "place": m["place"], "score": 16 - m["place"], "death_t": m.get("death_t"),
+                             "death_cause": cause, "kills": m.get("kills", 0), "missed_replies": m.get("missed", 0),
+                             "late": m.get("late", 0), "cubes": m.get("cubes", 0), "zone_dmg": m.get("zone_dmg", 0)})
+    if rows:
+        rows[0]["tracebacks"] = tb
     return rows, time.time() - t0
 
 
@@ -97,7 +148,7 @@ def main():
     ap.add_argument("cand")
     ap.add_argument("--modes", default="squad,ffa")
     ap.add_argument("--seeds", default="0-23")
-    ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--log", action="store_true", help="append the result to eval/RESULTS.md")
     a = ap.parse_args()
     tmp = tempfile.mkdtemp(prefix="mechcmp.")
@@ -108,22 +159,29 @@ def main():
         for mode in a.modes.split(","):
             rb, tb = run(bp, mode, a.seeds, a.jobs, tmp, "base")
             rc, tc = run(cp, mode, a.seeds, a.jobs, tmp, "cand")
-            sb = {r["seed"]: score(r) for r in rb}
-            sc = {r["seed"]: score(r) for r in rc}
+            sb, sc = {}, {}
+            for r in rb:
+                sb.setdefault(r["seed"], []).append(score(r))
+            for r in rc:
+                sc.setdefault(r["seed"], []).append(score(r))
+            sb = {k: statistics.mean(v) for k, v in sb.items()}
+            sc = {k: statistics.mean(v) for k, v in sc.items()}
             common = sorted(set(sb) & set(sc))
             diffs = [sc[s] - sb[s] for s in common]
             mb = statistics.mean(sb[s] for s in common) if common else float("nan")
             mc = statistics.mean(sc[s] for s in common) if common else float("nan")
             lo, hi = boot_ci(diffs)
             miss = sum(int(r.get("missed_replies", 0) or 0) for r in rc)
-            tbk = sum(int(r.get("bot_stderr_tracebacks", r.get("tracebacks", 0)) or 0) for r in rc)
+            tbk = sum(int(r.get("tracebacks", 0) or 0) for r in rc)
+            alive_b = statistics.mean(float(r["death_t"] or 480) for r in rb) if rb else 0
+            alive_c = statistics.mean(float(r["death_t"] or 480) for r in rc) if rc else 0
             print(f"[{mode}] n={len(common)}  base {bs} {mb:.2f}  cand {cs} {mc:.2f}  diff {mc - mb:+.2f} "
                   f"(95% CI {lo:+.2f}..{hi:+.2f})  [{tb:.0f}s/{tc:.0f}s]")
             print(f"    causes base {causes(rb)}")
             print(f"    causes cand {causes(rc)}  missed_replies={miss} tracebacks={tbk}")
             kb = statistics.mean(float(r.get("kills", 0) or 0) for r in rb) if rb else 0
             kc = statistics.mean(float(r.get("kills", 0) or 0) for r in rc) if rc else 0
-            print(f"    kills/match base {kb:.2f} cand {kc:.2f}")
+            print(f"    kills/match base {kb:.2f} cand {kc:.2f}   time alive base {alive_b:.0f}s cand {alive_c:.0f}s")
             lines.append(f"| {time.strftime('%m-%d %H:%M')} | {bs} | {cs} | {mode} | {len(common)} | {mb:.2f} | {mc:.2f} | "
                          f"{mc - mb:+.2f} ({lo:+.2f}..{hi:+.2f}) | {causes(rc)} miss={miss} tb={tbk} |")
         if a.log:
