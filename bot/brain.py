@@ -84,6 +84,7 @@ P: Dict[str, Any] = {
     "hop_legacy": False,           # A/B: navigate uses good-3's jet-hop energy rules (read by navigate._hop_legacy)
     "berserk": False,              # A/B: squad/unknown rounds: never retreat from a fight (90 % of deaths came in
                                    # retreat mode; points are kills, so trade to the end on the best target)
+    "berserk_max_ratio": 4.0,      # ...but still retreat from hopeless fights (TTK ratio above this)
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -761,7 +762,7 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             thr *= 0.8 if prev == "retreat" else (1.25 if prev == "engage" else 1.0)
         n_att = len([a for a in attackers if a in {e.id for e in fresh}])
         tgt_frac = (best.hp if best.hp is not None else 1400.0) / max(1.0, best.max_hp or 1400.0)
-        if P["berserk"] and state.mode_guess != "ffa":
+        if P["berserk"] and state.mode_guess != "ffa" and best_r < P["berserk_max_ratio"]:
             out["verdict"] = "engage"
         elif best_r > thr or (state.hp / state.max_hp < 0.25 and best_r > 0.5):
             out["verdict"] = "retreat"
