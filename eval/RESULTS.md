@@ -18,8 +18,14 @@ tracebacks / no fallbacks.
 | Tag | Commit | Gate | Notes |
 | --- | --- | --- | --- |
 | good-1 | 634dbe1 | check.sh PASS (no sim yet) | skeleton, example-bot behaviour |
+| good-2 | e9ea4c2 | check.sh PASS (no sim yet) | brain v1 on placeholder nav/combat |
+| **good-3** | **f8db786** | check.sh PASS; 64 sim matches, 0 missed replies, 0 tracebacks | nav + combat + brain + process guard. Sim 0fb1d99: squad **3.38** (example 0.91), FFA **10.91** (example 7.34) |
 
 ## Conformance and timing (eval/check.sh)
+
+Caveat: the build machine is shared and often at load average 50+ on 16 cores; latency numbers and the bot's
+fallback counts in sim runs (e.g. 1667 fallbacks over 32 squad matches for f8db786 = ~5% of decisions) are
+inflated by that. Unloaded docker --cpus 1 runs of the recorded stream show policy p99 ~8 ms.
 
 | Commit | native p99 / max (ms) | docker p99 / max | stress big p99 / max | stress late p99 / max | Result |
 | --- | --- | --- | --- | --- | --- |
@@ -38,3 +44,5 @@ tracebacks / no fallbacks.
 
 Note: the sim itself changed between 52a06b3 and 0458b19 (house bots' zone pathing, focus vision): absolute numbers
 are only comparable within one sim commit (see the "sim" column).
+| 11-21 ~00:45 (sim 0fb1d99) | example | f8db786 (good-3) | squad | 32 | 0.91 | 3.38 | +2.47 (+1.97..+3.00) | gun 27, laser 3, mortar 1, zone 1; kills 3.31; alive 159s→103s; round guess squad 6/unknown 23/ffa 3 |
+| 11-21 ~00:45 (sim 0fb1d99) | example | f8db786 (good-3) | ffa | 32 | 7.34 | 10.91 | +3.56 (+1.81..+5.38) | gun 17, laser 3, survived 12; kills 1.72; alive 87s→218s |
