@@ -86,6 +86,9 @@ P: Dict[str, Any] = {
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
     "weave": False,                # A/B (nav3): retreat with a sideways weave relative to the nearest attacker
+    "cube_price": False,           # A/B: grab cubes when exposure (eta x incoming dps) costs less than their value
+    "keep_gun": False,             # A/B: gun valued above lightning (no gun-for-lightning swaps)
+    "fire_fix": False,             # A/B (combat): re-check the gun shot against the final aim after a laser override
     "fire_speed": 0.0,             # A/B >0: cap our speed (m/s) while engaging a target
     "fire_stand": False,           # A/B: stand while <= 1 attacker in sight, 6 m/s with 2, full strafe with 3+
     "laser_range": 0.0,            # A/B >0: preferred engage range with a laser (default 90, 120 vs lightning)
@@ -189,6 +192,10 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "armfirstx": {"arm_first": True},
     "slow6x": {"fire_speed": 6.0},
     "weavex": {"weave": True},
+    "cubex": {"cube_price": True},
+    "keepgunx": {"keep_gun": True},
+    "firefixx": {"fire_fix": True},
+    "drop95x": {"drop_first": True, "drop_max_eta": 60.0, "drop_base": 60.0},
     "stand1x": {"fire_stand": True, "fire_speed": 6.0},
     "close60x": {"fire_speed": 6.0, "laser_range": 60.0},
     "evadex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
@@ -249,6 +256,8 @@ def _env_overrides() -> None:
 _env_overrides()
 
 WEAPON_VALUE = {"lightning": 3.0, "laser": 2.8, "mortar": 1.2, "gun": 1.5}
+if P["keep_gun"]:
+    WEAPON_VALUE["gun"] = 3.1        # A/B: never trade the gun for lightning (keeps gun + laser at 60-120 m)
 if P["laser_first"]:
     WEAPON_VALUE["laser"] = 3.6
 if P["no_mortar"]:
@@ -680,6 +689,33 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
         return _finish(state, m, it)
 
     # 1b. squad: pick up nearby cubes (kill drops) before starting the next fight
+    if P["cube_price"] and int(state.me.get("cubes", 0) or 0) < 10:
+        # A/B (outside review): price a cube detour by exposure instead of switching cube grabs off on any recent hit.
+        # A cube = +4 % max HP and damage (+ an upgrade offer at 1/3/6/10 cubes).
+        ncub = int(state.me.get("cubes", 0) or 0)
+        thr = state.cfg.get("cubes", {}).get("upgrade_thresholds", [1, 3, 6, 10])
+        value = 90.0 + (150.0 if (ncub + 1) in thr else 0.0)
+        inc = sum(enemy_dps(e, e.dist) for e in fresh if e.id in attackers)
+        reach = P["cube_grab_m"] if attackers else 50.0
+        best_c = None
+        for r in m["items"].values():
+            if r["type"] != "cube" or m["blacklist"].get(r["id"], -1e9) > state.t or abs(r["pos"][2] - state.pos[2]) >= 4.0:
+                continue
+            d = dist2d(r["pos"], state.pos)
+            if d > reach:
+                continue
+            eta = d / max(1.0, state.stat("walk_speed", 11.7)) + 0.3
+            if eta * inc < value and (best_c is None or d < best_c[0]):
+                best_c = (d, r)
+        if best_c is not None:
+            c = best_c[1]
+            if m["stuck_s"] > 4.0:
+                m["blacklist"][c["id"]] = state.t + 30
+                m["last_progress_t"] = state.t
+            ft = fight.get("target")
+            return _finish(state, m, Intent(mode="loot", goal=c["pos"], loot_id=c["id"], urgency=0.4, face=face,
+                                            allow_fire=True, target_id=ft.id if ft is not None else None,
+                                            reason=f"cube {c['id']} priced"))
     if P["cube_greed"] and state.mode_guess != "ffa" and not attackers and int(state.me.get("cubes", 0) or 0) < 10:
         cb = [r for r in m["items"].values() if r["type"] == "cube" and dist2d(r["pos"], state.pos) < P["cube_grab_m"]
               and abs(r["pos"][2] - state.pos[2]) < 4.0 and m["blacklist"].get(r["id"], -1e9) <= state.t]

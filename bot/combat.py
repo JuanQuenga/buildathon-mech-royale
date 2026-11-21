@@ -205,6 +205,14 @@ def _gun_held(tg, intent, threats, state=None) -> bool:
     return True
 
 
+def _fire_fix() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("fire_fix", False))
+    except Exception:
+        return False
+
+
 def _no_fire() -> bool:
     try:
         from .brain import P as BP
@@ -728,6 +736,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
         out.reason = "idle"
     fa = _fire_aim(me, cmd)
 
+    gun_ctx = None
     # ---- gun
     if gun and tg is not None and allow and gun_ready and "gun" in best[3]:
         gs = best[3]["gun"][2]
@@ -747,6 +756,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
         if p >= thr:
             fire[gun[0]] = True
             out.damaging = True
+            gun_ctx = (gs, thr, cmd)
         if out.weapon == "gun":
             out.p_hit = p
 
@@ -796,6 +806,14 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
         if not trig and las_c > 0 and not dump:
             out.damaging = True
 
+    # ---- A/B fire_fix (outside review): the gun was judged against the aim before the laser state machine could
+    # replace it (beam aim without lead, or a dump into the sky); re-check against the final command
+    if gun_ctx is not None and fire[gun[0]] and _fire_fix() and cmd is not gun_ctx[2]:
+        gs, thr, _ = gun_ctx
+        fa_g = B.slew(me.aim, cmd, me.yr, me.pr, gun_k * TICK, me.minp, me.maxp)
+        fa_g0 = B.slew(me.aim, cmd, me.yr, me.pr, (gun_k - 1) * TICK, me.minp, me.maxp)
+        if 0.5 * (gun_p(me, tg, gs, fa_g, gst) + gun_p(me, tg, gs, fa_g0, gst)) < thr:
+            fire[gun[0]] = False
     # ---- reload
     out.reload = _want_reload(state, threats, me, gun, gst, tg, best, fire)
 
