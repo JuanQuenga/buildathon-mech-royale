@@ -51,17 +51,31 @@ def _walk_speed(state: WorldState) -> float:
 
 
 # ============================================================================== public API
+def _finite3(p) -> bool:
+    try:
+        return p is not None and len(p) >= 2 and all(math.isfinite(float(v)) for v in p[:3])
+    except Exception:
+        return False
+
+
 def step(state: WorldState, intent: Intent, threats: Threats) -> NavOut:
     t0 = time.perf_counter()
     m = _mem(state)
     try:
+        if not _finite3(state.pos):
+            return NavOut()                       # no usable position this tick: stand still
+        if intent is not None and intent.goal is not None and not _finite3(intent.goal):
+            intent = Intent(**{**intent.__dict__, "goal": None})
         out = _step(state, intent, threats, m)
     except Exception as e:  # never let movement die
-        try:
-            import sys
-            print(f"[nav] step error {e!r}", file=sys.stderr)
-        except Exception:
-            pass
+        n = m["stats"]["errors"] = m["stats"].get("errors", 0) + 1
+        if n <= 5 or n % 100 == 0:
+            try:
+                import sys
+                import traceback
+                print(f"[nav] step error #{n} {e!r} {traceback.format_exc(limit=3)}", file=sys.stderr)
+            except Exception:
+                pass
         out = _straight(state, intent)
     dt = (time.perf_counter() - t0) * 1000
     st = m["stats"]
