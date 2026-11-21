@@ -9,23 +9,18 @@ replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 dr
 | --- | --- | --- | --- | --- |
 | 1 | `good-54` | ab489ab | **Structural: fight from cover with the laser** (`peekx`). Laser ready: hold a sighted spot, charge, fire; laser cooling (1.65 s): step to the nearest spot hidden from the target and the nearest other threat (≤ 40 m); no cover or no laser: normal steady strafe. Why: the practice leaders (kyoto-max 6.31, giddygiddyboy 6.0) take 24–28 dmg/s, move ~6 m/s while firing at ~60 m and live 150–160 s in real showdowns; we take 41/s at 11.6 m/s and live 95 s. Practice points are kills before death, so damage taken is the lever. Sim squad +0.23 ± 0.67, alive 117 → 125 s | 5.6 |
 | 2 | `good-52` | 2d14b1f | good-31 + **longer planned jet climbs** (`jet60x`: jet_cap 40 → 60 m, roof weapons up to 35 m). Navigation is the one lever with large real effects (good-4 hop rules −0.3, ground-only −0.29 = jet_cap 0), so the dose-response may continue upward | 5.5 |
-| 3 | `good-r4` | 0647f5f | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 4 | `good-r5` | 964946c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 5 | `good-53` | 6301311 | **FFA final candidate** = good-31 policy + opening hold-fire + FFA survival-first (`openholdx+ffahidex`). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.38 |
-| 6 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
-| 7 | `good-r6` | fe55d11 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 8 | `good-r7` | 7b21405 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 9 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 10 | `good-r8` | 90709e2 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 11 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 12 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 13 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 14 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 15 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 16 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 17 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 18 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 19 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 3 | `good-53` | 6301311 | **FFA final candidate** = good-31 policy + opening hold-fire + FFA survival-first (`openholdx+ffahidex`). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.38 |
+| 4 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 5 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 6 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 7 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 8 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 9 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 10 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 11 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 12 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 13 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 14 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -98,6 +93,39 @@ break contact at the 2nd hunter). Steady-base versions follow as good-39+.
 | **poteto (us)** | 8.9 | **34.6** | **41.0** | **95** |
 | 2696 | 10.5 | 37.4 | 52.2 | 86 |
 | scorpion | 11.4 | 29.2 | 55.8 | 75 |
+
+**Behaviour profiles of the field** (real showdowns, bots with ≥ 5 matches, sorted by mean place; `eval/diag/cast/profile.py`;
+"speed firing" = median horizontal speed within 0.5 s of a shot; boost/air = shares of those frames):
+
+| bot | n | place | first weapon med s | laser at end | laser hit range med | gun hit range med | hit-by range med | dealt/s | taken/s | life s | speed firing | boost | air | cubes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TigerTown27 | 17 | 5.9 | 8.9 | 0.88 | 88 | 84 | 84 | 35.9 | 28.7 | 170 | 11.7 | 0.32 | 0.01 | 16.5 |
+| kyoto-max | 17 | 6.9 | 23.8 | 0.76 | 63 | 68 | 68 | 22.9 | 27.8 | 162 | 6.3 | 0.23 | 0.01 | 6.9 |
+| r1ver | 18 | 7.0 | 16.7 | 0.33 | 92 | 66 | 74 | 22.8 | 29.3 | 157 | 10.3 | 0.26 | 0.01 | 9.7 |
+| giddygiddyboy | 17 | 7.1 | 31.9 | 0.47 | 60 | 59 | 61 | 20.9 | 24.4 | 152 | 5.8 | 0.14 | 0.01 | 5.4 |
+| A-bot LLC | 25 | 7.2 | 6.8 | 0.64 | 102 | 86 | 82 | 32.6 | 36.8 | 132 | 11.6 | 0.21 | 0.04 | 6.2 |
+| W squad | 19 | 7.4 | 12.7 | 0.74 | 70 | 60 | 64 | 22.4 | 37.0 | 152 | 7.6 | 0.18 | 0.01 | 6.9 |
+| Kanyaraasi | 24 | 7.5 | 12.0 | 0.29 | 88 | 56 | 59 | 20.9 | 27.5 | 165 | 4.7 | 0.15 | 0.01 | 3.9 |
+| whatever | 16 | 7.6 | 20.9 | 0.25 | 65 | 60 | 66 | 18.0 | 27.3 | 148 | 7.4 | 0.24 | 0.00 | 6.1 |
+| benchmaster | 17 | 8.2 | 17.4 | 0.71 | 104 | 96 | 88 | 20.8 | 31.4 | 127 | 7.3 | 0.14 | 0.03 | 2.7 |
+| not even close | 17 | 8.3 | 25.4 | 0.59 | 77 | 67 | 67 | 19.1 | 32.5 | 127 | 9.4 | 0.17 | 0.02 | 4.4 |
+| azing | 23 | 8.4 | 45.5 | 0.43 | 96 | 104 | 89 | 26.8 | 30.6 | 123 | 11.6 | 0.23 | 0.05 | 4.6 |
+| BackwardsDeployeds | 21 | 8.6 | 32.1 | 0.14 | 80 | 65 | 64 | 24.6 | 31.9 | 134 | 8.1 | 0.28 | 0.02 | 5.3 |
+| Mahalas | 24 | 8.7 | 53.8 | 0.29 | 92 | 90 | 92 | 19.1 | 34.3 | 122 | 11.7 | 0.33 | 0.04 | 1.9 |
+| uploadcocoa | 7 | 8.9 | 15.6 | 0.43 | 113 | 85 | 86 | 31.5 | 30.3 | 102 | 10.7 | 0.18 | 0.51 | 6.0 |
+| poteto | 7 | 8.9 | 14.6 | 0.57 | 95 | 95 | 80 | 34.6 | 41.0 | 95 | 11.6 | 0.10 | 0.06 | 5.0 |
+| tigerbyte | 12 | 9.2 | 15.9 | 0.33 | 98 | 87 | 95 | 22.5 | 43.9 | 124 | 11.6 | 0.40 | 0.00 | 3.9 |
+| AT | 9 | 9.8 | 7.8 | 0.56 | 127 | 48 | 103 | 23.8 | 40.8 | 78 | 11.7 | 0.11 | 0.13 | 4.1 |
+| Antalos | 16 | 9.9 | 20.0 | 0.50 | 53 | 54 | 58 | 32.2 | 42.5 | 93 | 6.7 | 0.14 | 0.00 | 5.4 |
+| 2696 | 25 | 10.0 | 14.4 | 0.48 | 105 | 91 | 89 | 38.3 | 51.7 | 97 | 11.2 | 0.21 | 0.01 | 4.6 |
+| 2.3% | 23 | 10.2 | 13.2 | 0.39 | 59 | 64 | 61 | 20.2 | 35.1 | 80 | 9.0 | 0.27 | 0.16 | 1.0 |
+| sonion | 10 | 10.7 | 38.0 | 0.20 | 113 | 92 | 82 | 22.9 | 49.3 | 80 | 3.7 | 0.17 | 0.02 | 4.0 |
+| scorpion | 17 | 11.4 | 7.3 | 0.53 | 99 | 75 | 81 | 29.2 | 55.8 | 75 | 11.2 | 0.28 | 0.02 | 5.4 |
+
+Reading: the practice leaders kyoto-max (6.31) and giddygiddyboy (6.0) fight close (~60 m), slowly (~6 m/s while
+firing), take 24–28 dmg/s and live 150–160 s; their first weapon comes late (median 24–32 s). We deal the most damage
+but take 41/s at 11.6 m/s and live 95 s. Practice points are kills before death (score = 16 − place; house bots
+never fight each other), so living ~25 s longer at our kill rate is worth about one point. This motivated good-54.
 
 **FFA-only switch `ffax`** (`ffa_tactics`, active only while the detector says `ffa`; commit 809b931):
 gun discipline beyond 120 m; never pick a target that puts an active attacker more than 80° behind our aim unless
