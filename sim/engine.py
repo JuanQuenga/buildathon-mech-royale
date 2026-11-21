@@ -1041,13 +1041,11 @@ class Match:
         src = (float(at[0]), float(at[1]))
         owner = self._src_mech(p.owner)
         if direct is not None:
-            self._damage(direct[1], direct[0], p.damage, "mortar", p.owner, (float(p.pos[0]), float(p.pos[1])))
+            self._damage(direct[1], direct[0], p.damage, "mortar", p.owner, (float(p.pos[0]), float(p.pos[1])), effect=("concuss" if direct[0] == "mech" else None))
         # splash: all targets incl. the owner
         cand = []
         for tg in self._targets():
             kind, obj, cx, cy, zb, r, h = tg
-            if direct is not None and obj is direct[1] and not self.sim["mortar_direct_plus_splash"]:
-                continue
             # distance from blast to nearest point of the cylinder
             dxy = max(0.0, math.hypot(cx - at[0], cy - at[1]) - r)
             dz = 0.0 if zb <= at[2] <= zb + h else min(abs(at[2] - zb), abs(at[2] - zb - h))
@@ -1064,11 +1062,13 @@ class Match:
             if not ok:
                 continue
             kind, obj = tg[0], tg[1]
-            f = 1.0 - (1.0 - edge) * (dist / R)
-            dmg = p.splash * f
-            if kind == "mech" and obj.id == p.owner:
-                dmg *= obj.stats["self_damage_mult"]
-            self._damage(obj, kind, dmg, "mortar", p.owner, src, effect=("concuss" if kind == "mech" else None))
+            is_direct = direct is not None and obj is direct[1]
+            f = 1.0 if is_direct else 1.0 - (1.0 - edge) * (dist / R)
+            if not is_direct or self.sim["mortar_direct_plus_splash"]:
+                dmg = p.splash * f
+                if kind == "mech" and obj.id == p.owner:
+                    dmg *= obj.stats["self_damage_mult"]
+                self._damage(obj, kind, dmg, "mortar", p.owner, src, effect=("concuss" if kind == "mech" else None))
             if kind == "mech" and obj.alive:
                 hx, hy = obj.pos[0] - at[0], obj.pos[1] - at[1]
                 hl = math.hypot(hx, hy)

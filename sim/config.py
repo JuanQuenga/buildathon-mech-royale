@@ -21,7 +21,7 @@ def load_config(path: str | None = None) -> dict:
 SIM_DEFAULTS = {
     "spread_is_sigma": True,          # gun spread_deg is the Gaussian sigma (else: 2-sigma)
     "lightning_cone_half": True,      # cone_deg is the half-angle (|dyaw| <= cone_deg); else full width
-    "mortar_direct_plus_splash": True,  # direct-hit target also takes the full-centre splash
+    "mortar_direct_plus_splash": False,  # replay: a direct hit deals `damage` only (one hit event), full concussion
     "air_keeps_boost_speed": True,    # in the air, horizontal target speed = max(walk, current) (keeps run momentum)
     "ground_snap": 1.2,               # walking down: snap to surface when drop <= this (m)
     "npc_bullet_range": 100.0,        # NPC bullet max travel (m)

@@ -46,7 +46,7 @@ def _init(arena):
 
 def _job(job):
     from runner import run_match
-    (seed, bot, label, args_d) = job
+    (seed, bots, label, args_d) = job
     class A:  # noqa
         pass
     a = A()
@@ -61,7 +61,7 @@ def _job(job):
         logs = os.path.join(a.logs, label)
         os.makedirs(logs, exist_ok=True)
     try:
-        res = run_match(_WORLD, seed, mode=a.mode, bot_cmds=[bot], ffa_spec=a.ffa, enforce=a.enforce, budget_ms=a.budget_ms, trace_path=trace,
+        res = run_match(_WORLD, seed, mode=a.mode, bot_cmds=bots, ffa_spec=a.ffa, enforce=a.enforce, budget_ms=a.budget_ms, trace_path=trace,
                         log_dir=logs, validate=a.validate, cfg=cfg, sim=sim, squad=squad, stop_when_tracked_dead=not a.full, cwd=a.cwd)
     except Exception as e:  # keep the batch going
         import traceback
@@ -127,9 +127,15 @@ def main():
     repo = os.path.dirname(HERE)
     args.cwd = args.cwd or repo
     args_d = {k: v for k, v in vars(args).items()}
-    work = [(s, args.bot, "A", args_d) for s in seeds]
-    if args.bot_b:
-        work += [(s, args.bot_b, "B", args_d) for s in seeds]
+    h2h = args.mode == "ffa" and args.ffa and "bot2" in args.ffa
+    if h2h:
+        if not args.bot_b:
+            ap.error("--ffa uses bot2: pass --bot-b")
+        work = [(s, [args.bot, args.bot_b], "H2H", args_d) for s in seeds]
+    else:
+        work = [(s, [args.bot], "A", args_d) for s in seeds]
+        if args.bot_b:
+            work += [(s, [args.bot_b], "B", args_d) for s in seeds]
     t0 = time.time()
     results = []
     ctx = mp.get_context("fork")
@@ -149,6 +155,15 @@ def main():
                               f"loadout {'+'.join(m['loadout'])} cubes {m['cubes']} zone_dmg {m['zone_dmg']}{lat}"
                               f"{' TRACEBACKS ' + str(m['stderr_tracebacks']) if m.get('stderr_tracebacks') else ''}  (wall {r['wall_s']}s)", flush=True)
     wall = time.time() - t0
+    if h2h:
+        # split each head-to-head match into an A view (copies of --bot) and a B view (copies of --bot-b)
+        def view(r, name, lab):
+            if "error" in r:
+                return dict(r, label=lab)
+            v = dict(r, label=lab)
+            v["mechs"] = [dict(m, tracked=m["tracked"] and m["name"] == name) for m in r["mechs"]]
+            return v
+        results = [view(r, "bot", "A") for r in results] + [view(r, "bot2", "B") for r in results]
     if args.out:
         with open(args.out, "w") as f:
             for r in sorted(results, key=lambda r: (r.get("label", ""), r["seed"])):
