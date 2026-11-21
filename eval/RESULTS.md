@@ -28,6 +28,8 @@ official numbers and say so here in bold.**
 | 11-21 ~04:37 | 4fb7820 | good-26 | 5.04 | good-22 + hide (break LOS from every visible house bot, spare passives): −0.17. The real squad does not lose enough bots without us |
 | 11-21 ~04:40 | 23e597b | good-30 | 5.19 | good-22 + juke (0.3–1.0 s reversals beyond 80 m): neutral |
 | 11-21 ~05:00 | 1f7fa6f | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s): **+0.35, the first step change**. New best |
+| 11-21 ~06:00 | 370d88e | good-35 | 5.31 | good-31 + rage: does not stack (−0.25 vs good-31) |
+| 11-21 ~06:10 | 1ca1a5a | good-36 | 5.13 | good-31 with reversals every 6–10 s (−0.43): 3–5 s is a narrow optimum or good-31 drew well; chaos controls good-46/47 queued |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
