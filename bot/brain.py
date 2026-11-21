@@ -412,6 +412,7 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     for e in fresh:
         m["last_threat_pos"], m["last_threat_t"] = e.pos, state.t
     attackers = set(threats.attackers)
+    m["att_now"] = tuple(attackers)
     hot = [e for e in fresh if e.id in attackers or e.can_hit_me or e.dist < 60]
     face = _face_yaw(state, m, fresh, zp)
     mode_g = state.mode_guess
@@ -488,6 +489,10 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
 
 def _finish(state: WorldState, m: Dict[str, Any], it: Intent) -> Intent:
     m["mode"] = it.mode
+    m["last_reason"] = it.reason
+    f = m.get("fight") or {}
+    m["last_ctx"] = {"mode": it.mode, "reason": it.reason[:40], "hp": round(state.hp), "t": round(state.t, 1),
+                     "n_att": len(state.scratch.get("brain", {}).get("att_now", ())), "ratio": round(f.get("ratio", 9.9), 2)}
     m["modes"][it.mode] = m["modes"].get(it.mode, 0) + 1
     if not state.me.get("in_zone", True):
         m["zone_out_s"] += state.dt
@@ -880,7 +885,7 @@ def summary(state: WorldState) -> Dict[str, Any]:
     return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence, "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
-            "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"]}
+            "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx")}
 
 
 def debug(state: WorldState, intent: Intent, threats: Threats, nav, cmb) -> Dict[str, Any]:
