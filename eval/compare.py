@@ -28,7 +28,7 @@ PY = os.environ.get("PY", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordin
 if not os.path.exists(PY):
     PY = sys.executable
 RUNNER = os.environ.get("MECH_RUNNER",
-                        PY + " {root}/sim/run_matches.py --quiet --mode {mode} --bot {bot} --seeds {seeds} --out {out} --jobs {jobs} --logs {logs} {extra}")
+                        "nice -n 10 " + PY + " {root}/sim/run_matches.py --quiet --mode {mode} --bot {bot} --seeds {seeds} --out {out} --jobs {jobs} --logs {logs} {extra}")
 FFA_SPEC = os.environ.get("MECH_FFA", "bot*1,builtin:expert*5,builtin:hard*5,builtin:brawler*3,builtin:sniper*2")
 
 
@@ -177,7 +177,8 @@ def main():
     ap.add_argument("cand")
     ap.add_argument("--modes", default="squad,ffa")
     ap.add_argument("--seeds", default="0-23")
-    ap.add_argument("--jobs", type=int, default=4)
+    ap.add_argument("--jobs", type=int, default=2,
+                    help="parallel matches; each match is ~2 busy processes (engine + bot policy). Shared-machine budget: 4 busy processes total -> 2")
     ap.add_argument("--log", action="store_true", help="append the result to eval/RESULTS.md")
     ap.add_argument("--env-a", default="", help="env assignments for the base bot, e.g. MECH_BRAIN=heal_below=0.7")
     ap.add_argument("--env-b", default="", help="env assignments for the candidate bot")
