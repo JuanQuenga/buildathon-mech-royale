@@ -58,3 +58,5 @@ makes matches non-deterministic). Differences under ~0.5 per 32 seeds are not de
 small effects.
 | 11-21 ~02:30 (sim bf499dc) | good-3 (f8db786) | bf499dc (juke, roof weapons, zone field, detection, inside-circle goals, jet energy rules) | squad | 64 | 3.45 | 3.36 | −0.09 (−0.48..+0.30) | zone 3→2; neutral |
 | 11-21 ~02:30 (sim bf499dc) | good-3 (f8db786) | bf499dc | ffa | 64 | 10.92 | 10.06 | **−0.86 (−1.92..+0.16)** | survived 25→17, zone 0→2 (seeds 24, 35). **Likely regression** → found stale jet-hop state bug (e12b612) |
+| 11-21 ~02:50 (sim c4fa09a) | 49147f3 | 49147f3 + MECH_BRAIN=retreat_needs_cover=1 | ffa | 64 | 10.05 | 10.17 | +0.12 (−0.70..+1.02) | neutral; not adopted |
+| 11-21 ~02:50 (sim c4fa09a) | 49147f3 | 49147f3 + retreat_needs_cover=1 | squad | 64 | 3.36 | 3.42 | +0.06 (−0.36..+0.50) | neutral |
