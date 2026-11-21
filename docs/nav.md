@@ -154,6 +154,14 @@ Not verified (assumptions):
 * Under-bridge clearance for grown mechs: headroom ≥ 9·scale per class (scale 1.25 / 1.5).
 * Elevated bridge decks are separate components reachable only by jets; no edges were tested on them.
 
+### Exposure-aware routing (measured, off by default)
+
+`plan_full(..., avoid=[threat feet])` makes lattice nodes that a threat can see (shadow buffer, 200 m) cost
+`EXPO_COST` extra per metre. On 12 random 250 m routes with a threat near the middle : penalty 0.6 → exposed metres 2136 → 2100 (−2 %), planning 21 → 267 ms; penalty 1.5 → 2376 → 1940
+(−18 %) for +15 % length, planning 24 → 796 ms. The campus is open; one threat within 200 m sees most routes, so
+`navigate.ROUTE_AVOID = False`. Retreat/heal still steer away from `intent.avoid` locally and the brain picks cover
+goals with `nearest_cover`.
+
 ## Known gaps
 
 * No incremental repair when a mech/crowd blocks a corridor (stall recovery + 4 s replan handle it).

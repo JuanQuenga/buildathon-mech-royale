@@ -56,7 +56,8 @@ def size_scale(cubes: float) -> float:
 
 class _Search:
     """Resumable reverse weighted A* from a goal node toward a (moving) start node on one size class."""
-    __slots__ = ("goal", "k", "target", "open", "g", "parent", "closed", "done_fail", "expanded", "t_last", "cap")
+    __slots__ = ("goal", "k", "target", "open", "g", "parent", "closed", "done_fail", "expanded", "t_last", "cap",
+                 "avoid", "expo")
 
     def __init__(self, goal: int, k: int, target: int):
         self.goal, self.k, self.target = goal, k, target
@@ -66,6 +67,8 @@ class _Search:
         self.closed: set = set()
         self.done_fail = False
         self.cap = 40.0
+        self.avoid = ()        # threat feet positions: nodes they can see cost extra
+        self.expo: Dict[int, float] = {}
         self.expanded = 0
         self.t_last = 0.0
 
@@ -782,6 +785,8 @@ class Arena:
         push, pop = heapq.heappush, heapq.heappop
         cnt = 0
         JF, JM = self.JET_FIXED, self.JET_PER_M
+        avoid = s.avoid
+        expo = self._expo_pen
         while op:
             f, n = pop(op)
             if n in closed:
@@ -802,6 +807,8 @@ class Arena:
                 if m < 0 or m >= NN or not (em[m] >> REV[d]) & 1 or m in closed:
                     continue
                 gm = gn + DLEN[d] + pen[m]
+                if avoid:
+                    gm += expo(s, m, xs[m], ys[m]) * DLEN[d]
                 if gm < g.get(m, 1e18):
                     g[m] = gm
                     parent[m] = n
@@ -816,6 +823,8 @@ class Arena:
                     if c4 > cap4:
                         continue
                     gm = gn + JLEN[d] + JF + JM * c4 * 0.25 + pen[m]
+                    if avoid:
+                        gm += expo(s, m, xs[m], ys[m]) * JLEN[d]
                     if gm < g.get(m, 1e18):
                         g[m] = gm
                         parent[m] = n
@@ -823,8 +832,9 @@ class Arena:
         s.done_fail = True
         return False
 
-    def _get_search(self, goal: int, k: int, start: int, cap: float) -> _Search:
-        key = (goal, k, cap)
+    def _get_search(self, goal: int, k: int, start: int, cap: float, avoid=()) -> _Search:
+        akey = tuple(sorted((int(a[0] // 10), int(a[1] // 10)) for a in avoid))
+        key = (goal, k, cap, akey)
         s = self._searches.get(key)
         if s is None:
             if len(self._searches) >= self.MAX_SEARCHES:
@@ -832,6 +842,8 @@ class Arena:
                 del self._searches[old]
             s = _Search(goal, k, start)
             s.cap = cap
+            s.avoid = tuple((float(a[0]), float(a[1]), float(a[2]) if len(a) > 2 else self.surface(a[0], a[1]))
+                            for a in avoid)
             self._searches[key] = s
         s.t_last = time.perf_counter()
         return s
@@ -847,7 +859,24 @@ class Arena:
             return ("jet", self.jclimb[k][a * len(self.JOFF) + d] * 0.25)
         return ("walk", 0.0)
 
-    def plan_nodes(self, start: Vec3, goal: Vec3, k=0, budget_ms=3.0, jet_cap=40.0):
+    EXPO_COST = 1.5            # extra cost per metre walked on nodes a threat can see (x threats, capped 2)
+    EXPO_RANGE = 200.0
+
+    def _expo_pen(self, s: _Search, m: int, x: float, y: float) -> float:
+        v = s.expo.get(m)
+        if v is None:
+            v = 0.0
+            for t in s.avoid:
+                d = math.hypot(x - t[0], y - t[1])
+                if d < self.EXPO_RANGE:
+                    buf = self.shadow(t, self.EXPO_RANGE)
+                    if not self.hidden_by_shadow(buf, t, ((x, y),), 1.5)[0]:
+                        v += self.EXPO_COST * (1.0 if d > 60.0 else 1.5)
+            v = min(v, 2.0 * self.EXPO_COST)
+            s.expo[m] = v
+        return v
+
+    def plan_nodes(self, start: Vec3, goal: Vec3, k=0, budget_ms=3.0, jet_cap=40.0, avoid=()):
         """(status, node list start..goal). status: 'ok' | 'pending' | 'fail' | 'nonav'."""
         if not self.ok_nav:
             return "nonav", []
@@ -861,7 +890,7 @@ class Arena:
         self.last_goal_snapped = math.hypot(gx - goal[0], gy - goal[1]) < 4.0
         if sn == gn:
             return "ok", [sn]
-        s = self._get_search(gn, k, sn, float(jet_cap))
+        s = self._get_search(gn, k, sn, float(jet_cap), avoid)
         if not self._search(s, sn, budget_ms / 1000.0):
             return ("fail" if s.done_fail else "pending"), []
         out = [sn]
@@ -914,13 +943,13 @@ class Arena:
         return out
 
     def plan_full(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 3.0, jet_cap: float = 40.0,
-                  smooth_ms: float = 1.0):
+                  smooth_ms: float = 1.0, avoid=()):
         """(status, waypoints) with waypoints [(x, y, z, act, climb)], act 'walk' or 'jet' (the hop that
         ARRIVES at this waypoint is a jump+jet of `climb` metres from the previous waypoint)."""
         if not self.ok_nav:
             return "nonav", [(float(goal[0]), float(goal[1]), float(goal[2]) if len(goal) > 2 else 0.0, "walk", 0.0)]
         k = self.size_class(cubes)
-        st, nodes = self.plan_nodes(start, goal, k, budget_ms, jet_cap)
+        st, nodes = self.plan_nodes(start, goal, k, budget_ms, jet_cap, avoid=avoid)
         if st != "ok":
             self.last_raw_path = []
             return st, []

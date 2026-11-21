@@ -22,6 +22,7 @@ WP_REACH = 2.5
 STALL_WINDOW = 1.2          # s of history used to detect a stall
 STALL_MIN_FRAC = 0.2        # moved less than this fraction of the expected distance => stalled
 ENERGY_RESERVE = 35.0       # keep this much for jets / escapes unless urgent
+ROUTE_AVOID = False         # exposure-aware A* (Arena.plan_full avoid=); see _avoid_list
 JET_CAP = 40.0              # max climb (m) the planner may use; energy is waited for at the hop base
 JET_TIMEOUT = 5.0
 PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 2.6, -2.6)
@@ -383,7 +384,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
                     if True:
                         if m.get("jet") is None and _need_replan(state, m, goal):
                             st_, path = ar.plan_full(state.pos, goal, cubes=_cubes(state), budget_ms=PLAN_BUDGET_MS,
-                                                     jet_cap=JET_CAP)
+                                                     jet_cap=JET_CAP, avoid=_avoid_list(state, threats, intent))
                             m["stats"]["replans"] += 1
                             m["goal"] = tuple(goal)
                             m["plan_t"] = state.t
@@ -492,6 +493,23 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     if not grounded and m.get("recover") is None and nav_ok and not ar.walkable(x, y, k) and energy > 10 and urgency >= 0.5:
         out.boost = True
     return out
+
+
+def _avoid_list(state: WorldState, threats: Threats, intent: Intent) -> List:
+    """Threat feet positions whose sight lines the route should avoid (not while engaging).
+    Off by default (ROUTE_AVOID): measured on 12 routes, it cut exposed metres by 2-18 % for +1-15 % length at
+    10-30x the planning cost (docs/nav.md)."""
+    if not ROUTE_AVOID or intent is None or intent.mode == "engage" or threats is None:
+        return []
+    cand = []
+    for e in threats.enemies or []:
+        if e.kind != "mech" or state.t - e.last_seen_t > 6.0:
+            continue
+        if e.dist > 220.0:
+            continue
+        cand.append((-(e.danger or 0.0), e.dist, e.pos))
+    cand.sort(key=lambda c: (c[0], c[1]))
+    return [c[2] for c in cand[:3]]
 
 
 def _is_jet(w) -> bool:
