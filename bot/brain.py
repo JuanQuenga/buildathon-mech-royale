@@ -83,6 +83,8 @@ P: Dict[str, Any] = {
     "combat_hop": False,           # nav3 only: periodic jump + jet hops while fighting
     "air_lead": False,             # A/B: gun lead for airborne targets from their observed vertical acceleration
                                    # (jetting +12 m/s^2 to the 10 m/s cap, else -g; clamp at the ground below)
+    "strafe_boost": 0.0,           # A/B >0 (nav3): boost-run the engage strafe while energy > this (off below it - 30)
+    "strafe_wide": False,          # A/B (nav3): full sideways weight while closing range too
     "strafe_mode": "normal",       # nav3 only: engage strafe reversals: normal 1.2-2.4 s, juke 0.3-1.0 s (>80 m), steady 3-5 s
     "nav3": False,                 # A/B: use the frozen good-3 navigation module (bot/navigate3.py)
     "hop_legacy": False,           # A/B: navigate uses good-3's jet-hop energy rules (read by navigate._hop_legacy)
@@ -147,6 +149,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "orbitx": {"strafe_mode": "orbit"},
     "stillx": {"strafe_mode": "still"},
     "airx": {"air_lead": True},
+    "sboostx": {"strafe_boost": 80.0},
+    "widex": {"strafe_wide": True},
     "hide240x": {"hide": True, "hide_until": 240.0, "conveyor": True, "conveyor_until": 240.0},
     "hide10x": {"hide": True, "hide_alive_min": 10, "conveyor": True, "conveyor_until": 480.0},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},

@@ -45,6 +45,14 @@ def _strafe_mode() -> str:
         return "normal"
 
 
+def _num(name: str, default: float = 0.0) -> float:
+    try:
+        from .brain import P as BP
+        return float(BP.get(name, default))
+    except Exception:
+        return default
+
+
 def _jet_cap() -> float:
     """A/B: brain profile `jet_cap` (0 = ground-only routes, no planned jet hops)."""
     try:
@@ -397,6 +405,9 @@ def _engage_dir(state: WorldState, intent: Intent, m) -> Optional[Tuple[float, f
     s = m["strafe_sign"]
     tx, ty = -uy * s, ux * s
     w_t = 0.85 if abs(radial) < 0.7 else 0.4
+    if _flag("strafe_wide"):
+        w_t = 0.85                     # A/B: keep full sideways motion while closing/opening range (diagonal approach)
+    m["engage_t"] = state.t
     if _strafe_mode() == "still":
         w_t = 0.0                      # hold range only: no sideways movement while engaging
         if abs(radial) < 0.15:
@@ -567,6 +578,13 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
             boost = True
         elif urgency >= 0.4 and energy > 80 and far:
             boost = True
+    sb = _num("strafe_boost", 0.0)
+    if sb > 0 and not boost and grounded and allow_boost and speed >= 0.99 and mode == "engage" and m.get("engage_t") == state.t:
+        # A/B: run the strafe at boost speed (19.5 vs 11.7 m/s) while energy lasts; hysteresis keeps a jet reserve
+        on = m.get("sboost", False)
+        on = energy > (sb - 30.0) if on else energy > sb
+        m["sboost"] = on
+        boost = on
     out.move = (dx * speed, dy * speed)
     out.boost = boost
     out.eta = (eta_s * walk_v / (state.stat("boost_speed", 19.5) if boost else walk_v)) if eta_s is not None else None
