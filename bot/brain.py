@@ -76,6 +76,7 @@ P: Dict[str, Any] = {
     "explore_for_laser_until": 0.0,  # A/B: armed but no laser yet: keep exploring for one until this match time
     "laser_standoff": 0.0,         # A/B >0: holding a laser, fight mechs from this range even with lightning (house
                                    # gunners hit 37-88 % inside 80 m, 20-34 % beyond; the laser is hitscan to 280 m)
+    "nav3": False,                 # A/B: use the frozen good-3 navigation module (bot/navigate3.py)
     "hop_legacy": False,           # A/B: navigate uses good-3's jet-hop energy rules (read by navigate._hop_legacy)
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
@@ -107,6 +108,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "lhunt": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "explore_for_laser_until": 120.0},
     "lstand": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "laser_standoff": 120.0},
     "hopx": {"hop_legacy": True},
+    "nav3x": {"nav3": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
     "standx": {"laser_standoff": 120.0},
     "laserx": {"laser_first": True, "no_mortar": True},
@@ -306,9 +308,17 @@ def _eta(state: WorldState, goal) -> float:
     return v
 
 
+def _nav_mod():
+    if P.get("nav3"):
+        from . import navigate3
+        return navigate3
+    from . import navigate
+    return navigate
+
+
 def _eta_real(state: WorldState, goal) -> float:
     try:
-        from . import navigate
+        navigate = _nav_mod()
         f = getattr(navigate, "eta", None)
         if f is not None:
             v = f(state, goal)
@@ -341,7 +351,7 @@ def _inside_zone_soon(state: WorldState, p, margin: float = 8.0) -> bool:
 def _field_eta(state: WorldState, p) -> Optional[float]:
     """Seconds of walking from p into the next circle (nav's cheap travel-time field), None if unavailable."""
     try:
-        from . import navigate
+        navigate = _nav_mod()
         f = getattr(navigate, "zone_eta_at", None)
         if f is None:
             return None

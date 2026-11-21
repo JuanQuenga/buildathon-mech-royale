@@ -128,6 +128,12 @@ class Pilot:
             except Exception:
                 log(f"import bot.{name} failed:\n" + traceback.format_exc())
                 self.mods[name] = None
+        try:   # A/B: brain profile `nav3` selects the frozen good-3 navigation module
+            b = self.mods.get("brain")
+            if b is not None and b.P.get("nav3"):
+                self.mods["navigate"] = __import__("bot.navigate3", fromlist=["navigate3"])
+        except Exception:
+            log("nav3 import failed:\n" + traceback.format_exc())
         self.prev = {"threats": st.Threats(), "intent": st.Intent(), "nav": st.NavOut(),
                      "combat": st.CombatOut(), "inv": st.InvOut()}
         self.errors = {}

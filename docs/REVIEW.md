@@ -18,7 +18,7 @@ The plan is to hill-climb on official runs. Tag-to-tag noise is about ±0.1 (cha
 Official so far: good-7 5.00, good-6 4.96, good-3 4.88/4.85, good-8 (fresh) 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
 ## Recommended final entry
-`good-7` (3dd9bcd, seek), official **5.00**, until something beats it officially.
+`good-10` (1cd7676, laser first), official **5.10**, until something beats it officially.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
