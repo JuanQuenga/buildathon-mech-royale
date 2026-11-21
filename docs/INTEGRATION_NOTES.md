@@ -3,6 +3,17 @@
 Newest first. The integrator runs `eval/check.sh <sha>` (native + Docker sandbox + stress streams) and sim batches
 after each push and records regressions here and in `eval/RESULTS.md`. Nobody's work is silently reverted.
 
+## 2026-11-21 (early) — integrator: juke reverted, stale jet-hop bug, policy restart
+
+- **Juke (0.3-1.0 s reversals beyond 80 m) is OFF by default** (`MECH_JUKE_RANGE`, default 1e9; "80" re-enables).
+  It cut incoming damage in the duel harness, but in full squad matches it cost kills: paired 64-seed A/B on the
+  same commit, juke off +0.47 (95% CI +0.06..+0.86). Our own hit rate while juking is the likely cause.
+- **Stale jet-hop state** (e12b612): if the brain changed goal mid-hop, `m["jet"]` stayed set forever and nav never
+  replanned again (straight-line steering into pits/walls). Now cleared once the hop ends or is abandoned.
+  `MECH_NAVLOG=1` prints a nav state line per second to stderr.
+- main re-forks the policy process if it dies mid-match (up to 3x); `eval/crash_bot.py` in the gate.
+- Shared-machine budget: `eval/compare.py` now runs `nice -n 10` with `--jobs 2` (≈ 4 busy processes).
+
 ## 2026-11-21 (early) — integrator: zone failures found and fixed; possible sim collision artifacts
 
 - Fixed (b890076, 9cfbfd2): big mechs (6-10 cubes) beside tall buildings retried a 35 m jet hop they couldn't
