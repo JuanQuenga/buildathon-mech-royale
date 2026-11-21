@@ -173,6 +173,17 @@ Reading: −0.33 ± 0.77 per match, i.e. no measurable effect in the sim (early 
 opening deaths are mostly not fights we start, unlike the three real cases. Official practice: good-50 = 5.35
 (no cost). Verdict: harmless and mechanistically clear against real bots, but unproven.
 
+**v4 + v4b combined** (seeds 4000–4199, 200 matches): FFA survival-first
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx+ffahidex | 800 | 9.13 ± 0.32 | 1.08 | 114 | 99/800 | 11 (772/800) | 88 | 0 |
+| var:laser+nav3x+fixx+steadyx | 800 | 8.86 ± 0.31 | 1.49 | 105 | 88/800 | 11 (782/800) | 72 | 0 |
+
+Reading: **+0.26 ± 0.48 per match** (paired within matches): positive, not significant. It survives longer
+(114 vs 105 s) and kills less, which is the direction the real showdown data favours (placement follows damage taken
+and survival). v6 = hide until 5 alive vs until 3 alive; v7 = the combined candidate good-53 vs base, 200 matches.
+
 SELFPLAY_V6
 
 ## Family means (pick the final entry by these, not by the best single draw)
