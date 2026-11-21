@@ -7,6 +7,7 @@ before submitting.
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
+| 2 | `good-10` | 1cd7676 | **Laser first** (vs good-6 = greed, 4.96): laser valued above lightning when choosing the first secondary. Sim +0.55 vs greed (96 paired seeds, CI +0.13..+0.97); in the sim gun+laser matches score ~6.0, gun+lightning ~4.5, gun+mortar ~2.8; 6/8 real top-4 finishers ended with a laser | 5.3 |
 | 1 | `good-9` | e6718e7 | **Chaos control**: good-3 with only the idle torso-scan phase shifted (behaviour-neutral). Its distance from good-3 (4.88/4.85) is the tag-to-tag noise: any behaviour change re-rolls all 48 trajectories | 4.6–5.1 |
 
 More tags (scaling, stacked seek+fresh, picky, laser) follow after the sim screens finish (~2:10 AM).
