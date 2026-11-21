@@ -19,6 +19,7 @@ official numbers and say so here in bold.**
 | 11-21 ~02:32 | 1cd7676 | good-10 | **5.10** | greed + laser first (laser valued 3.6 > lightning 3.0). +0.14 vs good-6 (its base). New best |
 | 11-21 ~02:38 | ddbc83a | good-11 | 5.00 | seek + laser first + no mortar: = good-7 (seek). Laser-first gave +0.14 on greed, 0 on seek |
 | 11-21 ~02:50 | 2db6e00 | good-14 | **5.17** | good-7 (seek) + good-3's navigate.py: +0.17. good-4's nav changes (jet-hop energy rules) cost score in the real game. New best |
+| 11-21 ~03:00 | 7cce2c2 | good-15 | **5.19** | good-10 (laser first on greed) + good-3 navigation. New best by a hair; nav and laser gains do not fully add |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
