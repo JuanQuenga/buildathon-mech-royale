@@ -142,10 +142,30 @@ def _aims_at(src, yaw, dst, tol) -> bool:
 
 
 # ----------------------------------------------------------------------------- zone
-def _eta(state: WorldState, goal) -> float:
-    """Seconds to walk to goal along a real path (nav's planner when available)."""
+def _eta_quick(state: WorldState, goal) -> float:
+    """Cheap straight-line ETA estimate (for scoring many candidates)."""
     if goal is None:
         return 0.0
+    return dist2d(state.pos, goal) * P["zone_path_factor"] / max(1.0, state.stat("walk_speed", 11.7))
+
+
+def _eta(state: WorldState, goal) -> float:
+    """Seconds to walk to goal along a real path (nav's planner when available). Cached ~1 s per goal cell."""
+    if goal is None:
+        return 0.0
+    cache = _mem(state).setdefault("eta_cache", {})
+    key = (int(goal[0] // 8), int(goal[1] // 8), int(state.pos[0] // 8), int(state.pos[1] // 8))
+    hit = cache.get(key)
+    if hit is not None and state.t - hit[0] < 1.0:
+        return hit[1]
+    if len(cache) > 64:
+        cache.clear()
+    v = _eta_real(state, goal)
+    cache[key] = (state.t, v)
+    return v
+
+
+def _eta_real(state: WorldState, goal) -> float:
     try:
         from . import navigate
         f = getattr(navigate, "eta", None)
@@ -254,7 +274,7 @@ def _in_safe_future(state: WorldState, p, extra_eta=0.0) -> bool:
     if not z:
         return True
     c1, r1 = z["next_center"], float(z["next_radius"])
-    t_here = _eta(state, p)
+    t_here = _eta_quick(state, p)
     back = dist2d(p, _safe_point(state, c1, r1, p)) * P["zone_path_factor"] / max(1.0, state.stat("walk_speed", 11.7))
     deadline = min(float(z["shrink_end"]), _exit_time(state, p)) if dist2d(p, c1) > r1 else _exit_time(state, p)
     return state.t + t_here + extra_eta + back + P["zone_buffer_s"] < deadline
@@ -576,7 +596,7 @@ def _drop_choice(state: WorldState, m, fresh, zp) -> Optional[Intent]:
         if not pos:
             continue
         p = (pos[0], pos[1], pos[2] if len(pos) > 2 else state.pos[2])
-        eta = _eta(state, p)
+        eta = _eta_quick(state, p)
         lands = float(d.get("lands_in", 0) or 0)
         holder = d.get("holder")
         if holder is not None and holder != state.me.get("id"):
