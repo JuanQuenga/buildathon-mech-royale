@@ -19,7 +19,7 @@ class Senses:
         self.M = match
         self.vis_cache = {}
 
-    def visible_set(self, observers, want_items):
+    def visible_set(self, observers, want_items, focus=None):
         """observers: list of mechs. Returns {mech_id: {"actors": set(ids), "items": set(keys), "proj": set(ids)}}.
         Items/projectiles only for observers in want_items."""
         M = self.M
@@ -45,9 +45,16 @@ class Senses:
             yaw = ob.aim[0]
             out[ob.id] = {"actors": set(), "items": set(), "proj": set()}
             cand = []
+            foc = focus.get(ob.id) if focus else None
             for a in actors:
                 if a[0] == "m" and a[1] == ob.id:
                     continue
+                if foc is not None:
+                    # restricted observer (squad house bot): only the focus mechs, plus NPCs nearby
+                    if a[0] == "m" and a[1] not in foc:
+                        continue
+                    if a[0] == "n" and (abs(a[2][0] - eye[0]) > 60 or abs(a[2][1] - eye[1]) > 60):
+                        continue
                 cand.append((a[0], a[1], a[2], a[3]))
             if ob.id in want_items:
                 ch = M.cfg["crates"]["height"]
@@ -131,8 +138,8 @@ def actor_obs_mech(M, o):
     d = {"id": o.id, "kind": "mech", "pos": [r2(o.pos[0]), r2(o.pos[1]), r2(o.pos[2])], "vel": [r2(o.vel[0]), r2(o.vel[1]), r2(o.vel[2])],
          "aim": [_r3(o.aim[0]), _r3(o.aim[1])]}
     if M.cfg["vision"].get("show_enemy_hp", True):
-        d["hp"] = round(o.hp)
-        d["max_hp"] = round(o.max_hp)
+        d["hp"] = round(o.hp, 2)
+        d["max_hp"] = round(o.max_hp, 2)
     d["cubes"] = o.cubes
     d["weapons"] = [w.kind for w in o.weapons if w is not None]
     d["charging"] = any(w is not None and w.kind == "laser" and w.charging for w in o.weapons)
@@ -173,7 +180,7 @@ def weapon_obs(m, w):
 def self_obs(M, m):
     st = {k: (round(v, 4) if isinstance(v, float) else v) for k, v in m.stats.items()}
     return {"id": m.id, "pos": [r2(m.pos[0]), r2(m.pos[1]), r2(m.pos[2])], "vel": [r2(m.vel[0]), r2(m.vel[1]), r2(m.vel[2])],
-            "aim": [_r3(m.aim[0]), _r3(m.aim[1])], "hp": round(m.hp), "max_hp": round(m.max_hp), "energy": round(m.energy, 1),
+            "aim": [_r3(m.aim[0]), _r3(m.aim[1])], "hp": round(m.hp, 2), "max_hp": round(m.max_hp, 2), "energy": round(m.energy, 1),
             "max_energy": round(m.stats["energy"], 1), "grounded": bool(m.grounded), "cubes": m.cubes, "upgrades": list(m.upgrades),
             "weapons": [weapon_obs(m, w) if w is not None else None for w in m.weapons], "in_zone": bool(m.in_zone), "stats": st}
 
@@ -205,18 +212,36 @@ def build_obs(M, m, vis, full=True, shared_actor_ids=None):
         for i in shared_actor_ids:
             m.seen_t[i] = t
     mechs = []
-    for o in M.mechs:
-        if o.id == m.id or not o.alive:
-            continue
-        st = m.seen_t.get(o.id)
-        if st is not None and t - st <= mem + 1e-9:
-            mechs.append(actor_obs_mech(M, o))
-    for n in M.npcs:
-        if not n.alive:
-            continue
-        st = m.seen_t.get(n.id)
-        if st is not None and t - st <= mem + 1e-9:
-            mechs.append(actor_obs_npc(M, n))
+    if full:
+        for o in M.mechs:
+            if o.id == m.id or not o.alive:
+                continue
+            st = m.seen_t.get(o.id)
+            if st is not None and t - st <= mem + 1e-9:
+                mechs.append(actor_obs_mech(M, o))
+        for n in M.npcs:
+            if not n.alive:
+                continue
+            st = m.seen_t.get(n.id)
+            if st is not None and t - st <= mem + 1e-9:
+                mechs.append(actor_obs_npc(M, n))
+    else:
+        cache = getattr(M, "_actor_cache", None)
+        if cache is None or cache[0] != M.tick:
+            d = {}
+            for o in M.mechs:
+                if o.alive:
+                    d[o.id] = {"id": o.id, "kind": "mech", "pos": list(o.pos), "vel": list(o.vel), "aim": list(o.aim), "hp": o.hp, "max_hp": o.max_hp,
+                               "cubes": o.cubes, "weapons": [w.kind for w in o.weapons if w is not None],
+                               "charging": any(w is not None and w.kind == "laser" and w.charging for w in o.weapons)}
+            for n in M.npcs:
+                if n.alive:
+                    d[n.id] = {"id": n.id, "kind": "npc", "pos": list(n.pos), "vel": list(n.vel), "aim": [n.yaw, 0.0], "hp": n.hp, "max_hp": M.cfg["npc"]["hp"]}
+            cache = (M.tick, d)
+            M._actor_cache = cache
+        for i, st in m.seen_t.items():
+            if t - st <= mem + 1e-9 and i != m.id and i in cache[1]:
+                mechs.append(cache[1][i])
     crates, cubes, pickups, projectiles, sounds, beams = [], [], [], [], [], []
     if full:
         items = vis["items"]
@@ -275,6 +300,12 @@ def build_obs(M, m, vis, full=True, shared_actor_ids=None):
         m._zone_acc = 0.0
     m.events = []
     m.last_obs_t = t
-    return {"type": "obs", "tick": M.tick, "t": round(t, 2), "alive": M.alive_count, "self": self_obs(M, m), "mechs": mechs,
+    if full:
+        so = self_obs(M, m)
+    else:
+        so = {"id": m.id, "pos": list(m.pos), "vel": list(m.vel), "aim": list(m.aim), "hp": m.hp, "max_hp": m.max_hp, "energy": m.energy,
+              "max_energy": m.stats["energy"], "grounded": m.grounded, "cubes": m.cubes, "upgrades": m.upgrades,
+              "weapons": [weapon_obs(m, w) if w is not None else None for w in m.weapons], "in_zone": m.in_zone, "stats": m.stats}
+    return {"type": "obs", "tick": M.tick, "t": round(t, 2), "alive": M.alive_count, "self": so, "mechs": mechs,
             "projectiles": projectiles, "crates": crates, "cubes": cubes, "pickups": pickups, "sounds": sounds, "beams": beams,
             "events": events, "zone": zone_obs(M), "offer": m.offer, "drops": drops_obs(M)}

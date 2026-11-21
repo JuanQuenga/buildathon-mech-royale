@@ -604,7 +604,7 @@ class Match:
         vy += dvy
         # vertical
         if not m.grounded:
-            vz -= st["gravity"] * dt
+            # order calibrated on the recorded check stream: jet + cap first, then gravity (vz pins at 10 - 22*0.05 = 8.9)
             if m.boost and m.energy > 0:
                 if vz < st["max_rise_speed"]:
                     vz = min(vz + st["jet_accel"] * dt, st["max_rise_speed"])
@@ -612,6 +612,7 @@ class Match:
                 spent = True
                 if self.tick % 6 == 0:
                     self._sound("jet", m.pos, m.id)
+            vz -= st["gravity"] * dt
         if spent:
             m.last_spend_t = self.t
         elif self.t - m.last_spend_t >= st["energy_regen_delay"] - 1e-9:

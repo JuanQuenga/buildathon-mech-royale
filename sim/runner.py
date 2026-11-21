@@ -19,7 +19,7 @@ from sense import Senses, build_obs
 
 HOUSE_TIERS = ["easy"] * 4 + ["medium"] * 4 + ["hard"] * 4 + ["expert"] * 3
 
-SQUAD_DEFAULTS = {"early": 1, "join_per_loss": 1.0, "all_engage_t": 300.0, "forget_s": 8.0, "defend_range": 45.0}
+SQUAD_DEFAULTS = {"early": 1, "join_per_loss": 1.0, "all_engage_t": 300.0, "forget_s": 8.0, "defend_range": 0.0, "retaliate_s": 4.0}
 
 
 # ---------------------------------------------------------------------------- controllers
@@ -254,7 +254,11 @@ def run_match(world, seed, mode="squad", bot_cmds=("python3 -u bot/main.py",), f
             alive = [m for m in M.mechs if m.alive]
             ext = [m for m in alive if getattr(ctrls[m.id], "external", False)]
             ints = [m for m in alive if not getattr(ctrls[m.id], "external", False)]
-            vis = M._senses.visible_set(alive, want_items={m.id for m in ext})
+            focus = None
+            if director is not None:
+                ent = {i for i in tracked if M.mechs[i].alive}
+                focus = {h: ent for h in house_ids}
+            vis = M._senses.visible_set(alive, want_items={m.id for m in ext}, focus=focus)
             intel, shared = ({}, set())
             if director is not None:
                 intel, shared = director.intel(M, vis)

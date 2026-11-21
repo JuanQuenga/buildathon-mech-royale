@@ -14,20 +14,13 @@ import os
 
 import numpy as np
 
+from paths import find_arena  # noqa: F401
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 RES = 0.5
 EMPTY_B = 32767
 EMPTY_T = -32768
-
-
-def find_arena(explicit: str | None = None) -> str:
-    cands = [explicit, os.environ.get("MECH_ARENA"), os.path.join(REPO, "arena"), os.path.join(HERE, "arena"),
-             os.path.join(REPO, "..", "..", "mech-royale", "starter", "mechfight-kit", "arena")]
-    for c in cands:
-        if c and os.path.exists(os.path.join(c, "v2", "world.json")):
-            return os.path.abspath(c)
-    raise FileNotFoundError("arena not found: pass --arena or set MECH_ARENA to the kit's arena/ folder")
 
 
 def _pip_mask(px, py, ring):
@@ -81,6 +74,20 @@ class World:
             os.replace(tmp, cpath)
         self.TOPMAX = self.T.max(axis=0)
         self.has_solid = self.TOPMAX > EMPTY_T
+        self.two = bool((self.T[1] > EMPTY_T).any())
+        self.T0, self.B0, self.T1, self.B1 = self.T[0], self.B[0], self.T[1], self.B[1]
+        self._ter = self.terrain.tolist()
+        # 2 m tiles flagged when any solid lies within 8 m (fast path for disc queries with r <= 7)
+        th, tw = (self.H + 3) // 4, (self.W + 3) // 4
+        pad = np.zeros((th * 4, tw * 4), dtype=bool)
+        pad[: self.H, : self.W] = self.has_solid
+        tiles = pad.reshape(th, 4, tw, 4).any(axis=(1, 3))
+        dil = tiles.copy()
+        for dj in range(-4, 5):
+            for di in range(-4, 5):
+                dil |= np.roll(np.roll(tiles, dj, 0), di, 1)
+        self._tile = dil.tolist()
+        self._tw, self._th = tw, th
         # building roofs (for crate/loot placement): prism index list with area
         self._roof_cells = None
         self._open_cells = None
@@ -173,6 +180,24 @@ class World:
     # ------------------------------------------------------------------ point queries
     def ground(self, x, y):
         """terrain height, bilinear; scalars or arrays"""
+        if isinstance(x, (float, int)) and isinstance(y, (float, int)):
+            fx = (x - self.tx0) / self.tstep
+            fy = (y - self.ty0) / self.tstep
+            if fx < 0:
+                fx = 0.0
+            elif fx > self.tnx - 1.000001:
+                fx = self.tnx - 1.000001
+            if fy < 0:
+                fy = 0.0
+            elif fy > self.tny - 1.000001:
+                fy = self.tny - 1.000001
+            i = int(fx)
+            j = int(fy)
+            ax = fx - i
+            ay = fy - j
+            r0 = self._ter[j]
+            r1 = self._ter[j + 1]
+            return (r0[i] * (1 - ax) + r0[i + 1] * ax) * (1 - ay) + (r1[i] * (1 - ax) + r1[i + 1] * ax) * ay
         fx = (np.asarray(x, dtype=np.float64) - self.tx0) / self.tstep
         fy = (np.asarray(y, dtype=np.float64) - self.ty0) / self.tstep
         fx = np.clip(fx, 0, self.tnx - 1.000001)
@@ -184,6 +209,16 @@ class World:
         T = self.terrain
         h = (T[j, i] * (1 - ax) * (1 - ay) + T[j, i + 1] * ax * (1 - ay) + T[j + 1, i] * (1 - ax) * ay + T[j + 1, i + 1] * ax * ay)
         return h if h.ndim else float(h)
+
+    def near_solid(self, x, y, r):
+        """False when no solid can be within r (<= 7 m) of (x, y): fast path"""
+        if r > 7.0:
+            return True
+        ti = int((x - self.gx0) / (RES * 4))
+        tj = int((y - self.gy0) / (RES * 4))
+        if ti < 0 or tj < 0 or ti >= self._tw or tj >= self._th:
+            return True
+        return self._tile[tj][ti]
 
     def cell(self, x, y):
         i = int((x - self.gx0) / RES)
@@ -199,16 +234,17 @@ class World:
 
     def support(self, x, y, reach_z):
         """highest surface under (x,y) whose top is <= reach_z (terrain or prism top)."""
-        g = self.ground(x, y)
+        g = self.ground(float(x), float(y))
         j, i = self.cell(x, y)
-        rc = reach_z * 100.0
+        rc = reach_z * 100.0 + 0.5
         best = g
-        for k in (0, 1):
-            t = self.T[k, j, i]
-            if t != EMPTY_T and t <= rc + 0.5:
-                tz = t / 100.0
-                if tz > best:
-                    best = tz
+        t = self.T0.item(j, i)
+        if t != EMPTY_T and t <= rc and t / 100.0 > best:
+            best = t / 100.0
+        if self.two:
+            t = self.T1.item(j, i)
+            if t != EMPTY_T and t <= rc and t / 100.0 > best:
+                best = t / 100.0
         return best
 
     def surface_top(self, x, y):
@@ -248,12 +284,50 @@ class World:
         ii = np.clip(ci + oi, 0, self.W - 1)
         return jj, ii, ox, oy
 
+    _mask_cache: dict = {}
+
+    def _disc_slice(self, x, y, r):
+        """(slice_j, slice_i, mask, n, ci, cj) or None near the map edge"""
+        key = int(round(r * 20))
+        mk = self._mask_cache.get(key)
+        if mk is None:
+            n = int(math.ceil(r / RES)) + 1
+            oi, oj = np.meshgrid(np.arange(-n, n + 1), np.arange(-n, n + 1))
+            mask = (oi * RES) ** 2 + (oj * RES) ** 2 <= (r + RES * 0.35) ** 2
+            mk = (n, mask, oi * RES, oj * RES)
+            self._mask_cache[key] = mk
+        n = mk[0]
+        ci = int((x - self.gx0) / RES)
+        cj = int((y - self.gy0) / RES)
+        if ci - n < 0 or cj - n < 0 or ci + n >= self.W or cj + n >= self.H:
+            return None
+        return slice(cj - n, cj + n + 1), slice(ci - n, ci + n + 1), mk, ci, cj
+
     def disc_block(self, x, y, r, feet, step, height):
         """True if a solid in the disc blocks a body standing at `feet` (allowing steps <= step).
         Returns (blocked, normal_xy or None)."""
-        jj, ii, ox, oy = self.disc_cells(x, y, r)
+        if not self.near_solid(x, y, r):
+            return False, None
         lo = (feet + step) * 100.0
         hi = (feet + height) * 100.0
+        sl = self._disc_slice(x, y, r)
+        if sl is not None:
+            sj, si, (n, mask, ox, oy), ci, cj = sl
+            m = (self.T0[sj, si] > lo) & (self.B0[sj, si] < hi)
+            if self.two:
+                m |= (self.T1[sj, si] > lo) & (self.B1[sj, si] < hi)
+            m &= mask
+            if not m.any():
+                return False, None
+            fx = (x - self.gx0) / RES - ci - 0.5
+            fy = (y - self.gy0) / RES - cj - 0.5
+            cx = ox[m].mean() / RES - fx
+            cy = oy[m].mean() / RES - fy
+            nn = math.hypot(cx, cy)
+            if nn < 1e-6:
+                return True, None
+            return True, (-cx / nn, -cy / nn)
+        jj, ii, ox, oy = self.disc_cells(x, y, r)
         T0 = self.T[0, jj, ii]
         B0 = self.B[0, jj, ii]
         T1 = self.T[1, jj, ii]
@@ -271,6 +345,8 @@ class World:
 
     def disc_ceiling(self, x, y, r, z_lo, z_hi):
         """lowest solid base within (z_lo, z_hi] over the disc, or None"""
+        if not self.near_solid(x, y, r):
+            return None
         jj, ii, _, _ = self.disc_cells(x, y, r)
         lo, hi = z_lo * 100.0, z_hi * 100.0
         best = None
@@ -284,6 +360,8 @@ class World:
 
     def disc_landing(self, x, y, r, z_new, z_old):
         """highest solid top in the disc with z_new <= top <= z_old (for landing on an edge)"""
+        if not self.near_solid(x, y, r):
+            return None, None
         jj, ii, ox, oy = self.disc_cells(x, y, r)
         lo, hi = z_new * 100.0 - 0.5, z_old * 100.0 + 0.5
         best = None

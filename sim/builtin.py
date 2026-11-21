@@ -404,7 +404,7 @@ class SquadDirector:
                 # self defence: entrant close or recently hurt us
                 for e in self.entrants:
                     em = M.mechs[e]
-                    if em.alive and (math.dist(em.pos, me.pos) < self.p["defend_range"] or t - getattr(me, "_hurt_by", {}).get(e, -99) < 5):
+                    if em.alive and (math.dist(em.pos, me.pos) < self.p["defend_range"] or t - getattr(me, "_hurt_by", {}).get(e, -99) < self.p["retaliate_s"]):
                         allowed.add(e)
             out[hid] = {"engaged": eng, "allowed_targets": allowed, "hunt_pos": hunt if eng else None}
         return out, seen
