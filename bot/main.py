@@ -1,0 +1,376 @@
+"""Protocol loop, deadline guard and action assembly. OWNER: integrator.
+
+Run: python3 -u bot/main.py   (from the repo root; the Dockerfile does this)
+
+Design:
+- A reader thread pushes raw stdin lines into a queue; the main thread drains it and keeps only the newest obs.
+- The policy (Pilot.decide) runs in ONE worker thread. The main thread waits for it up to HARD_CUTOFF_S after
+  reading the obs; if the worker is late (or still busy with an older obs) the main thread replies with a safe
+  fallback built from the previous action. A reply is therefore always sent in time, whatever the policy does.
+- Every module call inside decide() is wrapped: an exception or a blown soft budget falls back to that
+  module's previous output.
+- stdout carries protocol lines only. Logs go to stderr.
+"""
+from __future__ import annotations
+
+import gc
+import json
+import math
+import os
+import queue
+import random
+import sys
+import threading
+import time
+import traceback
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from bot import state as st  # noqa: E402
+
+BOT_NAME = "OSU-Walker"
+HARD_CUTOFF_S = float(os.environ.get("MECH_HARD_CUTOFF_MS", "30")) / 1000.0   # reply no later than this
+SOFT_BUDGET_S = float(os.environ.get("MECH_SOFT_BUDGET_MS", "18")) / 1000.0   # skip optional modules after this
+CONTINUOUS = ("move", "boost", "aim")
+STATS_PATH = os.environ.get("MECH_STATS")  # optional: write timing/decision stats JSON here at exit (eval)
+
+_OUT = sys.stdout
+_err_count = 0
+
+
+def log(*a) -> None:
+    try:
+        print(*a, file=sys.stderr, flush=True)
+    except Exception:
+        pass
+
+
+def send(msg) -> None:
+    _OUT.write(json.dumps(msg, separators=(",", ":"), allow_nan=False) + "\n")
+    _OUT.flush()
+
+
+def _finite(v, lo=-1e6, hi=1e6, default=0.0) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(f):
+        return default
+    return min(hi, max(lo, f))
+
+
+def sanitize(action: dict, tick: int) -> dict:
+    """Make the action schema-valid and JSON-finite no matter what the modules produced."""
+    out = {"tick": tick}
+    mv = action.get("move")
+    if mv is not None:
+        try:
+            mx, my = _finite(mv[0], -1, 1), _finite(mv[1], -1, 1)
+            n = math.hypot(mx, my)
+            if n > 1:
+                mx, my = mx / n, my / n
+            out["move"] = [round(mx, 4), round(my, 4)]
+        except Exception:
+            pass
+    aim = action.get("aim")
+    if aim is not None:
+        try:
+            out["aim"] = [round(_finite(aim[0], -10, 10), 4), round(_finite(aim[1], -1.6, 1.6), 4)]
+        except Exception:
+            pass
+    for k in ("boost", "jump", "reload"):
+        if k in action:
+            out[k] = bool(action[k])
+    f = action.get("fire")
+    if f is not None:
+        try:
+            out["fire"] = [bool(f[0]), bool(f[1])]
+        except Exception:
+            pass
+    for k in ("pick", "take", "drop"):
+        v = action.get(k)
+        if v is not None and isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+            out[k] = int(v)
+    d = action.get("debug")
+    if isinstance(d, dict) and len(json.dumps(d)) < 4000:
+        out["debug"] = d
+    return out
+
+
+def fallback(prev: dict, tick: int) -> dict:
+    """Safe reply when the policy is late or broken: keep the continuous controls, drop one-shots."""
+    return sanitize({k: prev[k] for k in CONTINUOUS if k in prev}, tick)
+
+
+# ------------------------------------------------------------------------------------------- the pilot
+class Pilot:
+    """Owns the world state and calls the modules in a fixed order. One instance per match."""
+
+    def __init__(self, hello: dict):
+        self.t0 = time.perf_counter()
+        random.seed(hello.get("seed", 0))
+        arena = None
+        try:
+            from bot.arena import Arena
+            map_dir = (hello.get("map") or {}).get("dir") or "/arena"
+            arena = Arena.load(map_dir)
+        except Exception:
+            log("arena load failed:\n" + traceback.format_exc())
+        self.state = st.WorldState(hello, arena)
+        self.mods = {}
+        for name in ("brain", "threats", "navigate", "combat"):
+            try:
+                self.mods[name] = __import__(f"bot.{name}", fromlist=[name])
+            except Exception:
+                log(f"import bot.{name} failed:\n" + traceback.format_exc())
+                self.mods[name] = None
+        self.prev = {"threats": st.Threats(), "intent": st.Intent(), "nav": st.NavOut(),
+                     "combat": st.CombatOut(), "inv": st.InvOut()}
+        self.errors = {}
+        self.overruns = {}
+        self.mod_time = {}
+        brain = self.mods.get("brain")
+        if brain is not None and hasattr(brain, "init"):
+            self._call("brain_init", brain.init, None, self.state)
+        self.init_s = time.perf_counter() - self.t0
+
+    def _call(self, key, fn, default, *args):
+        t = time.perf_counter()
+        try:
+            r = fn(*args)
+        except Exception:
+            n = self.errors.get(key, 0) + 1
+            self.errors[key] = n
+            if n <= 3 or n % 200 == 0:
+                log(f"[{key}] error #{n} at tick {self.state.tick}:\n{traceback.format_exc()}")
+            r = default
+        dt = time.perf_counter() - t
+        self.mod_time.setdefault(key, []).append(dt)
+        return r
+
+    def decide(self, obs: dict, started: float) -> dict:
+        s = self.state
+        try:
+            s.update(obs)
+        except Exception:
+            log("state.update failed:\n" + traceback.format_exc())
+        P = self.prev
+        brain, threats, nav, combat = (self.mods.get(k) for k in ("brain", "threats", "navigate", "combat"))
+
+        def over():
+            return time.perf_counter() - started > SOFT_BUDGET_S
+
+        th = self._call("threats", threats.assess, P["threats"], s) if threats else P["threats"]
+        P["threats"] = th
+        intent = self._call("intent", brain.choose_intent, P["intent"], s, th) if brain and not over() else P["intent"]
+        P["intent"] = intent
+        s.prev_intent = intent
+        nv = self._call("navigate", nav.step, P["nav"], s, intent, th) if nav and not over() else None
+        if nv is None:
+            self.overruns["navigate"] = self.overruns.get("navigate", 0) + 1
+            nv = st.NavOut(move=P["nav"].move, boost=P["nav"].boost)
+        P["nav"] = nv
+        cb = self._call("combat", combat.step, P["combat"], s, intent, th) if combat and not over() else None
+        if cb is None:
+            self.overruns["combat"] = self.overruns.get("combat", 0) + 1
+            cb = st.CombatOut(aim=P["combat"].aim)
+        P["combat"] = cb
+        inv = self._call("inventory", brain.inventory, st.InvOut(), s, intent) if brain and not over() else st.InvOut()
+        P["inv"] = inv
+
+        action = {"tick": s.tick, "move": list(nv.move), "boost": bool(nv.boost), "jump": bool(nv.jump),
+                  "fire": [bool(cb.fire[0]), bool(cb.fire[1])], "reload": bool(cb.reload)}
+        if cb.aim is not None:
+            action["aim"] = list(cb.aim)
+        elif "aim" in s.prev_action:
+            action["aim"] = s.prev_action["aim"]
+        if inv.pick is not None:
+            action["pick"] = inv.pick
+        if inv.take is not None:
+            action["take"] = inv.take
+        if inv.drop is not None:
+            action["drop"] = inv.drop
+        if brain is not None and hasattr(brain, "debug") and os.environ.get("MECH_DEBUG"):
+            d = self._call("debug", brain.debug, None, s, intent, th, nv, cb)
+            if d:
+                action["debug"] = d
+        action = sanitize(action, s.tick)
+        s.prev_action = action
+        return action
+
+
+# ------------------------------------------------------------------------------------------- worker
+class Worker:
+    def __init__(self):
+        self.cv = threading.Condition()
+        self.job = None          # (pilot, obs, started)
+        self.result = None       # (tick, action)
+        self.busy = False
+        th = threading.Thread(target=self._run, daemon=True)
+        th.start()
+
+    def submit(self, pilot, obs, started) -> bool:
+        with self.cv:
+            if self.busy:
+                return False
+            self.busy = True
+            self.result = None
+            self.job = (pilot, obs, started)
+            self.cv.notify_all()
+            return True
+
+    def wait(self, tick, deadline):
+        with self.cv:
+            while True:
+                if self.result is not None and self.result[0] == tick:
+                    return self.result[1]
+                rem = deadline - time.perf_counter()
+                if rem <= 0:
+                    return None
+                self.cv.wait(rem)
+
+    def _run(self):
+        while True:
+            with self.cv:
+                while self.job is None:
+                    self.cv.wait()
+                pilot, obs, started = self.job
+                self.job = None
+            try:
+                act = pilot.decide(obs, started)
+            except Exception:
+                log("decide crashed:\n" + traceback.format_exc())
+                act = None
+            with self.cv:
+                self.result = (obs.get("tick"), act)
+                self.busy = False
+                self.cv.notify_all()
+
+
+def _reader(q: "queue.Queue") -> None:
+    try:
+        for line in sys.stdin.buffer:
+            if line.strip():
+                q.put(line)
+    except Exception:
+        pass
+    q.put(None)
+
+
+def main() -> None:
+    sys.setswitchinterval(0.001)
+    q: "queue.Queue" = queue.Queue()
+    threading.Thread(target=_reader, args=(q,), daemon=True).start()
+    worker = Worker()
+    pilot = None
+    prev_action: dict = {}
+    lat = []           # reply latency from reading the obs (s)
+    fallbacks = 0
+    skipped = 0
+    place = None
+    while True:
+        batch = [q.get()]
+        started = time.perf_counter()
+        while True:
+            try:
+                batch.append(q.get_nowait())
+            except queue.Empty:
+                break
+        # Lines written together can arrive split (docker's stdin proxy): give a queued newer obs 1 ms to show up.
+        try:
+            batch.append(q.get(timeout=0.001))
+            while True:
+                batch.append(q.get_nowait())
+        except queue.Empty:
+            pass
+        latest = None
+        done = False
+        for raw in batch:
+            if raw is None:
+                done = True
+                break
+            try:
+                msg = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(msg, dict):
+                continue
+            kind = msg.get("type")
+            if kind == "hello":
+                try:
+                    pilot = Pilot(msg)
+                    log(f"init {pilot.init_s * 1000:.0f} ms, arena={'yes' if pilot.state.arena is not None else 'NO'}")
+                except Exception:
+                    log("pilot init failed:\n" + traceback.format_exc())
+                    pilot = None
+                gc.collect()
+                gc.freeze()
+                send({"type": "ready", "name": BOT_NAME})
+            elif kind == "obs":
+                if latest is not None:
+                    skipped += 1
+                latest = msg
+            elif kind == "end":
+                place = msg.get("place")
+                done = True
+                break
+        if latest is not None and not done:
+            tick = latest.get("tick", 0)
+            act = None
+            if pilot is not None and worker.submit(pilot, latest, started):
+                act = worker.wait(tick, started + HARD_CUTOFF_S)
+            if act is None:
+                fallbacks += 1
+                act = fallback(prev_action, tick)
+            try:
+                send(act)
+            except (TypeError, ValueError):
+                send({"tick": tick})
+            prev_action = act
+            lat.append(time.perf_counter() - started)
+        if done:
+            break
+    _report(pilot, lat, fallbacks, skipped, place)
+
+
+def _report(pilot, lat, fallbacks, skipped, place) -> None:
+    try:
+        lat.sort()
+        pct = lambda p: lat[min(len(lat) - 1, int(p * len(lat)))] * 1000 if lat else 0.0
+        info = {"replies": len(lat), "fallbacks": fallbacks, "skipped_obs": skipped, "place": place,
+                "p50_ms": round(pct(0.5), 3), "p99_ms": round(pct(0.99), 3), "max_ms": round(pct(1.0), 3)}
+        if pilot is not None:
+            info["init_ms"] = round(pilot.init_s * 1000, 1)
+            info["errors"] = pilot.errors
+            info["overruns"] = pilot.overruns
+            info["mod_p99_ms"] = {k: round(sorted(v)[min(len(v) - 1, int(0.99 * len(v)))] * 1000, 3)
+                                  for k, v in pilot.mod_time.items() if v}
+            info["mod_max_ms"] = {k: round(max(v) * 1000, 3) for k, v in pilot.mod_time.items() if v}
+            b = pilot.mods.get("brain")
+            if b is not None and hasattr(b, "summary"):
+                try:
+                    info["brain"] = b.summary(pilot.state)
+                except Exception:
+                    pass
+        log("stats " + json.dumps(info))
+        if STATS_PATH:
+            with open(STATS_PATH, "w") as f:
+                json.dump(info, f)
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    try:
+        sys.stdout.flush()
+    except Exception:
+        pass
+    os._exit(0)

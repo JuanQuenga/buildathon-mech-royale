@@ -1,0 +1,6 @@
+.git
+sim/
+eval/
+docs/
+**/__pycache__
+*.pyc
