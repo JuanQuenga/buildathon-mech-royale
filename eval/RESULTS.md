@@ -30,6 +30,7 @@ official numbers and say so here in bold.**
 | 11-21 ~05:00 | 1f7fa6f | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s): **+0.35, the first step change**. New best |
 | 11-21 ~06:00 | 370d88e | good-35 | 5.31 | good-31 + rage: does not stack (−0.25 vs good-31) |
 | 11-21 ~06:10 | 1ca1a5a | good-36 | 5.13 | good-31 with reversals every 6–10 s (−0.43): 3–5 s is a narrow optimum or good-31 drew well; chaos controls good-46/47 queued |
+| 11-21 ~06:25 | 0ebc659 / a9a0bd3 | good-37 / good-38 | 5.25 / 5.35 | no sideways / orbit: all four good-31 neighbours 5.13–5.35 (mean 5.26). Sim: behaviour-neutral re-roll SE ≈ 0.27 per 48-match score |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 

@@ -3,15 +3,15 @@
 ## Please submit
 The table order is the queue. Every tag listed passed the **full Linux gate** (`eval/check.sh <tag>`: unit tests,
 native + Docker with the exact sandbox flags, big and late stress streams, slow-policy and crash guards, 0 missed
-replies). Already submitted and pending: good-37, good-38.
+replies). **good-46 and good-47 are the noise checks (behaviour-neutral re-rolls of good-31): run them first, back to back.**
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
 | 1 | `good-46` | 8ff6019 | **Noise check (chaos control)**: good-31's exact behaviour with the idle torso-scan phase shifted (as good-9 did for good-3). Re-rolls every trajectory without changing the policy. If it lands ~5.3, good-31's 5.56 was a lucky draw and the true level of everything is ~5.3 | 5.3–5.56 |
-| 2 | `good-39` | 72710d6 | good-31 + **boost-run the engage strafe** (19.5 vs 11.7 m/s) while energy > 80, off below 50 (keeps a jet reserve). Top-16 bots boost 27–44 % of their firing time in the cast; if house bots under-lead, lateral speed is what makes them miss. Sim: squad +0.38 ± 0.58, FFA +0.33 ± 2.0 (no collapse). Profile `…steadyx+sboostx` | 5.65 |
-| 3 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
-| 4 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 5 | `good-47` | b0592f6 | Second chaos control of good-31 (scan phase +2.5). With good-46, gives the mean of good-31's behaviour over three draws | 5.3–5.56 |
+| 2 | `good-47` | b0592f6 | Second chaos control of good-31 (scan phase +2.5). With good-46, gives the mean of good-31's behaviour over three draws | 5.3–5.56 |
+| 3 | `good-39` | 72710d6 | good-31 + **boost-run the engage strafe** (19.5 vs 11.7 m/s) while energy > 80, off below 50 (keeps a jet reserve). Top-16 bots boost 27–44 % of their firing time in the cast; if house bots under-lead, lateral speed is what makes them miss. Sim: squad +0.38 ± 0.58, FFA +0.33 ± 2.0 (no collapse). Profile `…steadyx+sboostx` | 5.65 |
+| 4 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
+| 5 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
 | 6 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
 | 7 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
 | 8 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
@@ -20,13 +20,29 @@ Superseded (rage base without steady strafe; gated but less informative now, run
 `good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
 break contact at the 2nd hunter). Steady-base versions follow as good-39+.
 
+## How much one official score can tell us (read before trusting any single result)
+- A 48-match official score of a build whose behaviour differs at all from another is close to an independent draw.
+  Sim measurement (11-21 06:40): per-match SD of (16 − place) = 1.9, so **SE of a 48-match mean ≈ 0.27** and the
+  SE of a difference between two builds ≈ 0.38. A behaviour-neutral chaos control (torso-scan phase only) moved the
+  sim score by +0.54 ± 0.47; identical seeds stay identical only for an identical build (official ±0.03).
+- Officially, all four perturbations of good-31 (35: 5.31, 36: 5.13, 37: 5.25, 38: 5.35; mean 5.26) sit 0.2–0.4
+  below it, and the earlier family (22: 5.21, 27: 5.25, 30: 5.19) sits at ~5.2. The likeliest reading: the family's
+  true level is ~5.3 and good-31 drew about one SE high. good-46/47 measure this directly.
+- Consequences: (1) single-run contrasts resolve only effects of ≳0.6; most earlier "effects" (±0.1–0.4) are not
+  established. (2) For the practice board (best score counts) every extra draw of an equally good build is a
+  lottery ticket: re-rolls keep our best rising with the cut at no risk. (3) For the final (FFA, new seeds) pick the
+  entry by the **family mean over draws** and its FFA behaviour, not the single best draw; a chaos re-roll that
+  scores higher is the same policy as good-31 and equally good as an entry.
+
 ## Official results (48 fixed-seed practice matches each; identical-build noise ±0.03, between builds ~±0.1)
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-38 | 5.35 | good-31 with no reversals (orbit one way) |
 | good-35 | 5.31 | good-31 + rage (stack: does not stack, −0.25) |
 | good-27 | 5.25 | good-22 + rage (hunt by memory/sound, engage ratio 1.6, fight from 40 % HP, berserk) |
 | good-22 | 5.21 | laser first + good-3 navigation + stale-hop fix |
+| good-37 | 5.25 | good-31 with no sideways movement while engaging |
 | good-36 | 5.13 | good-31 with reversals every 6–10 s (−0.43) |
 | good-15 / good-30 | 5.19 / 5.19 | laser + nav3 / good-22 + juke (0.3–1.0 s reversals beyond 80 m) |
 | good-14 | 5.17 | seek + nav3 |
@@ -39,7 +55,7 @@ break contact at the 2nd hunter). Steady-base versions follow as good-39+.
 | good-8 / good-9 | 4.79 / 4.79 | fresh (heal after kill) / chaos control |
 | good-4 / good-5 | 4.58 / 4.46 | old nav / good-4 + good-3 brain |
 
-Pending: good-37, good-38, then the queue above. good-45 (boost above 50 energy, 77e995c) is gated and held back until good-39 scores.
+Pending: the queue above. good-45 (boost above 50 energy, 77e995c) is gated and held back until good-39 scores.
 
 
 ## Recommended final entry
