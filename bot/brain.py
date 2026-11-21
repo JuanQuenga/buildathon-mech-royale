@@ -85,6 +85,9 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "cycle_hp": 0.0,               # A/B >0 fight-regen cycle: break off below this HP fraction and heal to heal_until
+    "arm_first": False,            # A/B: unarmed + known weapon within arm_first_m: go for it even in a fight
+    "arm_first_m": 150.0,
     "no_fire": False,              # sim study only: never fire (pure evasion baseline)
     "isolate": False,              # A/B structural: fight one at a time from spots hidden from the other attackers
     "commit": False,               # A/B: stay on the committed target until it dies; else lowest effective HP
@@ -175,6 +178,11 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "peekx": {"peek": True},
     "isolatex": {"isolate": True},
     "commitx": {"commit": True},
+    "cyclex": {"cycle_hp": 0.4, "heal_until": 0.9},
+    "cycle30x": {"cycle_hp": 0.3, "heal_until": 0.9},
+    "cycle50x": {"cycle_hp": 0.5, "heal_until": 0.9},
+    "cycle40lx": {"cycle_hp": 0.4, "heal_until": 0.7},
+    "armfirstx": {"arm_first": True},
     "evadex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
                "heal_below_squad": 0.8, "heal_below": 0.7, "engage_ratio_squad": 0.0, "engage_ratio_ffa": 0.0,
                "retreat_ratio": 100.0, "berserk": False, "no_fire": True},       # survival study (a): pure evasion
@@ -678,6 +686,22 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     # 2. in a fight
     if hot:
         tgt = fight.get("target")
+        killable_ids = set(getattr(threats, "killable", None) or [])
+        if (P["cycle_hp"] > 0 and fight["verdict"] == "engage" and hpf < P["cycle_hp"]
+                and (tgt is None or tgt.id not in killable_ids)):
+            # A/B fight-regen cycle: our HP pool is spent once per life in the base; at cycle_hp break off, regenerate
+            # to heal_until out of combat (45 HP/s after 5 s), then fight again at full aggression
+            fight["verdict"] = "retreat"
+            fight["ratio"] = max(fight.get("ratio", 0.0), 9.9)
+        if (P["arm_first"] and fight["verdict"] == "engage" and state.weapon_kinds()[1] is None and hpf > 0.35
+                and (tgt is None or tgt.id not in killable_ids)):
+            # A/B: unarmed with a known weapon close by: keep going for it (firing on the move) instead of flipping
+            # between loot and engage every second (sim seeds 28/32/34: never armed, 1-2 s loot/engage alternation)
+            wk = _known_weapon(state, m, P["arm_first_m"])
+            if wk is not None:
+                it = Intent(mode="loot", goal=wk["pos"], loot_id=wk["id"], urgency=0.6, face=face, allow_fire=True,
+                            target_id=tgt.id if tgt is not None else None, reason=f"arm first {wk['id']}")
+                return _finish(state, m, it)
         if fight["verdict"] == "retreat":
             goal = _cover_from(state, [e.pos for e in hot], zp)
             real_cover = m.get("cover_real", False)
