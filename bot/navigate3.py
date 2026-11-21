@@ -388,11 +388,19 @@ def _engage_dir(state: WorldState, intent: Intent, m) -> Optional[Tuple[float, f
             m["strafe_t"] = state.t + 0.3 + ((state.tick * 7919) % 8) / 10.0      # 0.3-1.0 s reversals
         elif sm == "steady":
             m["strafe_t"] = state.t + 3.0 + ((state.tick * 7919) % 21) / 10.0     # 3-5 s
+        elif sm == "slow":
+            m["strafe_t"] = state.t + 6.0 + ((state.tick * 7919) % 41) / 10.0     # 6-10 s
+        elif sm in ("orbit", "still"):
+            m["strafe_t"] = state.t + 1e6                                           # never reverse
         else:
             m["strafe_t"] = state.t + 1.2 + ((state.tick * 7919) % 13) / 10.0
     s = m["strafe_sign"]
     tx, ty = -uy * s, ux * s
     w_t = 0.85 if abs(radial) < 0.7 else 0.4
+    if _strafe_mode() == "still":
+        w_t = 0.0                      # hold range only: no sideways movement while engaging
+        if abs(radial) < 0.15:
+            return None
     vx, vy = ux * radial + tx * w_t, uy * radial + ty * w_t
     return unit2(vx, vy)
 
