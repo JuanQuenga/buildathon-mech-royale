@@ -9,6 +9,18 @@ official numbers and say so here in bold.**
 | --- | --- | --- | --- | --- |
 | — | example bot | — | 1.15 | organiser-stated baseline |
 | 11-21 00:05 | d0e666d | good-4 | **4.58** (rank 22/157; cut #32 = 4.35; top 5.58) | **sim squad said 3.66: the sim is ~25 % too harsh** (example: sim 0.91 vs official 1.15). good-3 (f8db786) being scored by the coordinator |
+| 11-21 ~00:30 | f8db786 | good-3 | **4.88** (rank 20/~157; cut #32 = 4.48; top 5.58) | **same seeds as good-4, +0.30 for the OLDER tag although the sim rated good-4 ≥ good-3**. good-3 is the base to beat |
+
+### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
+
+| Squad setting | Sim score | Kills | Alive |
+| --- | --- | --- | --- |
+| default (early 1, join_per_loss 1, all engage 300 s, 6-tick gun) | 3.69 | 3.58 | 111 s |
+| `--sim fire_first_tick_only=false` (5-tick gun, everyone) | 3.29 | 3.17 | 98 s |
+| `--squad all_engage_t=360` | 3.38 | 3.33 | 98 s |
+| `--squad join_per_loss=0.5` | 4.88 | 4.83 | 124 s |
+
+Official good-4 = 4.58: escalation speed is the lever; the official level sits between join_per_loss 1 and 0.5.
 
 ## Known-good tags
 
