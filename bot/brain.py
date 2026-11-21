@@ -73,6 +73,7 @@ P: Dict[str, Any] = {
     "no_mortar": False,            # A/B: never take a mortar (sim: gun+mortar matches score ~2.8 vs ~6 with a laser)
     "drop_first": False,           # A/B: consider the supply drop before heal-hiding and opportunistic fights
     "explore_armed_until": 0.0,    # A/B: keep exploring unvisited ground for crates/drones while armed until this time
+    "explore_for_laser_until": 0.0,  # A/B: armed but no laser yet: keep exploring for one until this match time
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -100,6 +101,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
                "drone_value": 60.0, "drop_max_eta": 70.0, "drop_base": 60.0, "drop_first": True},  # seek + fresh + scale
     "farm": {"cube_greed": True, "crate_value": 32.0, "drone_value": 60.0, "explore_armed_until": 150.0, "seek": True},
     "lseek": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True},   # good-7 + laser2
+    "lhunt": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "explore_for_laser_until": 120.0},
     "laser2": {"cube_greed": True, "laser_first": True, "no_mortar": True},
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
@@ -1041,7 +1043,9 @@ def _explore_choice(state: WorldState, m, zp) -> Optional[Intent]:
     """Unarmed (slot 1 empty): walk to the nearest unvisited grid cell inside the next circle, torso scanning, to
     find pickups and crates. Visited = we stood within ~0.7 cell of its centre (items there were in near vision)."""
     armed = state.weapon_kinds()[1] is not None
-    if not P["weapon_first"] or (armed and (state.t > P["explore_armed_until"] or int(state.me.get("cubes", 0) or 0) >= 10)):
+    want_laser = armed and "laser" not in state.weapon_kinds() and state.t < P["explore_for_laser_until"]
+    if not P["weapon_first"] or (armed and not want_laser and
+                                 (state.t > P["explore_armed_until"] or int(state.me.get("cubes", 0) or 0) >= 10)):
         return None
     cs = P["explore_cell"]
     vis = m.setdefault("visited", set())
