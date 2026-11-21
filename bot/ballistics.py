@@ -163,7 +163,8 @@ def interval_prob(mu: float, sigma: float, half: float) -> float:
 
 
 def hit_probability(lat_err: float, vert_err: float, dist: float, radius: float, height: float,
-                    spread_sigma_rad: float, pred_sigma: float = 0.0, aim_sigma_rad: float = 0.0) -> float:
+                    spread_sigma_rad: float, pred_sigma: float = 0.0, aim_sigma_rad: float = 0.0,
+                    vert_sigma: Optional[float] = None) -> float:
     """Probability a shot hits a cylinder seen side-on as a (2 radius x height) rectangle.
 
     lat_err / vert_err: deterministic offset (m) of the expected impact from the target center
@@ -173,17 +174,20 @@ def hit_probability(lat_err: float, vert_err: float, dist: float, radius: float,
     """
     s_ang = math.hypot(spread_sigma_rad, aim_sigma_rad) * dist
     s = math.hypot(s_ang, pred_sigma)
-    sv = math.hypot(s_ang, pred_sigma * 0.5)  # vertical motion is more predictable (ground / gravity)
+    sv = math.hypot(s_ang, pred_sigma * 0.5 if vert_sigma is None else vert_sigma)  # vertical: ground / gravity
     return interval_prob(lat_err, s, radius + 0.3) * interval_prob(vert_err, sv, 0.5 * height + 0.3)
 
 
 def motion_sigma(t: float, speed: float, accel: float = 58.5, agility: float = 0.5) -> float:
     """Std-dev (m) of a target's displacement error after t seconds if it may change velocity.
 
-    A mech can reverse a strafe: worst-case deviation is min(accel t^2 / 2, 2 v t)-ish. `agility`
-    (0..1) scales it: 0 = moves in straight lines (house bots walking to a goal), 1 = juking."""
+    worst = min(accel t^2 / 2, 2 v t) is how far a reversal can take it from the constant-velocity
+    prediction. Fitted in the sim (tests/combat/duel_harness.py hitrate, gun at 100-190 m vs walk / strafe /
+    juke / jump targets): sigma ~= (0.28 + 0.6 agility) * worst for moving targets, ~0.08 * worst for
+    stationary ones (they may start moving). agility = reversal rate / 2 (threats.EnemyX.agility)."""
     worst = min(0.5 * accel * t * t, 2.0 * max(speed, 3.0) * t)
-    return agility * 0.6 * worst + 0.15
+    base = 0.28 if speed > 2.0 else 0.08
+    return (base + 0.6 * agility) * worst + 0.15
 
 
 # ----------------------------------------------------------------------------- mortar

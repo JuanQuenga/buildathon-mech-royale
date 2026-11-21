@@ -57,6 +57,9 @@ class EnemyX(EnemyThreat):
     agility: float = 0.3                  # 0 straight-line mover .. 1 constant juking
     lead_vel: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     flip_rate: float = 0.0                # estimated direction reversals per second (strafing)
+    since_flip: Optional[float] = None    # seconds since its last reversal
+    flip_min_gap: Optional[float] = None  # shortest gap between its reversals (periodic strafers)
+    jumpy: float = 0.0                    # fraction of the last 3 s it was airborne
     airborne: bool = False
     rear_exposed: bool = False            # its back (outside its front arc) faces us: our hits x1.5
     age: float = 0.0                      # seconds since last in obs
@@ -134,28 +137,40 @@ def _ground(state: WorldState):
     return g
 
 
-def _flip_rate(hist, t: float, window: float = 4.0) -> float:
-    """Direction reversals per second over the last `window` s of visible velocity samples.
+def _flip_stats(hist, t: float, window: float = 4.0):
+    """(reversals per second, time of the last reversal or None, shortest gap between reversals or None)
+    over the last `window` s of visible velocity samples.
 
-    A reversal = the (speed > 3 m/s) velocity turned by more than ~100 deg within 0.6 s. Prior: 0.15/s
-    over a 2 s pseudo-window (straight-line movers stay near 0.03)."""
+    A reversal = the (speed > 2.5 m/s) velocity turned by more than ~100 deg within 1.2 s. Prior: 0.1 flips
+    over a 0.5 s pseudo-window (straight-line movers stay near 0.02/s)."""
     pts = [h for h in hist if t - h[0] <= window]
-    flips = 0
+    flips = []
     last = None
     for (tt, vx, vy) in pts:
         sp = math.hypot(vx, vy)
-        if sp < 3.0:
-            continue
+        if sp < 2.5:
+            continue        # mid-reversal samples are slow: compare fast samples up to 1.2 s apart
         if last is not None:
             lt, lx, ly = last
             c = (vx * lx + vy * ly) / (sp * math.hypot(lx, ly))
-            if c < -0.2 and tt - lt <= 0.6:
-                flips += 1
-                last = (tt, vx, vy)
-                continue
+            if c < -0.2 and tt - lt <= 1.2:
+                flips.append(tt)
         last = (tt, vx, vy)
     span = (pts[-1][0] - pts[0][0]) if len(pts) >= 2 else 0.0
-    return (flips + 0.15) / (span + 2.0)
+    gaps = [b - a for a, b in zip(flips, flips[1:])]
+    return (len(flips) + 0.1) / (span + 0.5), (flips[-1] if flips else None), (min(gaps) if gaps else None)
+
+
+def _flip_rate(hist, t: float, window: float = 4.0) -> float:
+    return _flip_stats(hist, t, window)[0]
+
+
+def effective_flip_rate(rate: float, since_flip: Optional[float], min_gap: Optional[float], tau: float) -> float:
+    """Periodic strafers don't reverse again right after a reversal: if the whole flight ends before
+    0.75 x the shortest observed gap since the last reversal, use no reversal (full lead)."""
+    if since_flip is not None and min_gap is not None and since_flip + tau < 0.75 * min_gap:
+        return 0.0
+    return rate
 
 
 def telegraph_factor(rate: float, tau: float) -> float:
@@ -358,7 +373,15 @@ def _assess(state: WorldState) -> ThreatsX:
             hist.append((t, tr.vel[0], tr.vel[1]))
             if len(hist) > 50:
                 del hist[0]
-        e.flip_rate = _flip_rate(hist, t)
+        e.flip_rate, lf, e.flip_min_gap = _flip_stats(hist, t)
+        e.since_flip = (t - lf) if lf is not None else None
+        nair = sum(1 for h in hist[-30:] if t - h[0] <= 3.0)
+        if tr.visible_now:
+            air = mem.setdefault("air", {}).setdefault(tr.id, [])
+            air.append((t, abs(tr.vel[2]) > 0.8))
+            if len(air) > 30:
+                del air[0]
+            e.jumpy = sum(1 for (ta, a) in air if a and t - ta <= 3.0) / max(1, nair)
         e.agility = max(0.05, min(1.0, e.flip_rate / 2.0))
         e.lead_vel = tuple(tr.vel)
         e.airborne = abs(tr.vel[2]) > 0.8

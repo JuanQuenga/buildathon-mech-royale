@@ -189,6 +189,7 @@ def hitrate(args):
     for pattern in args.patterns.split(","):
         for d in [float(x) for x in args.dists.split(",")]:
             tot_shots, tot_hits, tot_dmg = {}, {}, 0.0
+            tot_pred = []
             for rep in range(args.reps):
                 seed = 1000 + rep * 17 + int(d)
                 rng = random.Random(seed)
@@ -211,10 +212,13 @@ def hitrate(args):
                 hits = {}
                 dmg = 0.0
                 intent = st.Intent(mode="engage", target_id=Bm.id)
+                preds = []
                 while M.t < args.secs:
                     if M.tick % 2 == 0:
                         a, dt, obs, out = ours_decide(S, M, A, intent, mover_a)
                         timings.append(dt)
+                        if out.weapon == "gun" and out.fire[0]:
+                            preds.append(out.p_hit)
                         for ev in obs["events"]:
                             if ev.get("type") == "hit" and ev.get("target") == Bm.id:
                                 hits[ev["weapon"]] = hits.get(ev["weapon"], 0) + 1
@@ -224,6 +228,7 @@ def hitrate(args):
                         bact.update({"tick": M.tick, "aim": [ang + math.pi, 0.0]})
                         M.apply_action(Bm, bact)
                     M.step()
+                tot_pred.extend(preds)
                 for k, v in cnt.shots.items():
                     tot_shots[k] = tot_shots.get(k, 0) + v
                 for k, v in hits.items():
@@ -232,9 +237,10 @@ def hitrate(args):
             row = {k: {"shots": tot_shots.get(k, 0), "hits": tot_hits.get(k, 0),
                        "rate": round(tot_hits.get(k, 0) / max(1, tot_shots.get(k, 0)), 3)} for k in set(tot_shots) | set(tot_hits)}
             row["dps"] = round(tot_dmg / (args.reps * args.secs), 1)
+            row["gun_pred"] = round(sum(tot_pred) / len(tot_pred), 3) if tot_pred else None
             res[f"{pattern}@{int(d)}"] = row
-            print(f"{pattern:7s} d={int(d):3d} " + " ".join(f"{k}:{v['hits']}/{v['shots']}={v['rate']:.2f}" for k, v in sorted(row.items()) if k != "dps")
-                  + f"  dps {row['dps']}", flush=True)
+            print(f"{pattern:7s} d={int(d):3d} " + " ".join(f"{k}:{v['hits']}/{v['shots']}={v['rate']:.2f}" for k, v in sorted(row.items()) if isinstance(v, dict))
+                  + f"  dps {row['dps']}  model p(gun) {row['gun_pred']}", flush=True)
     timings.sort()
     if timings:
         print(f"combat+threats per decision: p50 {timings[len(timings)//2]*1e3:.3f} ms p99 {timings[int(.99*len(timings))]*1e3:.3f} ms max {timings[-1]*1e3:.3f} ms")

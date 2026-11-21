@@ -284,6 +284,44 @@ class TestThreats(unittest.TestCase):
         self.assertGreater(abs(B.wrap(best - 0.0)), math.pi / 2)   # don't run at the dangerous one
 
 
+class TestContract(unittest.TestCase):
+    def test_npc_ignored_unless_target_or_hostile(self):
+        w = helpers.world(helpers.OpenArena())
+        npc = enemy(104, (40, 0, 0), kind="npc", weapons=())
+        out, _ = run(w, obs(aim=(0.0, -0.05), mechs=[npc]), Intent(mode="rotate"))
+        self.assertFalse(out.fire[0])
+        w = helpers.world(helpers.OpenArena())
+        out, _ = run(w, obs(aim=(0.0, -0.05), mechs=[npc]), Intent(mode="loot", target_id=104))
+        self.assertTrue(out.fire[0])
+        w = helpers.world(helpers.OpenArena())
+        ev = [{"type": "damaged", "amount": 25, "weapon": "npc", "bearing": 0.0, "by": 104}]
+        out, _ = run(w, obs(aim=(0.0, -0.05), mechs=[npc], events=ev), Intent(mode="rotate"))
+        self.assertTrue(out.fire[0])
+
+    def test_crate_only_when_asked(self):
+        crate = {"id": 1003, "pos": [30, 0, 0], "hp": 300}
+        w = helpers.world(helpers.OpenArena())
+        out, _ = run(w, obs(aim=(0.0, -0.1), crates=[crate]), Intent(mode="loot"))
+        self.assertFalse(out.fire[0])
+        w = helpers.world(helpers.OpenArena())
+        it = Intent(mode="loot", shoot_crate=1003)
+        out, _ = run(w, obs(aim=(0.0, -0.1), crates=[crate]), it)
+        out, _ = run(w, obs(tick=102, aim=tuple(out.aim), crates=[crate]), it)
+        self.assertEqual(out.target_id, 1003)
+        self.assertTrue(out.fire[0])
+
+    def test_laser_precharge_behind_cover(self):
+        w = helpers.world(helpers.WallArena(x0=50.0, top=40.0))
+        out, _ = run(w, obs(aim=(0.0, 0.0), weapons=[weapon("gun"), weapon("laser")], mechs=[enemy(5, (120, 0, 0))]),
+                     Intent(mode="engage", target_id=5))
+        self.assertTrue(out.fire[1])
+        self.assertFalse(out.fire[0])
+        w = helpers.world(helpers.WallArena(x0=50.0, top=40.0))
+        out, _ = run(w, obs(aim=(0.0, 0.0), weapons=[weapon("gun"), weapon("laser")], mechs=[enemy(5, (120, 0, 0))]),
+                     Intent(mode="rotate"))
+        self.assertFalse(out.fire[1])
+
+
 class TestRobustness(unittest.TestCase):
     def test_garbage_never_raises(self):
         rng = random.Random(6)

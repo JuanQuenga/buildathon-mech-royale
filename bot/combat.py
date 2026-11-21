@@ -21,16 +21,19 @@ Weapon facts used (rulebook + replay verification, see docs/combat.md and ballis
 """
 from __future__ import annotations
 
+import json
 import math
+import os
 import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import ballistics as B
 from .state import CombatOut, Intent, Threats, WorldState
-from .threats import telegraph_factor
+from .threats import effective_flip_rate, telegraph_factor
 
 TICK = 0.05
+_STATS_DIR = os.environ.get("MECH_COMBAT_STATS_DIR")   # eval only: dump summary() there every 50 decisions
 
 
 def _log(*a):
@@ -91,11 +94,14 @@ class _Me:
 class _Tgt:
     __slots__ = ("id", "kind", "pos", "vel", "lead_vel", "radius", "height", "hp", "hp_frac", "los", "dist", "agility",
                  "airborne", "rear", "mortar", "charging", "danger", "visible", "age", "threat", "facing_me", "bearing",
-                 "flip_rate")
+                 "flip_rate", "since_flip", "flip_min_gap", "jumpy")
 
     def __init__(self):
         self.agility = 0.3
         self.flip_rate = 0.0
+        self.since_flip = None
+        self.flip_min_gap = None
+        self.jumpy = 0.0
         self.airborne = False
         self.rear = False
         self.mortar = False
@@ -157,7 +163,7 @@ def gun_solution(me: _Me, tg: _Tgt, st: Dict[str, float], g: float = 22.0, k: in
     # over the flight is v * f(tau), f = (1 - e^{-2 r tau}) / (2 r tau). Straight movers: f ~ 1.
     d0 = math.dist(center, me.launch_pos)
     tf0 = d0 / speed
-    f = telegraph_factor(tg.flip_rate, tf0)
+    f = telegraph_factor(effective_flip_rate(tg.flip_rate, tg.since_flip, tg.flip_min_gap, tf0), tf0)
     lv = (f * tg.vel[0], f * tg.vel[1], tg.vel[2] if tg.airborne else 0.0)
     tacc = (0.0, 0.0, -g if (tg.airborne and tg.vel[2] < 0) else (-0.5 * g if tg.airborne else 0.0))
     extra = (k - 1) * TICK
@@ -190,7 +196,8 @@ def gun_p(me: _Me, tg: _Tgt, sol, fire_aim, st: Dict[str, float]) -> float:
     ps = B.motion_sigma(tf, spd, 58.5, tg.agility)
     if tg.kind == "crate":
         ps = 0.05
-    return B.hit_probability(lat, vert, dist, tg.radius, tg.height, sig, ps, 0.0015)
+    pv = 0.5 * ps + tg.jumpy * min(3.0, 0.5 * 22.0 * tf * tf + 2.0 * tf)
+    return B.hit_probability(lat, vert, dist, tg.radius, tg.height, sig, ps, 0.0015, pv)
 
 
 def laser_solution(me: _Me, tg: _Tgt, delay: float = TICK):
@@ -308,6 +315,9 @@ def _targets(state: WorldState, intent: Intent, threats: Threats, me: _Me, mem) 
         tg.dist = e.dist
         tg.agility = getattr(e, "agility", 0.3)
         tg.flip_rate = getattr(e, "flip_rate", 0.15)
+        tg.since_flip = getattr(e, "since_flip", None)
+        tg.flip_min_gap = getattr(e, "flip_min_gap", None)
+        tg.jumpy = getattr(e, "jumpy", 0.0)
         tg.airborne = getattr(e, "airborne", False)
         tg.rear = getattr(e, "rear_exposed", False)
         tg.mortar = "mortar" in (e.weapons or [])
@@ -322,16 +332,15 @@ def _targets(state: WorldState, intent: Intent, threats: Threats, me: _Me, mem) 
     want_crate = intent.shoot_crate
     ccfg = state.cfg.get("crates", {})
     crates = state.obs.get("crates") or []
-    if crates:
-        calm = sum(e.danger for e in threats.enemies if e.kind == "mech") < 25.0
+    if crates and want_crate is not None:
         cand = []
         for c in crates:
             try:
                 d = math.dist(c["pos"], me.pos)
             except Exception:
                 continue
-            if c.get("id") == want_crate or (calm and d < 90.0):
-                cand.append((0 if c.get("id") == want_crate else 1, d, c))
+            if c.get("id") == want_crate:
+                cand.append((0, d, c))
         cand.sort(key=lambda x: (x[0], x[1]))
         for _, d, c in cand[:2]:
             tg = _Tgt()
@@ -359,19 +368,14 @@ def _value(tg: _Tgt, intent: Intent, threats: Threats, state: WorldState, me: _M
         if tg.charging and tg.facing_me:
             v *= 1.5
     elif tg.kind == "npc":
+        # contract (docs/INTERFACES.md): ignore drones unless they are the brain's target or shoot at us
         e = tg.threat
         hits_me = e is not None and (getattr(e, "dps_on_me", 0.0) > 0 or tg.id in threats.attackers)
-        mech_danger = sum(x.danger for x in threats.enemies if x.kind == "mech")
-        if hits_me:
-            v = 0.6
-        elif mech_danger < 25.0 and state.hp > 0.45 * state.max_hp:
-            v = 0.45      # 2 cubes, shoots back 25/s
-        else:
-            v = 0.05
+        v = 0.6 if hits_me else 0.02
     else:  # crate
         v = 0.35 if intent.mode in ("loot", "rotate", "hold", "capture") else 0.15
     if intent.target_id is not None and tg.id == intent.target_id:
-        v *= 3.0
+        v = max(v, 0.4) * 3.0
     if tg.kind == "crate" and intent.shoot_crate == tg.id:
         v = max(v, 1.2)
     return v
@@ -398,9 +402,63 @@ def _fire_aim(me: _Me, cmd) -> Tuple[float, float]:
     return B.slew(me.aim, cmd, me.yr, me.pr, TICK, me.minp, me.maxp)
 
 
+def _track_stats(state: WorldState, mem) -> None:
+    """Shots (from weapon state changes) and hits (from events) per weapon, for summary()."""
+    st_ = mem.setdefault("stats", {"shots": {}, "hits": {}, "dmg": {}, "kills": 0})
+    prev = mem.get("prev_w") or {}
+    cur = {}
+    for w in state.me.get("weapons") or []:
+        if not w or not w.get("kind"):
+            continue
+        k = w["kind"]
+        cur[k] = (float(w.get("ammo", 0) or 0), float(w.get("cooldown", 0) or 0), float(w.get("charge", 0) or 0))
+        if k in prev:
+            pa, pc, pch = prev[k]
+            a, c, ch = cur[k]
+            n = 0
+            if k == "gun":
+                n = int(max(0.0, pa - a)) if a <= pa else 0
+            elif c > pc + 0.05:
+                n = 1
+                if k == "lightning":
+                    n = 1
+            if n:
+                st_["shots"][k] = st_["shots"].get(k, 0) + n
+    mem["prev_w"] = cur
+    seen = set()
+    for ev in state.events:
+        if ev.get("type") == "hit":
+            k = ev.get("weapon", "?")
+            st_["dmg"][k] = st_["dmg"].get(k, 0.0) + float(ev.get("amount", 0) or 0)
+            key = (k, ev.get("target"))
+            if key in seen:
+                continue
+            seen.add(key)
+            st_["hits"][k] = st_["hits"].get(k, 0) + 1
+        elif ev.get("type") == "kill":
+            st_["kills"] += 1
+
+
+def summary(state: WorldState) -> Dict[str, Any]:
+    """Per-weapon shots/hits/damage this match (hits counted per target per decision)."""
+    m = state.scratch.get("combat") or {}
+    st_ = m.get("stats") or {}
+    out = {"shots": st_.get("shots", {}), "hits": st_.get("hits", {}), "dmg": {k: round(v) for k, v in (st_.get("dmg") or {}).items()},
+           "errors": m.get("errors", 0)}
+    out["rate"] = {k: round(out["hits"].get(k, 0) / v, 3) for k, v in out["shots"].items() if v}
+    return out
+
+
 def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
     mem = _mem(state)
     mem["arena_calls"] = 0
+    try:
+        _track_stats(state, mem)
+        if _STATS_DIR and state.n_obs % 50 == 0:
+            with open(os.path.join(_STATS_DIR, f"combat_{os.getpid()}.json"), "w") as f:
+                json.dump(summary(state), f)
+    except Exception:
+        pass
     me = _Me(state)
     t = state.t
     allow = bool(getattr(intent, "allow_fire", True))
@@ -716,7 +774,11 @@ def _laser_ctrl(state, intent, threats, me: _Me, mem, las, lst, tg, best, allow,
         return False, None, False, ""
     if mode in ("retreat", "heal") or urgency >= 0.7:
         return False, None, False, ""
-    if tg is None or tg.kind == "crate":
+    if tg is None:
+        if _precharge_ok(state, intent, threats, mode, urgency, rng):
+            return True, None, False, "laser-precharge"
+        return False, None, False, ""
+    if tg.kind == "crate":
         return False, None, False, ""
     if tg.kind == "npc" and _value(tg, intent, threats, state, me) < 0.3:
         return False, None, False, ""
@@ -725,6 +787,16 @@ def _laser_ctrl(state, intent, threats, me: _Me, mem, las, lst, tg, best, allow,
     if las_opt is None and not (mode == "engage" and tg.kind == "mech"):
         return False, None, False, ""
     return True, None, False, "laser-charge"
+
+
+def _precharge_ok(state, intent, threats, mode, urgency, rng) -> bool:
+    """Charge the laser before peeking: engaging a mech seen in the last 2 s, within range, calm legs."""
+    if mode != "engage" or urgency >= 0.5 or intent.target_id is None:
+        return False
+    e = threats.by_id(intent.target_id)
+    if e is None or e.kind != "mech" or getattr(e, "age", 9.0) > 2.0 or e.dist > rng - 20:
+        return False
+    return True
 
 
 def _want_reload(state: WorldState, threats: Threats, me: _Me, gun, gst, tg, best, fire) -> bool:
