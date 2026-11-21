@@ -93,6 +93,9 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "scale": {"cube_greed": True, "crate_value": 32.0, "drone_value": 60.0, "drop_max_eta": 70.0, "drop_base": 60.0,
               "drop_first": True},                                       # cubes / drops / crates for scaling
     "laser": {"cube_greed": True, "laser_first": True},                  # prefer a laser as the first secondary
+    "stack": {"cube_greed": True, "seek": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},   # seek + fresh
+    "stack2": {"cube_greed": True, "seek": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85, "crate_value": 32.0,
+               "drone_value": 60.0, "drop_max_eta": 70.0, "drop_base": 60.0, "drop_first": True},  # seek + fresh + scale
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
 
