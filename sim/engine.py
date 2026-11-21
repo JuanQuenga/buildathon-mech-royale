@@ -564,6 +564,12 @@ class Match:
         mp = st["pitch_rate"] * dt
         m.aim[1] = min(max(m.aim[1] + max(-mp, min(mp, dp)), st["min_pitch"]), st["max_pitch"])
 
+    def _col_r(self, m):
+        """wall-collision radius. Replay: 14,390 grounded positions are all legal with the base radius and 0.9% are
+        not with the cube-scaled one, so by default collision does not grow with cubes (hit cylinders do)."""
+        r = m.stats["radius"] if self.sim["collision_radius_scales"] else self.cfg["mech"]["radius"]
+        return r - 0.01
+
     def _charging(self, m):
         return any(w is not None and w.kind == "laser" and w.charging for w in m.weapons)
 
@@ -574,7 +580,7 @@ class Match:
         vx, vy, vz = m.vel
         mx, my = m.move
         mlen = math.hypot(mx, my)
-        r, h, step = st["radius"], st["height"], st["step_up"]
+        r, h, step = self._col_r(m), st["height"], st["step_up"]
         spent = False
         boosting = False
         if m.grounded:
@@ -723,7 +729,7 @@ class Match:
             return
         # slide away (up to 0.6 m per tick)
         nx, ny = x - ux * 0.6, y - uy * 0.6
-        b, _ = self.world.disc_block(nx, ny, m.stats["radius"], m.pos[2] - 50, 0, 49)  # only check walls well below
+        b, _ = self.world.disc_block(nx, ny, self._col_r(m), m.pos[2] - 50, 0, 49)  # only check walls well below
         m._ex, m._ey = nx, ny
         m.edge_dir = None
 
@@ -731,7 +737,7 @@ class Match:
         st = m.stats
         W = self.world
         nx, ny = x + dx, y + dy
-        r, h, step = st["radius"], st["height"], st["step_up"]
+        r, h, step = self._col_r(m), st["height"], st["step_up"]
         b, nrm = W.disc_block(nx, ny, r, z, step, h)
         if b:
             return nx, ny, False, nrm
@@ -774,7 +780,7 @@ class Match:
                 for mm, sgn in ((a, -1), (b, 1)):
                     nx = mm.pos[0] + sgn * ux * push
                     ny = mm.pos[1] + sgn * uy * push
-                    blk, _ = self.world.disc_block(nx, ny, mm.stats["radius"], mm.pos[2], mm.stats["step_up"], mm.stats["height"])
+                    blk, _ = self.world.disc_block(nx, ny, self._col_r(mm), mm.pos[2], mm.stats["step_up"], mm.stats["height"])
                     if not blk:
                         mm.pos[0], mm.pos[1] = nx, ny
 

@@ -271,18 +271,22 @@ class World:
         if d is None:
             n = int(math.ceil(r / RES)) + 1
             oi, oj = np.meshgrid(np.arange(-n, n + 1), np.arange(-n, n + 1))
-            m = (oi * RES) ** 2 + (oj * RES) ** 2 <= (r + RES * 0.35) ** 2
+            m = (oi * RES) ** 2 + (oj * RES) ** 2 <= (r - 0.01) ** 2
             d = (oj[m].astype(np.int64), oi[m].astype(np.int64), oi[m] * RES, oj[m] * RES)
             self._disc_cache[key] = d
         return d
 
     def disc_cells(self, x, y, r):
-        oj, oi, ox, oy = self.disc_offsets(r)
+        """cells whose centre is within r of (x, y) (exact position, not the centre cell)"""
+        oj, oi, ox, oy = self.disc_offsets(r + RES)
         ci = int((x - self.gx0) / RES)
         cj = int((y - self.gy0) / RES)
-        jj = np.clip(cj + oj, 0, self.H - 1)
-        ii = np.clip(ci + oi, 0, self.W - 1)
-        return jj, ii, ox, oy
+        ex = ox + ((ci + 0.5) * RES + self.gx0 - x)
+        ey = oy + ((cj + 0.5) * RES + self.gy0 - y)
+        k = ex * ex + ey * ey <= r * r
+        jj = np.clip(cj + oj[k], 0, self.H - 1)
+        ii = np.clip(ci + oi[k], 0, self.W - 1)
+        return jj, ii, ex[k], ey[k]
 
     _mask_cache: dict = {}
 
@@ -293,7 +297,7 @@ class World:
         if mk is None:
             n = int(math.ceil(r / RES)) + 1
             oi, oj = np.meshgrid(np.arange(-n, n + 1), np.arange(-n, n + 1))
-            mask = (oi * RES) ** 2 + (oj * RES) ** 2 <= (r + RES * 0.35) ** 2
+            mask = (oi * RES) ** 2 + (oj * RES) ** 2 <= (r - 0.01) ** 2
             mk = (n, mask, oi * RES, oj * RES)
             self._mask_cache[key] = mk
         n = mk[0]
@@ -313,6 +317,9 @@ class World:
         sl = self._disc_slice(x, y, r)
         if sl is not None:
             sj, si, (n, mask, ox, oy), ci, cj = sl
+            ex = ox + ((ci + 0.5) * RES + self.gx0 - x)
+            ey = oy + ((cj + 0.5) * RES + self.gy0 - y)
+            mask = ex * ex + ey * ey <= r * r
             m = (self.T0[sj, si] > lo) & (self.B0[sj, si] < hi)
             if self.two:
                 m |= (self.T1[sj, si] > lo) & (self.B1[sj, si] < hi)

@@ -32,6 +32,7 @@ SIM_DEFAULTS = {
     "send_end_on_death": True,        # send `end` right when a mech dies (its place is final then)
     "los_step": 0.75,                 # vision ray sample spacing (m)
     "builtin_item_radius": 90.0,      # built-in bots see items within this radius without LOS (cheap)
+    "collision_radius_scales": False,  # replay: wall collision uses the base radius even with cubes (hit cylinder scales)
     "shot_offset_horizontal": True,   # shot origin offset is horizontal only (fitted on replay mortar shells; docs/SIM_ISSUES.md #1)
 }
 

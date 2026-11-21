@@ -23,15 +23,15 @@ TIERS = {
     # correct lead; react: seconds before firing at a newly acquired target; range: max engage range;
     # pref: preferred fighting distance; strafe: lateral movement amplitude 0..1; loot: takes weapons;
     # retreat: HP fraction to disengage and heal (0 = never); burst: fire only when aim error < tol deg
-    "easy":   dict(aim_sigma=2.2, bias=1.6, lead=0.0, react=0.9, range=120, pref=55, strafe=0.0, loot=False, retreat=0.0, tol=4.0, jets=False, secondary=False),
-    "medium": dict(aim_sigma=1.4, bias=1.0, lead=0.5, react=0.6, range=160, pref=70, strafe=0.4, loot=True, retreat=0.0, tol=3.0, jets=True, secondary=True),
-    "hard":   dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.35, range=200, pref=80, strafe=0.7, loot=True, retreat=0.25, tol=2.0, jets=True, secondary=True),
-    "expert": dict(aim_sigma=0.45, bias=0.25, lead=1.0, react=0.2, range=220, pref=90, strafe=1.0, loot=True, retreat=0.35, tol=1.5, jets=True, secondary=True),
+    "easy":   dict(aim_sigma=2.2, bias=1.6, lead=0.0, react=0.9, range=120, pref=55, strafe=0.0, loot=False, retreat=0.0, tol=4.0, jets=False, hop=3, secondary=False),
+    "medium": dict(aim_sigma=1.4, bias=1.0, lead=0.5, react=0.6, range=160, pref=70, strafe=0.4, loot=True, retreat=0.0, tol=3.0, jets=True, hop=4, secondary=True),
+    "hard":   dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.35, range=200, pref=80, strafe=0.7, loot=True, retreat=0.25, tol=2.0, jets=True, hop=6, secondary=True),
+    "expert": dict(aim_sigma=0.45, bias=0.25, lead=1.0, react=0.2, range=220, pref=90, strafe=1.0, loot=True, retreat=0.35, tol=1.5, jets=True, hop=6, secondary=True),
     # FFA archetypes (scripted opponents)
-    "brawler": dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.3, range=150, pref=30, strafe=0.8, loot=True, retreat=0.0, tol=2.5, jets=True, secondary=True),
-    "sniper":  dict(aim_sigma=0.5, bias=0.3, lead=1.0, react=0.3, range=230, pref=150, strafe=0.3, loot=True, retreat=0.4, tol=1.2, jets=True, secondary=True),
-    "camper":  dict(aim_sigma=0.7, bias=0.4, lead=0.9, react=0.3, range=200, pref=120, strafe=0.2, loot=False, retreat=0.5, tol=1.5, jets=False, secondary=False),
-    "idle":    dict(aim_sigma=9, bias=0, lead=0, react=9, range=0, pref=0, strafe=0, loot=False, retreat=0, tol=0, jets=False, secondary=False),
+    "brawler": dict(aim_sigma=0.8, bias=0.5, lead=0.85, react=0.3, range=150, pref=30, strafe=0.8, loot=True, retreat=0.0, tol=2.5, jets=True, hop=7, secondary=True),
+    "sniper":  dict(aim_sigma=0.5, bias=0.3, lead=1.0, react=0.3, range=230, pref=150, strafe=0.3, loot=True, retreat=0.4, tol=1.2, jets=True, hop=6, secondary=True),
+    "camper":  dict(aim_sigma=0.7, bias=0.4, lead=0.9, react=0.3, range=200, pref=120, strafe=0.2, loot=False, retreat=0.5, tol=1.5, jets=False, hop=2, secondary=False),
+    "idle":    dict(aim_sigma=9, bias=0, lead=0, react=9, range=0, pref=0, strafe=0, loot=False, retreat=0, tol=0, jets=False, hop=0, secondary=False),
 }
 
 UPGRADE_PREF = ["armor", "plating", "nanites", "gun_damage", "gun_rate", "laser_damage", "servos", "gyros", "lightning_efficiency",
@@ -60,6 +60,8 @@ class BuiltinBot:
         self.last_known = None
         self.laser_hold = False
         self.healing = False
+        self.hop_next = self.rng.uniform(3, 12)
+        self.hop_z0 = None
         self.name = f"house:{tier}"
 
     # -------------------------------------------------------------- helpers
@@ -278,6 +280,17 @@ class BuiltinBot:
         else:
             mv, jump, boost = [0.0, 0.0], False, False
             self.prev_pos = (x, y)
+        # jet hops (replay: ~6/min, ~3 s airborne, +14 m, many shots fired mid-air)
+        if P["hop"] > 0:
+            if self.hop_z0 is None and me["grounded"] and t >= self.hop_next and me["energy"] > 45 and (tgt is not None or goal is not None):
+                self.hop_z0 = z
+                jump = True
+            if self.hop_z0 is not None:
+                if not me["grounded"] and z < self.hop_z0 + 12.2 and me["energy"] > 5 and me["vel"][2] > -1:
+                    boost = True
+                elif me["grounded"] and not jump:
+                    self.hop_z0 = None
+                    self.hop_next = t + self.rng.expovariate(P["hop"] / 60.0) + 2.0
         a.update(move=mv, jump=jump, boost=boost)
         # take pickups in reach
         if P["loot"]:
