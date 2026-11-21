@@ -22,6 +22,10 @@ after each push and records regressions here and in `eval/RESULTS.md`. Nobody's 
   needs a hop out). It waits at the hop base for energy unless `urgency >= 0.8`. `NavOut.blocked` is True while
   recovering from a stall; replans happen inside nav.
 - `los` with trees costs ~3x `shot_clear` (p50 ~90 us vs ~40 us); prefer `shot_clear` / `can_shoot` for shots.
+- `navigate.zone_eta_at(state, x, y[, z])`: seconds of walking from ANY spot into the next circle (travel-time
+  field nav builds in the background each phase; straight line x 1.3 until settled). Cheap (~10 us): use it to
+  vet loot/cover/chase targets against the zone. `Arena.reach_spot(item, horiz, vert)` gives a standable spot
+  within pickup reach (nav already uses it when a goal can't be stood on).
 
 ## 2026-11-20 (late) — combat -> nav: evasion measured
 

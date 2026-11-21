@@ -91,6 +91,16 @@ Zone helpers: `navigate.eta(state, goal)` (path seconds at walk speed + 0.5 s; i
 `navigate.safe_route(state)` → `point` (inside the next circle with a margin, walkable), `eta`, `leave_by`
 (`min(edge reaches us, shrink_end) − eta − 3 s`), `inside_now`, `t_edge`; `navigate.edge_time(zone, p, t)`.
 
+### Zone travel-time field
+
+`Arena.zone_field(cx, cy, r)` is a multi-source reverse Dijkstra over the lattice (walk + jet edges) from the
+nodes in a 12 m band just inside the circle; interior nodes are 0 and never expanded; capped at 450 m.
+`navigate.step` advances the field for the NEXT circle (radius − 5 m) with whatever is left of a 1.5 ms budget,
+so it completes ~100–150 decisions after the circle is announced (90–150 slices measured, 160–260 ms total).
+`navigate.zone_eta_at(state, x, y[, z])` → seconds to safety from any spot (field when settled, else
+1.3 × straight line). Agreement with A* to the nearest circle point: median ratio 0.98–1.00 (lower when the field
+finds a closer entry).
+
 ### Tactical queries (`Arena`)
 
 * `nearest_cover(pos, threat_pos | [threats], max_dist=60)` — same-level lattice nodes within `max_dist`,
@@ -178,4 +188,5 @@ goals with `nearest_cover`.
 * No incremental repair when a mech/crowd blocks a corridor (stall recovery + 4 s replan handle it).
 * `los` with trees is ~3× the cost of `shot_clear`; combat should prefer `shot_clear`/`can_shoot`.
 * Jet hops wait for energy at the base even under fire (unless urgency ≥ 0.8).
-* Zone travel-time *field* (any point → circle) is not implemented; `safe_route`/`eta` use per-goal A*.
+* The zone field takes ~10–15 s of match time to complete after the next circle is announced (it runs in the
+  spare part of a 1.5 ms per-step budget); until a spot is settled `zone_eta_at` falls back to 1.3 × straight line.

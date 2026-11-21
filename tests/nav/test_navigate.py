@@ -110,5 +110,32 @@ class TestZone(unittest.TestCase):
         self.assertGreater(sr["eta"], 0.0)
 
 
+class TestZoneField(unittest.TestCase):
+    def test_field_matches_astar(self):
+        cx, cy, r = 100.0, -50.0, 135.0
+        f = A.zone_field(cx, cy, r)
+        for _ in range(5000):
+            if A.flood_advance(f, 5.0):
+                break
+        self.assertTrue(f.done)
+        rng = random.Random(1)
+        n = 0
+        while n < 15:
+            x, y = rng.uniform(-480, 530), rng.uniform(-310, 360)
+            if not A.walkable(x, y) or math.hypot(x - cx, y - cy) < r + 20:
+                continue
+            c = A.flood_cost(f, x, y, A.surface(x, y))
+            if c is None:        # beyond max_cost
+                continue
+            n += 1
+            ux, uy = cx - x, cy - y
+            d = math.hypot(ux, uy)
+            px, py = cx - ux / d * (r - 2), cy - uy / d * (r - 2)
+            L = A.path_len((x, y, A.surface(x, y)), (px, py, A.surface(px, py)), budget_ms=1e5)
+            self.assertLessEqual(c, L * 1.12 + 8.0)        # never much worse than walking to the nearest point
+            self.assertGreaterEqual(c, d - r - 6.0)        # never shorter than the straight line
+        self.assertEqual(A.flood_cost(f, cx, cy), 0.0)
+
+
 if __name__ == "__main__":
     unittest.main()

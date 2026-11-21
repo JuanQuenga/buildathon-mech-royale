@@ -77,6 +77,15 @@ def step(state: WorldState, intent: Intent, threats: Threats) -> NavOut:
             except Exception:
                 pass
         out = _straight(state, intent)
+    # spare time: advance the zone travel-time field
+    try:
+        spare = FIELD_TOTAL_MS - (time.perf_counter() - t0) * 1000
+        if spare > 0.3:
+            f = zone_field(state)
+            if f is not None and not f.done:
+                state.arena.flood_advance(f, spare)
+    except Exception:
+        pass
     dt = (time.perf_counter() - t0) * 1000
     st = m["stats"]
     if dt > st["ms_max"]:
@@ -99,6 +108,35 @@ def eta(state: WorldState, goal) -> float:
     if L == math.inf:
         return math.inf
     return L / v + 0.5
+
+
+FIELD_TOTAL_MS = 1.5        # step() + zone-field work per decision
+
+
+def zone_field(state: WorldState):
+    """Arena travel-distance field to the NEXT circle (advanced a little by every step())."""
+    ar = state.arena
+    z = state.zone
+    if ar is None or not getattr(ar, "ok_nav", False) or not z:
+        return None
+    c1, r1 = z["next_center"], float(z["next_radius"])
+    return ar.zone_field(c1[0], c1[1], max(0.0, r1 - 5.0), cubes=_cubes(state))
+
+
+def zone_eta_at(state: WorldState, x: float, y: float, z: Optional[float] = None) -> float:
+    """Seconds of walking from (x, y) into the next circle (5 m margin). Uses the travel-time field when it
+    has settled that spot, else a straight-line estimate x 1.3."""
+    zn = state.zone
+    v = _walk_speed(state)
+    if not zn:
+        return 0.0
+    f = zone_field(state)
+    if f is not None:
+        c = state.arena.flood_cost(f, x, y, z)
+        if c is not None:
+            return c / v
+    c1, r1 = zn["next_center"], float(zn["next_radius"])
+    return max(0.0, math.hypot(x - c1[0], y - c1[1]) - max(0.0, r1 - 5.0)) * 1.3 / v
 
 
 def zone_circle_at(z: Dict[str, Any], t: float) -> Tuple[Tuple[float, float], float]:

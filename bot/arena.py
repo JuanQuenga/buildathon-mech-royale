@@ -73,6 +73,22 @@ class _Search:
         self.t_last = 0.0
 
 
+class _Flood:
+    """Time-sliced multi-source reverse Dijkstra toward a circle (Arena.zone_field)."""
+    __slots__ = ("k", "cx", "cy", "r", "heap", "dist", "closed", "done", "init_done", "scan", "t_used", "max_cost")
+
+    def __init__(self, k, cx, cy, r):
+        self.k, self.cx, self.cy, self.r = k, cx, cy, r
+        self.heap: list = []
+        self.dist: Dict[int, float] = {}
+        self.closed: set = set()
+        self.done = False
+        self.init_done = False
+        self.scan = None
+        self.t_used = 0.0
+        self.max_cost = 450.0       # metres (~38 s walking): beyond this nobody makes it anyway
+
+
 class Arena:
     W_ASTAR = 1.4                 # heuristic weight (bounded-suboptimal, much faster)
     JET_FIXED = 25.0              # extra cost (m-equivalent) of any jump+jet hop: noise, energy, risk
@@ -86,6 +102,7 @@ class Arena:
         self.last_goal_snapped = True
         self.stats = {"plan_calls": 0, "plan_ms_max": 0.0, "seg_calls": 0}
         self._searches: Dict[Tuple[int, int], _Search] = {}
+        self._floods: Dict[tuple, _Flood] = {}
         self._los_cache: Dict[tuple, bool] = {}
         self._cache_tick = None
 
@@ -1036,6 +1053,118 @@ class Arena:
             return L * 0.97   # lattice paths are slightly longer than smoothed ones
         except Exception:
             return d * 1.35
+
+    # ------------------------------------------------------------------ travel-time field (zone)
+    def zone_field(self, cx: float, cy: float, r: float, cubes: float = 0) -> "_Flood":
+        """Field of walking distance (m) from every lattice node to the circle (cx, cy, r): multi-source reverse
+        Dijkstra, advanced in slices with flood_advance(). Cached (2 most recent circles)."""
+        k = self.size_class(cubes)
+        key = (round(cx), round(cy), round(r), k)
+        f = self._floods.get(key)
+        if f is None:
+            if len(self._floods) >= 2:
+                del self._floods[min(self._floods, key=lambda q: self._floods[q].t_used)]
+            f = _Flood(k, float(cx), float(cy), float(r))
+            self._floods[key] = f
+        f.t_used = time.perf_counter()
+        return f
+
+    def flood_advance(self, f: "_Flood", budget_ms: float = 0.7) -> bool:
+        """Work on the field for up to budget_ms. True when complete."""
+        if f.done or not self.ok_nav:
+            return True
+        t_end = time.perf_counter() + budget_ms / 1000.0
+        k = f.k
+        xs, ys = self.NXY[k]
+        off = self.node_off[k]
+        B = self.block
+        if not f.init_done:
+            # sources: nodes inside the circle within a 12 m band of its edge (interior nodes are 0 by definition)
+            bi0 = max(0, int((f.cx - f.r - self.x0) / self.step) // B - 1)
+            bi1 = min(self.BX - 1, int((f.cx + f.r - self.x0) / self.step) // B + 1)
+            bj0 = max(0, int((f.cy - f.r - self.y0) / self.step) // B - 1)
+            bj1 = min(self.BY - 1, int((f.cy + f.r - self.y0) / self.step) // B + 1)
+            if f.scan is None:
+                f.scan = bj0
+            band = max(0.0, f.r - 12.0)
+            while f.scan <= bj1:
+                j = f.scan
+                for i in range(bi0, bi1 + 1):
+                    n = j * self.BX + i
+                    if off[n] == 255:
+                        continue
+                    d = math.hypot(xs[n] - f.cx, ys[n] - f.cy)
+                    if band <= d <= f.r:
+                        f.dist[n] = 0.0
+                        f.heap.append((0.0, n))
+                f.scan += 1
+                if time.perf_counter() > t_end:
+                    return False
+            heapq.heapify(f.heap)
+            f.init_done = True
+        em = self.emask[k]
+        pen = self.NPEN[k]
+        jm, jc = self.jmask[k], self.jclimb[k]
+        DOFF, DLEN, JOFF, JLEN = self.DOFF, self.DLEN, self.JOFF, self.JLEN
+        nj = len(JOFF)
+        NN = len(em)
+        JF, JM = self.JET_FIXED, self.JET_PER_M
+        dist, closed, heap = f.dist, f.closed, f.heap
+        pop, push = heapq.heappop, heapq.heappush
+        cnt = 0
+        r2 = f.r * f.r
+        while heap:
+            dn, n = pop(heap)
+            if n in closed:
+                continue
+            closed.add(n)
+            cnt += 1
+            if dn > f.max_cost:
+                continue
+            for d in range(8):
+                m = n + DOFF[d]
+                if m < 0 or m >= NN or m in closed or not (em[m] >> REV[d]) & 1:
+                    continue
+                if (xs[m] - f.cx) ** 2 + (ys[m] - f.cy) ** 2 <= r2:
+                    continue          # inside the circle: 0 by definition, never expanded
+                dm = dn + DLEN[d] + pen[m]
+                if dm < dist.get(m, 1e18):
+                    dist[m] = dm
+                    push(heap, (dm, m))
+            for d in range(nj):
+                m = n - JOFF[d]
+                if m < 0 or m >= NN or m in closed or not (jm[m] >> d) & 1:
+                    continue
+                if (xs[m] - f.cx) ** 2 + (ys[m] - f.cy) ** 2 <= r2:
+                    continue
+                dm = dn + JLEN[d] + JF + JM * jc[m * nj + d] * 0.25 + pen[m]
+                if dm < dist.get(m, 1e18):
+                    dist[m] = dm
+                    push(heap, (dm, m))
+            if cnt & 3 == 0 and time.perf_counter() > t_end:
+                return False
+        f.done = True
+        return True
+
+    def flood_cost(self, f: "_Flood", x: float, y: float, z: Optional[float] = None) -> Optional[float]:
+        """Walking metres from (x, y) to the field's circle: 0 inside, None if not settled yet, inf if the
+        field is complete and the spot can't reach the circle."""
+        if math.hypot(x - f.cx, y - f.cy) <= f.r:
+            return 0.0
+        if not self.ok_nav:
+            return math.hypot(x - f.cx, y - f.cy) - f.r
+        n = self.snap(x, y, f.k, max_r=2, need_line=False, z=z)
+        if n < 0:
+            return None
+        xs, ys = self.NXY[f.k]
+        if math.hypot(xs[n] - f.cx, ys[n] - f.cy) <= f.r:
+            return math.hypot(xs[n] - x, ys[n] - y)
+        if n in f.closed:
+            c = f.dist.get(n, math.inf)
+            if c > f.max_cost:
+                return None if c != math.inf else (math.inf if f.done else None)
+            return c + math.hypot(xs[n] - x, ys[n] - y)
+        return None
 
     # ------------------------------------------------------------------ tactics
     NBINS = 720                     # shadow buffer: 0.5 deg bins
