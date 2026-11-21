@@ -146,12 +146,30 @@ def main():
                         print(f"[{r['label']}] seed {r['seed']:3d} slot {m['id']:2d} place {m['place']:2d} pts {16 - m['place']:2d} kills {m['kills']} "
                               f"alive {m['death_t'] if m['death_t'] is not None else r['sim_t']:6.1f}s cause {m['killed_with'] or 'survived'}"
                               f"{'' if m['killed_by'] is None else ' by ' + str(m['killed_by']) + ':' + r['mechs'][m['killed_by']]['name']} "
-                              f"loadout {'+'.join(m['loadout'])} cubes {m['cubes']} zone_dmg {m['zone_dmg']}{lat}  (wall {r['wall_s']}s)", flush=True)
+                              f"loadout {'+'.join(m['loadout'])} cubes {m['cubes']} zone_dmg {m['zone_dmg']}{lat}"
+                              f"{' TRACEBACKS ' + str(m['stderr_tracebacks']) if m.get('stderr_tracebacks') else ''}  (wall {r['wall_s']}s)", flush=True)
     wall = time.time() - t0
     if args.out:
         with open(args.out, "w") as f:
-            for r in results:
-                f.write(json.dumps(r) + "\n")
+            for r in sorted(results, key=lambda r: (r.get("label", ""), r["seed"])):
+                if "error" in r:
+                    f.write(json.dumps({"seed": r["seed"], "label": r.get("label"), "error": r["error"]}) + "\n")
+                    continue
+                for m in r["mechs"]:
+                    if not m["tracked"]:
+                        continue
+                    kb = m["killed_by"]
+                    rec = {"seed": r["seed"], "mode": r["mode"], "label": r["label"], "bot": args.bot if r["label"] == "A" else args.bot_b,
+                           "slot": m["id"], "place": m["place"], "score": 16 - m["place"], "death_t": m["death_t"],
+                           "death_cause": m["killed_with"] or ("survived" if m["alive"] else "unknown"),
+                           "killed_by": kb, "killed_by_name": None if kb is None else r["mechs"][kb]["name"], "kills": m["kills"],
+                           "cubes": m["cubes"], "hp_at_end": m["hp"], "loadout": m["loadout"], "dmg_dealt": m["dmg_dealt"], "dmg_taken": m["dmg_taken"],
+                           "zone_dmg": m["zone_dmg"], "t_outside": m["t_outside"], "missed_replies": m["missed"], "late_replies": m["late"],
+                           "lat_p50": m.get("lat_p50"), "lat_p99": m.get("lat_p99"), "lat_max": m.get("lat_max"), "ready_ms": m.get("ready_ms"),
+                           "bad_lines": m.get("bad_lines"), "stale": m.get("stale"), "bot_stderr_tracebacks": m.get("stderr_tracebacks", 0),
+                           "last_traceback": m.get("last_traceback"), "bot_stats": m.get("bot_stats"), "sim_t": r["sim_t"], "wall_s": r["wall_s"],
+                           "alive_at_end": sum(1 for x in r["mechs"] if x["alive"])}
+                    f.write(json.dumps(rec) + "\n")
     A = sorted([r for r in results if r.get("label") == "A"], key=lambda r: r["seed"])
     B = sorted([r for r in results if r.get("label") == "B"], key=lambda r: r["seed"])
     sim_s = sum(r.get("sim_t", 0) for r in results if "error" not in r)

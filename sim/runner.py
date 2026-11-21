@@ -10,6 +10,7 @@ import select
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 
 from builtin import TIERS, BuiltinBot, SquadDirector
@@ -19,7 +20,7 @@ from sense import Senses, build_obs
 
 HOUSE_TIERS = ["easy"] * 4 + ["medium"] * 4 + ["hard"] * 4 + ["expert"] * 3
 
-SQUAD_DEFAULTS = {"early": 1, "join_per_loss": 1.0, "all_engage_t": 300.0, "forget_s": 8.0, "defend_range": 0.0, "retaliate_s": 4.0}
+SQUAD_DEFAULTS = {"early": 1, "join_per_loss": 1.0, "all_engage_t": 300.0, "forget_s": 8.0, "defend_range": 0.0, "retaliate_s": 0.0}
 
 
 # ---------------------------------------------------------------------------- controllers
@@ -31,9 +32,11 @@ class ProcBot:
     def __init__(self, cmd, label, log_path=None, cwd=None, env=None):
         self.cmd = cmd
         self.label = label
-        self.log = open(log_path, "wb") if log_path else subprocess.DEVNULL
+        self.log_path = log_path
+        self.log = open(log_path, "w+b") if log_path else tempfile.TemporaryFile()
         e = dict(os.environ)
         e.update(env or {})
+        self.stats_path = e.get("MECH_STATS")
         self.p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.log, cwd=cwd, env=e,
                                   bufsize=0, start_new_session=True)
         self.fd = self.p.stdout.fileno()
@@ -103,8 +106,34 @@ class ProcBot:
                 os.killpg(self.p.pid, 9)
             except Exception:
                 pass
-        if self.log is not subprocess.DEVNULL:
-            self.log.close()
+        # scan stderr for tracebacks, keep the tail of the last one
+        self.tracebacks = 0
+        self.last_tb = None
+        try:
+            self.log.flush()
+            self.log.seek(0, 2)
+            size = self.log.tell()
+            self.log.seek(max(0, size - (4 << 20)))
+            txt = self.log.read().decode("utf-8", "replace")
+            self.tracebacks = txt.count("Traceback (most recent call last)")
+            if self.tracebacks:
+                k = txt.rfind("Traceback (most recent call last)")
+                self.last_tb = txt[k:k + 2000].strip().splitlines()[-6:]
+        except Exception:
+            pass
+        self.log.close()
+        self.bot_stats = None
+        if self.stats_path and os.path.exists(self.stats_path):
+            try:
+                with open(self.stats_path) as f:
+                    raw = f.read()
+                try:
+                    self.bot_stats = json.loads(raw)
+                except Exception:
+                    self.bot_stats = raw[-4000:]
+                os.unlink(self.stats_path)
+            except Exception:
+                pass
 
 
 def collect(bots_ticks, budget_s, enforce, max_line):
@@ -218,12 +247,16 @@ def run_match(world, seed, mode="squad", bot_cmds=("python3 -u bot/main.py",), f
         validator = Validator()
     budget_s = (budget_ms if budget_ms is not None else cfg["bot"]["tick_budget_ms"]) / 1000.0
     ctrls = {}
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
     house_ids, house_tiers = [], {}
     wall0 = time.monotonic()
     for i, e in enumerate(lineup):
         if e[0] == "proc":
             lp = os.path.join(log_dir, f"seed{seed}_slot{i}.stderr.log") if log_dir else None
-            ctrls[i] = ProcBot(e[1], e[2], log_path=lp, cwd=cwd)
+            stats_dir = os.environ.get("MECH_SIM_TMP") or tempfile.gettempdir()
+            env = {"MECH_STATS": os.path.join(stats_dir, f"mechstats_{os.getpid()}_{seed}_{i}.json"), "MECH_SIM": "1"}
+            ctrls[i] = ProcBot(e[1], e[2], log_path=lp, cwd=cwd, env=env)
         else:
             tier = e[1]
             if tier not in TIERS:
@@ -332,6 +365,13 @@ def run_match(world, seed, mode="squad", bot_cmds=("python3 -u bot/main.py",), f
                "hp": round(m.hp), "cubes": m.cubes, "loadout": [w.kind for w in m.weapons if w], "dmg_dealt": round(m.damage_dealt),
                "dmg_taken": round(m.damage_taken), "zone_dmg": round(m.zone_damage), "t_outside": round(m.time_outside, 1),
                "missed": m.missed, "late": m.late}
+        if getattr(c, "external", False):
+            rec["stderr_tracebacks"] = getattr(c, "tracebacks", 0)
+            if getattr(c, "last_tb", None):
+                rec["last_traceback"] = c.last_tb
+            if getattr(c, "bot_stats", None) is not None:
+                rec["bot_stats"] = c.bot_stats
+            rec["ready_ms"] = round(getattr(c, "ready_ms", -1), 1)
         if lat:
             rec["lat_p50"] = round(lat[len(lat) // 2], 2)
             rec["lat_p99"] = round(lat[min(len(lat) - 1, int(len(lat) * 0.99))], 2)

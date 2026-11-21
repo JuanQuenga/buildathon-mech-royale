@@ -780,14 +780,17 @@ class Match:
 
     # ------------------------------------------------------------------ weapons
     def _shot_origin(self, m, height, yaw, pitch):
+        """muzzle point + (radius + 0.5) m out along the aim. sim switch `shot_offset_horizontal` (default, fitted on
+        the public replay's mortar shells): the offset is the horizontal projection only (no vertical component)."""
         cp = math.cos(pitch)
         d = (cp * math.cos(yaw), cp * math.sin(yaw), math.sin(pitch))
         mz = (m.pos[0], m.pos[1], m.pos[2] + height)
         off = m.stats["radius"] + 0.5
-        end = (mz[0] + d[0] * off, mz[1] + d[1] * off, mz[2] + d[2] * off)
+        dz = 0.0 if self.sim["shot_offset_horizontal"] else d[2]
+        end = (mz[0] + d[0] * off, mz[1] + d[1] * off, mz[2] + dz * off)
         t = self.world.first_hit([mz], [end], step=0.25)[0]
         if t <= 1.0:
-            o = (mz[0] + d[0] * off * t, mz[1] + d[1] * off * t, mz[2] + d[2] * off * t)
+            o = (mz[0] + d[0] * off * t, mz[1] + d[1] * off * t, mz[2] + dz * off * t)
             return o, d, True
         return end, d, False
 
