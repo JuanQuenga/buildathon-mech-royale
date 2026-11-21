@@ -179,3 +179,7 @@ Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
 | good-73 | weave: sideways weave (relative to the nearest attacker, 3–5 s reversals) while retreating | 5.45 (90 % of deaths come in retreat, which is radial motion; sim +0.06 ± 0.26) | **5.38** (= base) |
 | good-ri41..62 | re-rolls of the isolate policy (two-draw mean 5.46) | 5.46 each | ri41 **5.17** (isolate mean 5.36 over 3 draws = base level) |
 | good-43 | snipe: hold 170 m with a laser | 5.25 | |
+| good-75 | cubex: grab cubes when exposure (eta × incoming DPS) < value (~90 HP-eq, +150 at an upgrade threshold) instead of never while hit | 5.45 (outside review: +0.3–0.7 kills; cubes add HP, damage and upgrades) | |
+| good-76 | firefixx: re-check the gun shot against the final aim after a laser override | 5.36 (review: +8 % gun damage to mechs in its sim, score +0.02) | |
+| good-77 | cubex + drop95x (supply drops first, reach 60 s) | 5.45 | |
+| good-78 | keepgunx: gun valued above lightning (no gun-for-lightning swap) | 5.38 | |

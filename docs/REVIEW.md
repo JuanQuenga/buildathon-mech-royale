@@ -16,8 +16,11 @@
 **The submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it). Predictions vs
 official results: `eval/RESULTS.md` ("Predictions before scoring").
 
-Current queue: isolate re-rolls good-ri41 … good-ri62 (22 gated tags, about 5.5 hours of slots). They are lottery tickets of a ~5.35 policy
-(≈ 1–2 % per draw against a 5.65 cut); put any new experiment with a plausible ≥ 0.3 gain ahead of them.
+Current queue (15:40): outside-review fixes good-75 (cubes priced by exposure), good-76 (fire-control order fix),
+good-77 (cubes + supply drops first), good-78 (keep the gun), then the isolate re-rolls good-ri42 … ri62. Review
+claims checked against the protocol: first drop called at 70 s, lands at 95 s (full HP, full energy, 3 cubes after
+4 s alone in the 8 m ring), +4 % max HP and damage per cube to 10, 5 % size per cube, rear hits ×1.5: all correct;
+cubes also trigger upgrade offers at 1, 3, 6, 10 cubes.
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
