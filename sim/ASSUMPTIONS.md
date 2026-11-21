@@ -9,9 +9,13 @@ balance, so only ratios and event structure carry over), **RB** = the rulebook w
 - Decision at every even tick. Actions apply for that tick and the next. The order within a tick is: weapon
   `take` resolution, torso slew, movement, mech push-apart, weapons, projectiles, NPCs, zone damage
   and regen, cube pickup and drops, offer expiry, deaths and placement.
-- Gun, lightning: cooldowns accumulate, so a held trigger fires at exactly `1/cooldown` and may fire on
-  either tick of a decision. The replay only shows odd-tick fires (docs/SIM_ISSUES.md #2), but its gun
-  cooldown is ≥ 0.4 s, so this is unresolved.
+- Firing (`fire_first_tick_only`, **calibrated on CS**): a held trigger fires the gun, mortar and lightning, or starts a
+  laser charge, only on the **first tick of a decision**, and the cooldown resets to the full value with no carry.
+  In CS the house bot's held gun fired at ticks 103, 109, 115, 121… (gaps exactly 6 ticks = 0.3 s with a 0.24 s
+  cooldown). The cooldown seen in observations is only ever 0, 0.09 or 0.19, never 0.14, which a second-tick shot
+  would show. The replay shows every fire event on the first tick too (docs/SIM_ISSUES.md #2). So the effective
+  held-fire period is `ceil(cooldown / 0.1) × 0.1` s: gun 0.3, lightning 0.3, mortar 2.6.
+  Laser charging and release are per tick.
 - A missed reply keeps `move/boost/aim`. After `coast_s` without a valid reply the mech idles (RB).
 - `end` is sent as soon as a mech dies (`send_end_on_death`), because its place is final then. The match
   stops once every tracked bot is dead, unless `--full` is set.
@@ -29,14 +33,19 @@ balance, so only ratios and event structure carry over), **RB** = the rulebook w
 - Collision uses prisms rasterised to 0.5 m cells (int16 cm intervals). A move is blocked if any cell
   in the body disc has a solid interval overlapping `[feet + step_up, feet + height]`. On block, slide
   along the wall normal (the normal is estimated from the blocked cells' centroid), then try per-axis moves.
-- Step-up: the support under the centre is the highest top ≤ `feet + step_up`. Terrain uphill steeper than
-  `max_slope_deg` between consecutive positions is a wall. Walking down snaps to the surface when the
-  drop is ≤ `ground_snap` (1.2 m), otherwise you fall.
+- Step-up: the support under the centre is the highest top ≤ `feet + step_up`. Terrain slope is measured from the
+  current position to `slope_baseline` (2 m) ahead in the move direction. If that rise exceeds tan(`max_slope_deg`),
+  the move is blocked. Replay: 0 of 10,990 grounded terrain steps exceed it. A per-tick measure would wrongly block
+  LiDAR spikes the server allows (up to 1.7 m/m; nav's finding in docs/SIM_ISSUES.md). Walking down snaps to the
+  surface when the drop is ≤ `ground_snap` (1.2 m), otherwise you fall.
 - Jet ceiling: the lowest solid base above the head within the disc stops the climb.
 - Roof edges: falling past a roof top the disc overlaps lands you on it. If your centre is off the roof
   and you are not moving toward it, you slide 0.6 m per tick away from it. This is a simplified version
   of RB's edge rule.
 - Mechs overlapping horizontally and vertically are pushed apart symmetrically, unless the push would go into a wall.
+- Wall collision uses the **base** radius (2.5 m) even with cubes (`collision_radius_scales=false`). Replay:
+  14,390 grounded positions are all legal with 2.5 m, while 0.9% would be inside walls with the cube-scaled radius.
+  Hit cylinders and eye/muzzle heights still scale.
 - The arena edge clamps the position to `bounds ± radius`.
 
 ## Weapons

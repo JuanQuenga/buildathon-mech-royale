@@ -88,13 +88,15 @@ obstacles with probes and jump/jet recovery. They do no global path planning.
 Engagement is weakest first: one bot (an easy one) hunts from the start. Each house loss lets another
 join (`join_per_loss`), and all engage after `all_engage_t`. Non-engaged bots loot and play the zone,
 and by default **do not fight back** (`retaliate_s=0`). That default reproduces the kit example bot's
-official 1.15: the sim gives 1.00 ± 0.34 over 32 seeds. With 4 s of retaliation it gives 0.22 instead.
+official 1.15: the sim gives 0.90 ± 0.34 over 48 seeds. With 4 s of retaliation it gives 0.22 instead.
 
 ## What is calibrated vs guessed
 
 | Area | Status |
 | --- | --- |
 | Movement speeds, accelerations, gravity, jump, jet (cap then gravity, rises at 8.9 m/s), energy drain and regen | **Calibrated** against the recorded check stream (current config) |
+| Held-fire cadence: first tick of a decision only, so the gun fires every 0.3 s, not 0.24 | **Calibrated** against the check stream |
+| Slope limit over a 2 m baseline; wall collision radius 2.5 m regardless of cubes | **Calibrated**: 0 violations over the replay's grounded positions |
 | Mortar: direct hit = `damage` only; splash and knock share one falloff; drain | **Calibrated** against the public replay's events |
 | Shot origin (horizontal 3 m offset) | **Calibrated** against replay mortar shells (`docs/SIM_ISSUES.md`) |
 | Zone schedule, DPS, shrink timing; crate, loot and NPC counts; roof fractions; spawn separation | **Matches** the config and the replay. The next-centre distribution is a guess: uniform in the allowed disc |

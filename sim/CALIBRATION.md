@@ -36,6 +36,9 @@ Reproduce: `sim/py sim/calibrate.py <trace> --world` (works on RP and on any sim
 | Lightning target offset from aim | RP: max 6.7° (47 zaps, all single-target, ≤ 42.6 m) | half-angle 30° | not resolved (see ASSUMPTIONS) |
 | Observation format | CS key set, types, rounding | `sim/py /tmp/obsdiff.py`-style diff: no missing or extra keys; integral numbers serialised as ints like the JS server | the beams/drops shapes come from the schema (not present in CS) |
 
+| Held-fire cadence | CS: inferred gun fire ticks 103, 109, 115, 121 …, gaps exactly 6 ticks (0.3 s) at a 0.24 s cooldown; observed cooldowns only 0 / 0.09 / 0.19 | first tick of each decision only, no carry: 6-tick gaps | 0 (the earlier accumulate model gave 4–5 tick gaps, which is 25% more gun DPS than the server) |
+| Terrain slope limit | RP: 10,990 grounded terrain steps, max rise over a 2 m look-ahead 1.12 m/m (< tan 50° = 1.19). Per-tick rises reach 1.7 on LiDAR spikes | 2 m baseline | 0 violations (the per-tick rule blocked 0.04% of real steps and could pin bots on spikes) |
+
 ## World layout
 
 | Quantity | Reality | Sim |
@@ -94,8 +97,20 @@ The only official squad-mode number we have: **kit example bot = 1.15** (officia
 | --- | --- |
 | Non-engaged house bots retaliate for 4 s after being hit | 0.22 ± 0.18 (n = 32) |
 | **No retaliation (default)** | **1.00 ± 0.34 (n = 32)**; after the kiting/jink tier retune **0.92 ± 0.31 (n = 48)**: deaths 31× easy (the early engager), 6× medium, 3× hard, 2× expert, 5× NPC, 1× zone; a cluster at 300 s when all engage |
+| Same, after first-tick-only firing + slope fix (current default) | **0.90 ± 0.34 (n = 48)**: killers 27× easy, 6× expert, 5× medium, 4× hard, 6× NPC/zone |
 
 So in the sim the example bot dies mostly to the one or two engaged bots. Who killed it and when is in `--out`.
+
+## docs/SIM_ISSUES.md items and their status
+
+- Combat #1 (shot origin horizontal only): fixed (`shot_offset_horizontal`, default on).
+- Combat #2 (fire tick parity): resolved from CS. A held trigger fires on the first tick of a decision only (`fire_first_tick_only`).
+- Combat #3 (replay balance differs): noted. The sim reads the live config, and RP is used only for ratios.
+- Nav #1 (slope rule too strict): fixed. The slope is measured over a 2 m baseline (`slope_baseline`).
+- Nav #2 (radius 2.5 m, jet 8.9, support height): agrees. Collision radius no longer scales with cubes.
+- "Built-in bots never fire mortars": they did, but rarely. The alignment gate is loosened, and a mortar carrier now
+  fires about every 2.6–3 s at 25–220 m (7 shells in 20 s in a duel). Mortar loot is random, so in a given match
+  only some bots carry one.
 
 ## Known fidelity gaps
 

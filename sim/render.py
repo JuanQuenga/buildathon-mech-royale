@@ -69,7 +69,7 @@ const H=TR[0], RES=TR[TR.length-1].type==='result'?TR[TR.length-1]:null;
 const FR=TR.filter(r=>r.m);
 const WK=['gun','mortar','laser','lightning'];
 const names={}; (H.mechs||[]).forEach(m=>names[m.id]=m.name);
-const tracked=new Set((H.mechs||[]).filter(m=>!String(m.name).startsWith('house')&&!String(m.name).startsWith('builtin')).map(m=>m.id));
+const tracked=new Set(H.source==='sim'?(H.mechs||[]).filter(m=>!String(m.name).startsWith('house')&&!String(m.name).startsWith('builtin')).map(m=>m.id):[]);
 const col=i=>`hsl(${(i*137.5)%360},75%,${tracked.has(i)?65:55}%)`;
 const cv=document.getElementById('c'),cx=cv.getContext('2d');
 let view={x:0,y:0,s:1},sel=null,fi=0,playing=false,spd=1,last=0,acc=0;
