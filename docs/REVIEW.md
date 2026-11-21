@@ -58,6 +58,30 @@ break contact at the 2nd hunter). Steady-base versions follow as good-39+.
   entry by the **family mean over draws** and its FFA behaviour, not the single best draw; a chaos re-roll that
   scores higher is the same policy as good-31 and equally good as an entry.
 
+## FFA (track 2: where the prize is decided)
+**Real FFA evidence** (public Top-16 Showdown casts, 11 matches / 176 seats; tools in `eval/diag/cast/`):
+- 26 % of seats die before 30 s, and those seats were fighting: median 840 damage dealt in the opening. Places 5–10
+  mostly avoided the opening brawl (median 45 damage taken, 409 dealt). The top 4 fought but armed early (61 % had a
+  secondary by 15 s vs 35 % for places 11–16). Rear damage is 6 % of damage taken by the top 4 vs 15 % for the rest.
+- Our bot (poteto) in 5 showdown matches: places 14, 12, 2, 9, 8. Both bad ones were opening-brawl deaths with only
+  a gun or gun + mortar. At 18.7 s we opened fire with the gun on a laser bot at 176 m and ate four full beams. At
+  24.6 s we lost an even gun duel once the opponent picked up a laser. In the 9th-place match we turned to finish a
+  weak mech and took a 586-damage laser hit in the back from the mech that was actually hitting us.
+- Detector (sim): FFA detected in 100 % of FFA matches at ~10–14 s; in squad, ~7 % of matches end on a wrong
+  `ffa` guess, so FFA-only switches leak into a few practice matches (acceptable for a final entry, since practice
+  stops counting at the cutoff).
+
+**FFA-only switch `ffax`** (`ffa_tactics`, active only while the detector says `ffa`; commit 809b931):
+gun discipline beyond 120 m; never pick a target that puts an active attacker more than 80° behind our aim unless
+the target is killable; while holding only a gun or gun + mortar, no opportunity fights, and break off from a
+laser holder beyond 100 m.
+
+**Self-play** (sim, 16-entrant FFA, our variants tracked side by side; `sim/run_matches.py --ffa "var:<profile>*n,…"`,
+summarised by `eval/selfplay.py`): v1 = 8 of our variants + 2 example bots + 6 built-ins, seeds 1000–1199; v2 = 4×
+good-31 policy vs 4× good-31 + ffax + 2 example + 6 built-ins, seeds 2000–2199. Results below when done.
+
+SELFPLAY_PLACEHOLDER
+
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
 | --- | --- | --- | --- |
