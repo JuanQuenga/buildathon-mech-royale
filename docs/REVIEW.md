@@ -15,6 +15,8 @@ replies) on 11-21 ~05:15 ET.
 | 6 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
 | 7 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
 | 8 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
+| 9 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 10 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
 
 Superseded (rage base without steady strafe; gated but less informative now, run only if the queue is empty):
 `good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
