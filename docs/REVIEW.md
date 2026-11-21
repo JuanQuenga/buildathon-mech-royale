@@ -7,21 +7,22 @@ before submitting.
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-25` | 0e4b36f | **Combat hops** on good-22 (laser + nav3 + hop fix): while fighting, jump and jet ~10 m every 2.2–3.4 s with energy above 55. Hops clearly matter in the real game: ground-only cost −0.29 (good-16), and good-4's stricter hop rules cost 0.17–0.4. House bots spend ~30 % of their life airborne. In the sim this puts us 69 % airborne while engaging | 5.35 |
-| 2 | `good-19` | 692371d | **Explore for a laser** until 120 s while armed without one, never take a mortar (sim: gun+lightning ≈4.5 vs gun+laser ≈6) | 5.25 |
-| 3 | `good-20` | 375d715 | **More aggression** on good-15 (laser + good-3 nav, 5.19): engage ratio 1.1→1.6, start fights from 40 % HP (was 60 %), heal below 40 % (was 55 %). The heal-more variant (good-8) lost 0.17 | 5.3 |
+| 1 | `good-27` | 6720a56 | **Radical aggression** on good-22 (5.21): hunt house bots remembered within 60 s and 400 m, or toward recent gunfire; engage ratio 1.1→1.6; start fights from 40 % HP; seek from 50 % HP; heal below 40 %; never retreat unless the TTK ratio is above 4 | 5.3 |
+| 2 | `good-26` | 4fb78205 | **Radical survival-first** on good-22: in squad rounds break line of sight from every visible house bot (shared vision is how the squad finds us), spare passive bots, never hunt, no drones, heal from 80 %; fight only mechs that hunt us. Sim: alive 188 s vs ~115 s but 4.23, because sim house bots never die without us before the final zone. This tests whether the real squad loses bots to the zone/drones mid-game | 4.5–5.8 |
+| 3 | `good-19` | 692371d | **Explore for a laser** until 120 s while armed without one, never take a mortar (sim: gun+lightning ≈4.5 vs gun+laser ≈6) | 5.25 |
 | 4 | `good-23` | 810982c | **Berserk** on good-22 (laser + nav3 + hop fix): in squad/unknown rounds never retreat unless the TTK ratio is above 4. 90 % of sim deaths happen in retreat mode, and retreating in the open from gunners at 80–100 m does not break contact (sim seed 11: 30 s of retreat/heal/engage dithering, 1095 → 69 HP) | 5.2 |
-| 5 | `good-18` | ec61cd7 | **Break contact when a second hunter is in sight** (unless the target is below 30 % HP): the sim's deaths are 2–7 hunters converging | 5.2 |
-| 6 | `good-21` | 2f800aa | **Seek by memory and by sound** on good-15: walk to remembered house bots, or toward gunfire heard in the last 6 s (110 m along the bearing) | 5.3 |
-| 7 | `good-24` | 7788a2d | **Never take a mortar, and give up a run for a weapon under fire after 6 s** on good-22. In the sim gun+mortar matches score ≈2.8, and one 12 s run onto a roof under fire went 1355 → 275 HP | 5.25 |
+| 5 | `good-20` | 375d715 | **More aggression** on good-15 (laser + good-3 nav, 5.19): engage ratio 1.1→1.6, start fights from 40 % HP (was 60 %), heal below 40 % (was 55 %). The heal-more variant (good-8) lost 0.17 | 5.3 |
+| 6 | `good-18` | ec61cd7 | **Break contact when a second hunter is in sight** (unless the target is below 30 % HP): the sim's deaths are 2–7 hunters converging | 5.2 |
+| 7 | `good-21` | 2f800aa | **Seek by memory and by sound** on good-15: walk to remembered house bots, or toward gunfire heard in the last 6 s (110 m along the bearing) | 5.3 |
+| 8 | `good-24` | 7788a2d | **Never take a mortar, and give up a run for a weapon under fire after 6 s** on good-22. In the sim gun+mortar matches score ≈2.8, and one 12 s run onto a roof under fire went 1355 → 275 HP | 5.25 |
 
-Submitted: good-16 4.88 (ground-only), good-17 5.06 (scale), good-22 scoring. good-12/13 dropped.
+Submitted: good-22 5.21 (new best), good-25 (combat hops) scoring.
 Base for new tags: good-22's profile `laser+nav3x+fixx`.
 
-Official so far: good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
+Official so far: good-22 5.21, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
 ## Recommended final entry
-`good-15` (7cce2c2, laser first + good-3 navigation), official **5.19**, until something beats it officially.
+`good-22` (ac81dc0, laser first + good-3 navigation + stale-hop fix), official **5.21**, until something beats it officially.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →

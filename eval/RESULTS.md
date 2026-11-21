@@ -22,6 +22,7 @@ official numbers and say so here in bold.**
 | 11-21 ~03:00 | 7cce2c2 | good-15 | **5.19** | good-10 (laser first on greed) + good-3 navigation. New best by a hair; nav and laser gains do not fully add |
 | 11-21 ~03:33 | f8decf1 | good-16 | 4.88 | good-14 + ground-only routes (no jet hops, no roof weapons): **−0.29. Hops/roofs help in the real game** |
 | 11-21 ~03:37 | 195a423 | good-17 | 5.06 | good-14 + scale (drops first, crate/drone values up): −0.11, no gain |
+| 11-21 ~03:52 | ac81dc0 | good-22 | **5.21** | good-15 + stale jet-hop fix inside nav3. New best |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
