@@ -205,7 +205,9 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
     # Sim calibration: in squad rounds unexplained enemy HP drops still happen (drones, chains), so infighting
     # evidence alone is noisy (squad runs: infight 0-15 vs focus 17-45; FFA: infight ~9 vs focus ~3).
     # A mech dying early that we did not kill is the decisive FFA signal; otherwise compare the two.
-    if m.get("early_foreign", 0) >= 1 or (ev_ffa >= 3 and ev_ffa > 1.5 * ev_squad):
+    # one unexplained early death can be the zone or a drone (seen in real lobbies): need a second, or infighting
+    ef = m.get("early_foreign", 0)
+    if ef >= 2 or (ef >= 1 and ev_ffa >= 2) or (ev_ffa >= 3 and ev_ffa > 1.5 * ev_squad):
         state.mode_guess = "ffa"
     elif ev_squad >= 6 and ev_ffa < ev_squad:
         state.mode_guess = "squad"
