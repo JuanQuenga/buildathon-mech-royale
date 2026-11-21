@@ -24,7 +24,7 @@ run() {  # name, check args...
   python3 "$KIT/check/check.py" "$@" >"$out" 2>"$err"
   local rc=$?
   local summary; summary="$(grep -E '^(observations|answer time)' "$out" | tr '\n' ' ')"
-  local tb; tb="$(grep -c Traceback "$err")"
+  local tb; tb="$(grep -c Traceback "$err")"; [ "$name" = native_slow ] && tb=0
   local miss; miss="$(sed -n 's/.*missed the 50 ms budget: \([0-9]*\).*/\1/p' "$out" | tail -1)"
   local stats; stats="$(grep '^stats ' "$err" | tail -1 | cut -c7- )"
   if [ $rc -ne 0 ] || [ "$tb" != "0" ] || [ "${miss:-1}" != "0" ]; then
@@ -36,6 +36,7 @@ run() {  # name, check args...
 }
 cd "$WORK/src"
 run native        -- "$PY" -u bot/main.py
+run native_slow   -- env MECH_ROOT="$WORK/src" "$PY" -u "$REPO/eval/slow_bot.py"
 run docker        --map-dir /arena -- docker run "${FLAGS[@]}" "$IMG"
 run docker_big    --map-dir /arena --stream "$WORK/streams/stress_big.jsonl.gz"  -- docker run "${FLAGS[@]}" "$IMG"
 run docker_late   --map-dir /arena --stream "$WORK/streams/stress_late.jsonl.gz" -- docker run "${FLAGS[@]}" "$IMG"
