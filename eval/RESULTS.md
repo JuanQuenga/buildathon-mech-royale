@@ -8,6 +8,7 @@ official numbers and say so here in bold.**
 | Date/time (ET) | Commit | Tag | Official practice mean (48 matches) | Notes |
 | --- | --- | --- | --- | --- |
 | — | example bot | — | 1.15 | organiser-stated baseline |
+| 11-21 00:05 | d0e666d | good-4 | **4.58** (rank 22/157; cut #32 = 4.35; top 5.58) | **sim squad said 3.66: the sim is ~25 % too harsh** (example: sim 0.91 vs official 1.15). good-3 (f8db786) being scored by the coordinator |
 
 ## Known-good tags
 
@@ -90,3 +91,6 @@ full HP to dead in 10-15 s and the retreat verdict flips at ~20 % HP.
 | 11-21 ~00:25 (sim 11d7cb9) | good-4 | 11d7cb9 (hunter model + weapon first: crates while unarmed, explore, run for a known weapon) | squad | 64 | 3.53 | 3.50 | −0.03 (−0.34..+0.30) | 2 weapons at end 84→91 %, kills 3.48→3.44 |
 | 11-21 ~00:50 (sim 3e27987) | 3e27987 | + opp_min_hp_squad=0.85, heal_after_kill=1 | squad | 64 | 3.45 | 3.56 | +0.11 (−0.22..+0.44) | neutral |
 | 11-21 ~01:05 (sim 3b015a6) | 3b015a6 | + squad_standoff=110 | squad | 64 | 3.53 | 3.64 | +0.11 (−0.19..+0.41) | neutral; laser deaths 10→17 |
+| 11-21 ~01:20 (sim 81d2689) | 81d2689 | + conveyor=1 (fight only hunters, spare passive house bots) | squad | 64 | 3.59 | 3.28 | −0.31 (−0.66..+0.03) | passive kills are worth more than the hunter each adds (in this sim) |
+| 11-21 ~01:40 (sim 6946cf7) | 6946cf7 | + cube_greed=1 (grab kill-drop cubes before the next fight) | squad | 64 | 3.47 | 3.75 | +0.28 (−0.05..+0.62) | best single switch; cubes are the only lever that moved |
+| 11-21 ~02:10 (sim 6946cf7) | good-4 | 6946cf7 + cube_greed=1 | squad | 64 | 3.72 | 3.78 | +0.06 (−0.48..+0.61) | FFA half of this run was stopped (machine handoff): **FFA unmeasured** |
