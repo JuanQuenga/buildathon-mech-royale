@@ -17,7 +17,7 @@ try:
 except Exception as ex:
     print("arena failed", ex)
 S = None
-times = []; fires = 0; n = 0; weps = {}
+times = []; cpu = []; fires = 0; n = 0; weps = {}
 for line in gzip.open(path, "rt"):
     m = json.loads(line)
     if m.get("type") == "hello":
@@ -25,8 +25,10 @@ for line in gzip.open(path, "rt"):
     elif m.get("type") == "obs":
         S.update(m)
         t0 = time.perf_counter()
+        c0 = time.thread_time()
         th = threats.assess(S)
         out = combat.step(S, st.Intent(mode="engage"), th)
+        cpu.append(time.thread_time() - c0)
         times.append(time.perf_counter() - t0)
         n += 1
         assert out.aim is not None and len(out.aim) == 2 and all(abs(x) < 10 for x in out.aim), out
@@ -34,5 +36,7 @@ for line in gzip.open(path, "rt"):
             fires += 1
         weps[out.weapon] = weps.get(out.weapon, 0) + 1
 times.sort()
+cpu.sort()
 print("obs", n, "fire decisions", fires, "weapons", weps)
-print("combat+threats ms p50 %.3f p99 %.3f max %.3f" % (times[len(times)//2]*1e3, times[int(.99*len(times))]*1e3, times[-1]*1e3))
+print("combat+threats wall ms p50 %.3f p99 %.3f max %.3f" % (times[len(times)//2]*1e3, times[int(.99*len(times))]*1e3, times[-1]*1e3))
+print("combat+threats cpu  ms p50 %.3f p99 %.3f max %.3f (thread CPU time: immune to other processes)" % (cpu[len(cpu)//2]*1e3, cpu[int(.99*len(cpu))]*1e3, cpu[-1]*1e3))

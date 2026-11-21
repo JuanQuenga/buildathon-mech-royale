@@ -303,7 +303,11 @@ def _assess(state: WorldState) -> ThreatsX:
 
     # ---------------------------------------------------------------- sounds -> contacts
     noise = math.radians(float(state.cfg.get("sound", {}).get("bearing_noise_deg", 7.0))) * state.stat("hearing", 1.0)
-    for s in state.obs.get("sounds") or []:
+    sounds = state.obs.get("sounds") or []
+    known_b = [math.atan2(tr.pos[1] - pos[1], tr.pos[0] - pos[0]) for tr in state.tracks.values()
+               if not tr.dead and tr.kind == "mech" and t - tr.last_seen_t <= 5.0] if sounds else []
+    tol_b = 3 * noise + 0.05
+    for s in sounds[:40]:
         try:
             kind = s.get("kind")
             if kind not in ENEMY_SOUNDS:
@@ -311,15 +315,7 @@ def _assess(state: WorldState) -> ThreatsX:
             b = float(s.get("bearing"))
             rng = SOUND_RANGE.get(s.get("dist", "far"), 230.0)
             # attribute to a known track if one is roughly on that bearing
-            known = False
-            for tr in state.tracks.values():
-                if tr.dead or tr.kind != "mech" or t - tr.last_seen_t > 5.0:
-                    continue
-                tb = math.atan2(tr.pos[1] - pos[1], tr.pos[0] - pos[0])
-                if abs(B.wrap(tb - b)) < 3 * noise + 0.05:
-                    known = True
-                    break
-            if known:
+            if any(abs(B.wrap(tb - b)) < tol_b for tb in known_b):
                 continue
             mem["contacts"].append(Contact(pos=(pos[0] + rng * math.cos(b), pos[1] + rng * math.sin(b), pos[2]),
                                            sigma=max(10.0, rng * (0.45 + noise)), t=t - float(s.get("age", 0)),
@@ -345,6 +341,11 @@ def _assess(state: WorldState) -> ThreatsX:
 
     # ---------------------------------------------------------------- enemies
     vh = mem["vhist"]
+    dmg5: Dict[int, float] = {}
+    lo5 = t - 5.0
+    for (tt, a, by, w) in state.damage_log:
+        if by is not None and tt >= lo5:
+            dmg5[by] = dmg5.get(by, 0.0) + a
     cand = []
     for tr in state.tracks.values():
         if tr.dead:
@@ -436,7 +437,7 @@ def _assess(state: WorldState) -> ThreatsX:
             dps = max(dps, latent)
         e.model_dps = dps
         # observed damage per second on us
-        obs_dmg = sum(a for (tt, a, by, w) in state.damage_log if by == tr.id and tt >= t - 5.0)
+        obs_dmg = dmg5.get(tr.id, 0.0)
         e.dps_on_me = obs_dmg / 5.0
         e.danger = max(dps, e.dps_on_me * 1.2)
         rng_max = max((RANGE.get(w, 0.0) for w in weps), default=0.0)
@@ -479,7 +480,18 @@ def _assess(state: WorldState) -> ThreatsX:
                 n_shell += 1
                 if n_shell > 4:
                     continue
-                ip, ti = B.ballistic_impact(p, v, g_mortar, ground, tmax=7.0, dt=0.05)
+                # a shell's path is fixed once fired: integrate it once, keep the absolute impact time
+                sc = mem.setdefault("shell_cache", {})
+                pid_ = pr.get("id")
+                hit_c = sc.get(pid_)
+                if hit_c is None:
+                    ip, ti = B.ballistic_impact(p, v, g_mortar, ground, tmax=7.0, dt=0.05)
+                    sc[pid_] = (ip, t + ti)
+                    if len(sc) > 64:
+                        for k_ in list(sc)[:32]:
+                            del sc[k_]
+                else:
+                    ip, ti = hit_c[0], max(0.0, hit_c[1] - t)
                 # where will we be at impact if we keep moving
                 fut = (pos[0] + vel[0] * ti, pos[1] + vel[1] * ti)
                 dd = math.hypot(ip[0] - fut[0], ip[1] - fut[1])
