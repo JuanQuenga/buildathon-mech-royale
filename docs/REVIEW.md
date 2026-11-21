@@ -5,16 +5,20 @@ Newest first. Each tag passed the native gate on the MacBook (`NATIVE_ONLY=1 eva
 recorded stream, slow-policy and crash tests, big and late stress streams, 0 missed replies). Run the Docker gate
 before submitting.
 
-| Prio | Tag | Commit | Single hypothesis it tests | Expected official |
+| Prio | Tag | Commit | Single hypothesis it tests (compare with good-14 = seek + good-3 nav, 5.17, unless noted) | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-15` | 7cce2c2 | **good-10 (laser first on greed, 5.10) + good-3 navigation** (the nav revert gave +0.17 on seek: good-14 5.17 vs good-7 5.00). Profile `laser+nav3x` | 5.25 |
-| 2 | `good-12` | 025bc42 | seek + scale (supply drops first, crate/drone values up), compare with good-7 (it carries good-4's navigation) | 5.05 |
-| 3 | `good-13` | a57b78e | seek + picky fight rules, compare with good-7 | 5.0 |
+| 1 | `good-15` | 7cce2c2 | good-10 (laser first on greed, 5.10) + good-3 navigation. Profile `laser+nav3x` (compare with good-10 / good-14) | 5.25 |
+| 2 | `good-16` | f8decf1 | **Ground-only routes**: no planned jet hops, no roof weapons. Navigation is a proven real-game lever: removing good-4's hop-energy rules was worth +0.17/+0.4. Do hops help at all? (sim: 2 zone deaths in 16 matches, a risk) | 5.2 |
+| 3 | `good-17` | 195a423 | **Scaling**: supply drops (3 cubes + full HP) ahead of healing in cover and opportunistic fights, up to 70 s away; crate 18→32, drone 45→60 | 5.2 |
+| 4 | `good-18` | ec61cd7 | **Break contact when a second hunter is in sight** (unless the target is below 30 % HP): the sim's deaths are 2–7 hunters converging | 5.2 |
+| 5 | `good-19` | 692371d | **Explore for a laser** until 120 s while armed without one, never take a mortar (sim: gun+lightning ≈4.5 vs gun+laser ≈6) | 5.25 |
+| 6 | `good-12` | 025bc42 | (old nav) seek + scale, compare with good-7. Superseded by good-17 | — |
+| 7 | `good-13` | a57b78e | (old nav) seek + picky, compare with good-7 | — |
 
-good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
+Official so far: good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
 ## Recommended final entry
-`good-10` (1cd7676, laser first), official **5.10**, until something beats it officially.
+`good-14` (2db6e00, seek + good-3 navigation), official **5.17**, until something beats it officially.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
