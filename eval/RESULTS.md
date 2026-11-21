@@ -171,7 +171,7 @@ Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
 | good-66 | stand1: stand with ≤ 1 attacker in sight | 5.40 | withdrawn after good-65 |
 | good-67 | close60: slow6 + 60 m laser range | 5.35 | withdrawn after good-65 |
 | good-68 | slow6 twin (r37x) | same as good-65 | withdrawn after good-65 |
-| good-58 | isolate twin (r34x) | 5.42 (isolate 5.48 one draw; sim +0.08 ± 0.12) | |
+| good-58 | isolate twin (r34x) | 5.42 (isolate 5.48 one draw; sim +0.08 ± 0.12) | **5.44** (isolate mean 5.46 over 2 draws, +0.12 vs base) |
 | good-69 | cycle twin (r38x) | 5.40 (cycle 5.42; arm-first+cycle 5.44; sim +0.08 ± 0.12) | |
 | good-70 | isolate + cycle | 5.45 | |
 | good-55 | FFA candidate (openhold + ffahide3): practice check | 5.34 (FFA-only parts inactive in squad) | |
