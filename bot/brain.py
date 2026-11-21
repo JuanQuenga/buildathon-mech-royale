@@ -82,6 +82,8 @@ P: Dict[str, Any] = {
     "hopfix3": False,              # nav3 only: good-4's stale jet-hop state fix
     "combat_hop": False,           # nav3 only: periodic jump + jet hops while fighting
     "scan_phase": 0.0,             # chaos control: idle torso-scan phase shift (behaviour-neutral re-roll of trajectories)
+    "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
+                                   # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "gun_disc_m": 0.0,             # A/B >0: no gun fire at a mech beyond this unless it fights us / is our target / killable
     "air_lead": False,             # A/B: gun lead for airborne targets from their observed vertical acceleration
                                    # (jetting +12 m/s^2 to the 10 m/s cap, else -g; clamp at the ground below)
@@ -153,6 +155,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "airx": {"air_lead": True},
     "chaosx": {"scan_phase": 1.0},
     "discx": {"gun_disc_m": 150.0},
+    "ffax": {"ffa_tactics": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
     "chaos4x": {"scan_phase": 5.5},
@@ -834,6 +837,9 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             out["verdict"] = "engage"
         elif best_r > thr or (state.hp / state.max_hp < 0.25 and best_r > 0.5):
             out["verdict"] = "retreat"
+        elif (P["ffa_tactics"] and state.mode_guess == "ffa" and _weak_loadout(state) and best.dist > 100
+              and "laser" in (best.weapons or []) and best.id not in (getattr(threats, "killable", None) or [])):
+            out["verdict"] = "retreat"     # gun-only vs a laser at range loses (6 AM / 7 AM showdown deaths at 19 s / 25 s)
         elif P["multi_retreat"] > 0 and n_att >= 2 and tgt_frac > P["multi_retreat"]:
             out["verdict"] = "retreat"
         else:
@@ -847,6 +853,9 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         omin = P["opp_min_hp"] if state.mode_guess == "ffa" else P["opp_min_hp_squad"]
         if _spare(state, threats, best):
             return out
+        if (P["ffa_tactics"] and state.mode_guess == "ffa" and _weak_loadout(state)
+                and best.id not in (getattr(threats, "killable", None) or [])):
+            return out                     # FFA: no new fights before a real secondary (top-4 seats take few opening hits)
         if hpf > omin and (best_r < eng or (busy and best_r < eng * 1.6)) and ((sq and not P["squad_picky"]) or not others or busy):
             out["verdict"] = "engage"
             out["opportunity"] = True
@@ -854,6 +863,12 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             out["verdict"] = "engage"
             out["opportunity"] = True
     return out
+
+
+def _weak_loadout(state: WorldState) -> bool:
+    """Only the gun, or gun + mortar."""
+    ks = [k for k in state.weapon_kinds() if k and k != "gun"]
+    return not ks or ks == ["mortar"]
 
 
 def _hiding(state: WorldState) -> bool:

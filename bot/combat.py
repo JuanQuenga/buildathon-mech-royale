@@ -162,10 +162,20 @@ def _gun_disc_m() -> float:
         return 0.0
 
 
-def _gun_held(tg, intent, threats) -> bool:
+def _ffa_tactics(state) -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("ffa_tactics", False)) and getattr(state, "mode_guess", "unknown") == "ffa"
+    except Exception:
+        return False
+
+
+def _gun_held(tg, intent, threats, state=None) -> bool:
     """A/B gun discipline: no gun fire at a mech beyond gun_disc_m that is not already fighting us, not the brain's
     target and not killable (FFA showdown 11-21 6 AM: we plinked a laser bot at 176 m with the gun and lost the duel)."""
     lim = _gun_disc_m()
+    if state is not None and _ffa_tactics(state):
+        lim = 120.0 if lim <= 0 else min(lim, 120.0)
     if lim <= 0 or tg.kind != "mech" or tg.dist <= lim:
         return False
     if intent is not None and intent.target_id == tg.id:
@@ -575,6 +585,9 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
     best = None
     evals = []
     cur = mem.get("tgt")
+    ffa_t = _ffa_tactics(state)
+    killable = set(getattr(threats, "killable", None) or [])
+    attackers_now = set(getattr(threats, "attackers", None) or [])
     for tg in tgts[:8]:
         mult = me.mult * (rear_mult if tg.rear else 1.0)
         opts = {}
@@ -587,7 +600,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
         else:
             if tg.kind == "crate" and not tg.los:
                 continue
-            if (gun_ready or (gun and tg.dist < 230)) and not _gun_held(tg, intent, threats):
+            if (gun_ready or (gun and tg.dist < 230)) and not _gun_held(tg, intent, threats, state):
                 gs = gun_solution(me, tg, gst, g, gun_k)
                 if gs is not None and gs[4] < float(gst.get("range", 230.0)) - 2:
                     p0 = gun_p(me, tg, gs, (gs[0], gs[1]), gst)
@@ -622,6 +635,14 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
             wb = math.atan2(worst.pos[1] - me.pos[1], worst.pos[0] - me.pos[0])
             if abs(B.wrap(wb - aim[0])) > math.radians(85):
                 score *= 0.55
+        if ffa_t and tg.kind == "mech" and tg.id not in killable:
+            # FFA (7 AM showdown death): turning to a weak mech put the laser attacker behind us (rear hits x1.5)
+            for e in threats.enemies:
+                if e.kind == "mech" and e.id != tg.id and e.id in attackers_now and e.visible:
+                    eb = math.atan2(e.pos[1] - me.pos[1], e.pos[0] - me.pos[0])
+                    if abs(B.wrap(eb - aim[0])) > math.radians(80):
+                        score *= 0.15
+                        break
         if cur is not None and tg.id == cur:
             score *= 1.3
         evals.append((score, tg, wbest, opts))
