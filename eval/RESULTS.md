@@ -35,6 +35,8 @@ official numbers and say so here in bold.**
 | 11-21 ~07:26 | b0592f6 | good-47 | 5.40 | second re-roll of good-31: policy mean 5.42 over 3 draws (5.56, 5.29, 5.40) |
 | 11-21 ~07:48 | 633caaf / 0208ea2 / 6d78ab0 | good-40 / good-48 / good-42 | 5.25 / 5.35 / **4.73** | airborne lead / gun discipline: both within noise of the 5.42 policy mean; break contact at the 2nd hunter clearly worse (dropped) |
 | 11-21 ~08:48 | 0b3d535 / a3de7d6 / 3539b7c / a634383 | good-r1 / r2 / r3 / good-50 | 5.25 / 5.29 / 5.48 / 5.35 | re-rolls: base policy mean 5.38, SD 0.12 over 6 draws; opening hold-fire costs nothing in practice |
+| 11-21 ~10:48 | 2d14b1f / 964946c / 6301311 / 8f2c4d8 | good-52 / r5 / good-53 / good-44 | 5.17 / 5.27 / 5.31 / 5.33 | jet60 worse; FFA candidate v1 no practice cost; laser hunt neutral |
+| 11-21 ~11:43 | ab489ab / b2d0122 / 9ac13f6 | good-54 / good-56 / good-57 | 5.44 / 5.15 / 5.48 | peek mean 5.30 (cycle rarely engages in sim: 19 % of engage decisions); isolate first draw 5.48 |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
