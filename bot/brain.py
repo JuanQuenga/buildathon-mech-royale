@@ -85,6 +85,7 @@ P: Dict[str, Any] = {
     "ffa_tactics": False,          # A/B FFA-only (mode_guess == ffa): gun discipline 120 m, never back to an active attacker,
                                    # gun-only/gun+mortar: no opportunity fights and break off from lasers beyond 100 m
     "look_around": False,          # A/B: while slot 1 is empty and nothing needs the torso, spin it to find pickups
+    "weave": False,                # A/B (nav3): retreat with a sideways weave relative to the nearest attacker
     "fire_speed": 0.0,             # A/B >0: cap our speed (m/s) while engaging a target
     "fire_stand": False,           # A/B: stand while <= 1 attacker in sight, 6 m/s with 2, full strafe with 3+
     "laser_range": 0.0,            # A/B >0: preferred engage range with a laser (default 90, 120 vs lightning)
@@ -187,6 +188,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "cycle40lx": {"cycle_hp": 0.4, "heal_until": 0.7},
     "armfirstx": {"arm_first": True},
     "slow6x": {"fire_speed": 6.0},
+    "weavex": {"weave": True},
     "stand1x": {"fire_stand": True, "fire_speed": 6.0},
     "close60x": {"fire_speed": 6.0, "laser_range": 60.0},
     "evadex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,

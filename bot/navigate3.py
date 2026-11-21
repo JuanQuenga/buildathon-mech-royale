@@ -546,6 +546,22 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
         else:
             want = unit2(want[0] * (1 - w) + dodge[0] * w * 1.5, want[1] * (1 - w) + dodge[1] * w * 1.5)
 
+    # ---------------- A/B `weave`: retreating straight away is pure radial motion (the easiest target); add a sideways
+    # component relative to the nearest attacker, reversing every 3-5 s (official: lateral movement is worth ~1 point)
+    if want is not None and _flag("weave") and mode == "retreat" and threats is not None:
+        att = [e for e in (threats.enemies or []) if e.kind == "mech" and e.visible and e.id in set(threats.attackers or [])]
+        if att:
+            e = min(att, key=lambda e: e.dist)
+            ax, ay = x - e.pos[0], y - e.pos[1]
+            dd = math.hypot(ax, ay)
+            if dd > 1e-3:
+                if state.t >= m.get("weave_t", 0.0):
+                    m["weave_s"] = -m.get("weave_s", 1.0)
+                    m["weave_t"] = state.t + 3.0 + ((state.tick * 7919) % 21) / 10.0
+                ws = m.get("weave_s", 1.0)
+                px, py = -ay / dd * ws, ax / dd * ws
+                want = unit2(want[0] + 0.7 * px, want[1] + 0.7 * py)
+
     # ---------------- avoid list (keep away from threat centroids when retreating)
     if want is not None and intent is not None and intent.avoid and mode in ("retreat", "heal"):
         ax = ay = 0.0
