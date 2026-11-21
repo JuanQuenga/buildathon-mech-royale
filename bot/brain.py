@@ -29,6 +29,8 @@ P: Dict[str, Any] = {
     "zone_margin_max": 35.0,
     "heal_below": 0.55,            # start a heal cycle below this HP fraction (when no fight)
     "heal_below_squad": 0.55,      # same in squad rounds (A/B: heal more often between kills)
+    "retreat_needs_cover": False,  # A/B: without reachable cover (< 45 m) keep fighting instead of fleeing
+    "no_cover_fight_ratio": 4.0,   # ...unless clearly hopeless (TTK ratio above this)
     "multi_retreat": 0.0,          # >0: with >=2 attackers on us, retreat unless target HP frac < this
     "heal_until": 0.92,
     "retreat_ratio": 0.8,          # retreat if my TTK on them > ratio * their TTK on me
@@ -443,8 +445,15 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     if hot:
         tgt = fight.get("target")
         if fight["verdict"] == "retreat":
-            m["heal"] = True
             goal = _cover_from(state, [e.pos for e in hot], zp)
+            real_cover = m.get("cover_real", False)
+            # Running in the open while chased rarely saves us (FFA sim: ~12/32 deaths in the first 30 s were
+            # open-ground retreats at low HP). Optionally keep trading when there is no cover to run to.
+            if (P["retreat_needs_cover"] and not real_cover and tgt is not None and tgt.dist < 90
+                    and fight["ratio"] < P["no_cover_fight_ratio"]):
+                fight["verdict"] = "engage"
+        if fight["verdict"] == "retreat":
+            m["heal"] = True
             it = Intent(mode="retreat", goal=goal, urgency=0.9, face=face,
                         target_id=tgt.id if tgt is not None else None, allow_fire=True,
                         avoid=[e.pos for e in hot], reason=f"retreat r={fight['ratio']:.2f}")
@@ -616,8 +625,10 @@ def _cover_from(state: WorldState, threat_pos: List, zp: Dict[str, Any]):
             except Exception:
                 c = None
             m["cover_cache"] = (state.t, tp, state.pos, c)
-        if c is not None and _in_safe_future(state, c) and _inside_zone_soon(state, c):
+        if c is not None and _in_safe_future(state, c) and _inside_zone_soon(state, c) and dist2d(c, state.pos) < 45:
+            m["cover_real"] = True
             return tuple(c)
+    _mem(state)["cover_real"] = False
     # run away from the centroid of threats, biased toward the next circle
     if threat_pos:
         cx = sum(p[0] for p in threat_pos) / len(threat_pos)
