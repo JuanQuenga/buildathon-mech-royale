@@ -81,6 +81,7 @@ P: Dict[str, Any] = {
     "jet_cap": 40.0,               # nav3 only: max planned jet climb (m); 0 = ground-only routes
     "hopfix3": False,              # nav3 only: good-4's stale jet-hop state fix
     "combat_hop": False,           # nav3 only: periodic jump + jet hops while fighting
+    "strafe_mode": "normal",       # nav3 only: engage strafe reversals: normal 1.2-2.4 s, juke 0.3-1.0 s (>80 m), steady 3-5 s
     "nav3": False,                 # A/B: use the frozen good-3 navigation module (bot/navigate3.py)
     "hop_legacy": False,           # A/B: navigate uses good-3's jet-hop energy rules (read by navigate._hop_legacy)
     "berserk": False,              # A/B: squad/unknown rounds: never retreat from a fight (90 % of deaths came in
@@ -138,6 +139,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ragex": {"engage_ratio_squad": 1.6, "opp_min_hp_squad": 0.4, "heal_below_squad": 0.4, "seek": True, "seek_min_hp": 0.5,
               "seek_sound": True, "berserk": True, "seek_mem_s": 60.0, "seek_max_m": 400.0},
     "perchx": {"perch": True},
+    "jukex": {"strafe_mode": "juke"},
+    "steadyx": {"strafe_mode": "steady"},
     "hide240x": {"hide": True, "hide_until": 240.0, "conveyor": True, "conveyor_until": 240.0},
     "hide10x": {"hide": True, "hide_alive_min": 10, "conveyor": True, "conveyor_until": 480.0},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},

@@ -37,6 +37,14 @@ def _flag(name: str) -> bool:
         return False
 
 
+def _strafe_mode() -> str:
+    try:
+        from .brain import P as BP
+        return str(BP.get("strafe_mode", "normal"))
+    except Exception:
+        return "normal"
+
+
 def _jet_cap() -> float:
     """A/B: brain profile `jet_cap` (0 = ground-only routes, no planned jet hops)."""
     try:
@@ -375,7 +383,13 @@ def _engage_dir(state: WorldState, intent: Intent, m) -> Optional[Tuple[float, f
     if state.t >= m["strafe_t"]:
         m["strafe_sign"] = -m["strafe_sign"]
         # deterministic jitter from tick so the period is not predictable
-        m["strafe_t"] = state.t + 1.2 + ((state.tick * 7919) % 13) / 10.0
+        sm = _strafe_mode()
+        if sm == "juke" and d > 80.0:
+            m["strafe_t"] = state.t + 0.3 + ((state.tick * 7919) % 8) / 10.0      # 0.3-1.0 s reversals
+        elif sm == "steady":
+            m["strafe_t"] = state.t + 3.0 + ((state.tick * 7919) % 21) / 10.0     # 3-5 s
+        else:
+            m["strafe_t"] = state.t + 1.2 + ((state.tick * 7919) % 13) / 10.0
     s = m["strafe_sign"]
     tx, ty = -uy * s, ux * s
     w_t = 0.85 if abs(radial) < 0.7 else 0.4
