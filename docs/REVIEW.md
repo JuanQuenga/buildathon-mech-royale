@@ -8,19 +8,20 @@ replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 dr
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
 | 1 | `good-54` | ab489ab | **Structural: fight from cover with the laser** (`peekx`). Laser ready: hold a sighted spot, charge, fire; laser cooling (1.65 s): step to the nearest spot hidden from the target and the nearest other threat (≤ 40 m); no cover or no laser: normal steady strafe. Why: the practice leaders (kyoto-max 6.31, giddygiddyboy 6.0) take 24–28 dmg/s, move ~6 m/s while firing at ~60 m and live 150–160 s in real showdowns; we take 41/s at 11.6 m/s and live 95 s. Practice points are kills before death, so damage taken is the lever. Sim squad +0.23 ± 0.67, alive 117 → 125 s | 5.6 |
-| 2 | `good-52` | 2d14b1f | good-31 + **longer planned jet climbs** (`jet60x`: jet_cap 40 → 60 m, roof weapons up to 35 m). Navigation is the one lever with large real effects (good-4 hop rules −0.3, ground-only −0.29 = jet_cap 0), so the dose-response may continue upward | 5.5 |
-| 3 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
-| 4 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
-| 5 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 6 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 7 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 8 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 9 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 10 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 11 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 12 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 13 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 14 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 2 | `good-56` | b2d0122 | **Twin draw of good-54** (peek + neutral scan phase `r33x`): run back to back with good-54 so the peek branch gets two draws in the same hour | 5.6 |
+| 3 | `good-57` | 9ac13f6 | **Structural: isolate** (`isolatex`): when attackers other than the target have a line on us, move to a spot ≤ 40 m hidden from them that still sees the target, i.e. fight the edge of the pack one at a time. Low damage intake without the laser-cover cycle | 5.5 |
+| 4 | `good-59` | 6e21d12 | **Structural: kill conversion** (`commitx`): stay on the committed target until it dies (combat preference ×3); otherwise pick the lowest effective HP in sight (HP ÷ our DPS at its range). Only kills score | 5.5 |
+| 5 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
+| 6 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 7 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 8 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 9 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 10 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 11 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 12 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 13 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 14 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 15 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -240,6 +241,10 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-52 | 5.17 | good-31 + jet climbs to 60 m: worse |
+| good-53 | 5.31 | good-31 + openhold + ffahide (FFA candidate v1): no practice cost |
+| good-44 | 5.33 | good-31 + laser hunt to 120 s, no mortar |
+| good-r5 | 5.27 | re-roll |
 | good-49 | 5.46 | good-31 + ffax (FFA-only tactics): practice-neutral |
 | good-r4 | 5.42 | re-roll |
 | good-r6 / good-r8 | 5.19 / 5.19 | re-rolls |
