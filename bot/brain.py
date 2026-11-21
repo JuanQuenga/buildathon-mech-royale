@@ -71,6 +71,7 @@ P: Dict[str, Any] = {
     "drop_base": 30.0,
     "laser_first": False,          # A/B: laser valued above lightning (6/8 real top-4 finishers ended with a laser)
     "drop_first": False,           # A/B: consider the supply drop before heal-hiding and opportunistic fights
+    "explore_armed_until": 0.0,    # A/B: keep exploring unvisited ground for crates/drones while armed until this time
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -96,6 +97,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "stack": {"cube_greed": True, "seek": True, "seek_min_hp": 0.85, "heal_after_kill": True, "opp_min_hp_squad": 0.85},   # seek + fresh
     "stack2": {"cube_greed": True, "seek": True, "seek_min_hp": 0.85, "heal_after_kill": True, "opp_min_hp_squad": 0.85, "crate_value": 32.0,
                "drone_value": 60.0, "drop_max_eta": 70.0, "drop_base": 60.0, "drop_first": True},  # seek + fresh + scale
+    "farm": {"cube_greed": True, "crate_value": 32.0, "drone_value": 60.0, "explore_armed_until": 150.0, "seek": True},
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
 
@@ -625,15 +627,15 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
         lt.face = lt.face if lt.face is not None else face
         return _finish(state, m, lt)
 
-    # 6b. no secondary weapon and nothing known to loot: explore unvisited ground inside the circle
-    ex = _explore_choice(state, m, zp)
-    if ex is not None:
-        return _finish(state, m, ex)
-
     # 6c. squad: go find the next house bot instead of waiting for the hunters to come in a pack
     sk = _seek_choice(state, m, zp, hpf, face)
     if sk is not None:
         return _finish(state, m, sk)
+
+    # 6b. no secondary weapon (or farm profile) and nothing known to loot: explore unvisited ground inside the circle
+    ex = _explore_choice(state, m, zp)
+    if ex is not None:
+        return _finish(state, m, ex)
 
     # 7. hold inside the next circle, drift toward its centre, near cover
     goal = _hold_point(state, zp)
@@ -1029,7 +1031,8 @@ def _drone_choice(state: WorldState, m, hpf) -> Optional[Tuple[EnemyThreat, floa
 def _explore_choice(state: WorldState, m, zp) -> Optional[Intent]:
     """Unarmed (slot 1 empty): walk to the nearest unvisited grid cell inside the next circle, torso scanning, to
     find pickups and crates. Visited = we stood within ~0.7 cell of its centre (items there were in near vision)."""
-    if not P["weapon_first"] or state.weapon_kinds()[1] is not None:
+    armed = state.weapon_kinds()[1] is not None
+    if not P["weapon_first"] or (armed and (state.t > P["explore_armed_until"] or int(state.me.get("cubes", 0) or 0) >= 10)):
         return None
     cs = P["explore_cell"]
     vis = m.setdefault("visited", set())
