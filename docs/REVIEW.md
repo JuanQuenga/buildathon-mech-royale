@@ -284,6 +284,27 @@ held, by distinct mechs that hit us in the last 3 s; `eval/diag/peek_cond.py`):
 Inside a real peek cycle damage intake is only 6–11 % lower than strafing in the open: cover fighting as built is not
 the step change. Not iterated.
 
+## Aim audit on real showdowns (11-21 15:10; `eval/diag/cast/aim_audit.py`)
+The "~50 % real gun hit rate" counted every gun shot, including shots at crates and drones. Attributing each shot to
+the mech nearest the aim line (≤ 8°) at the fire tick:
+
+| | gun shots | hits on mechs per shot fired | hits on drones/crates per shot | hit rate on mech-aimed shots |
+| --- | --- | --- | --- | --- |
+| poteto (us) | 276 | 0.40 | 0.21 | **0.81** (214 shots) |
+| kyoto-max (practice #1) | 2678 | 0.45 | 0.19 | |
+| giddygiddyboy / TigerTown27 / A-bot LLC | 1766 / 2967 / 2892 | 0.39 / 0.41 / 0.43 | 0.23 / 0.21 / 0.17 | |
+| whole field | | | | **0.81** (29,355 shots) |
+
+| range | 30–60 m | 60–90 | 90–120 | 120–150 | 150–180 | 180–240 |
+| --- | --- | --- | --- | --- | --- | --- |
+| us | 0.88 | 1.00 | 0.91 | 0.82 | 0.86 | 0.24 |
+| field | 0.95 | 0.94 | 0.84 | 0.70 | 0.56 | 0.33 |
+
+Verdict: **no aim error.** Our gun accuracy equals or beats the field at every range up to 180 m, and our laser hit
+rate (75 %) is among the best. Lead/latency is not the gap to 6.3, and the sim's aim (87 % on mech-aimed shots) is
+not far from reality. (A frame-interpolated bullet reconstruction matched real outcomes on only ~48 % of shots, so I
+do not report miss geometry from it.) Only shots beyond 180 m are poor (9 % of our mech-aimed shots).
+
 ## Movement while fighting the squad (official dose-response)
 | engage movement | tag | official |
 | --- | --- | --- |
