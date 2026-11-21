@@ -33,3 +33,8 @@ tracebacks / no fallbacks.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 11-20 ~22:30 | example | 7ff832a (brain v1 + combat v1 + Arena, navigate.py = placeholder) | squad | 24 | 0.08 | 0.92 | +0.83 (+0.42..+1.29) | gun 20, zone 2, laser 1, mortar 1; 0 missed, 0 tracebacks; alive 66s→118s |
 | 11-20 ~22:30 | example | 7ff832a | ffa (1 bot + 15 builtin) | 24 | 5.25 | 8.08 | +2.83 (+0.50..+5.29) | gun 14, laser 3, mortar 1, survived 6; alive 58s→171s |
+| 11-20 ~23:50 (sim 0458b19) | 7ff832a | fb2966c (nav + combat v1 + process guard) | squad | 24 | 2.62 | 3.67 | +1.04 (+0.25..+1.83) | gun 22, laser 2 (zone 3→0); kills 2.58→3.62; alive 154s→118s |
+| 11-20 ~23:50 (sim 0458b19) | 7ff832a | fb2966c | ffa | 24 | 10.17 | 11.08 | +0.92 (−1.00..+2.67) | survived 7→8; kills 1.12→2.04 |
+
+Note: the sim itself changed between 52a06b3 and 0458b19 (house bots' zone pathing, focus vision): absolute numbers
+are only comparable within one sim commit (see the "sim" column).
