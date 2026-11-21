@@ -36,6 +36,11 @@ run() {  # name, check args...
   [ -n "$stats" ] && echo "     bot: $stats"
 }
 cd "$WORK/src"
+for t in "eval/test_brain.py" "-m unittest discover -s tests/nav" "-m unittest discover -s tests/combat"; do
+  if [ -e eval/test_brain.py ] || [ "$t" != "eval/test_brain.py" ]; then
+    if "$PY" $t >"$WORK/unit.out" 2>&1; then echo "ok   unit: $t"; else fail=1; echo "FAIL unit: $t"; tail -15 "$WORK/unit.out"; fi
+  fi
+done
 run native        -- "$PY" -u bot/main.py
 run native_slow   -- env MECH_ROOT="$WORK/src" "$PY" -u "$REPO/eval/slow_bot.py"
 run docker        --map-dir /arena -- docker run "${FLAGS[@]}" "$IMG"
