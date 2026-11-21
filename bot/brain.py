@@ -900,7 +900,7 @@ def _peek_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: Li
     """A/B `peek` (structural): fight from cover with the laser. Real showdowns: the practice leaders (kyoto-max 6.31,
     giddygiddyboy 6.0) fire while moving ~6 m/s at ~60 m and take 24-28 dmg/s; we strafe at 11.6 m/s and take 41/s.
     Cycle: laser ready -> stand where we see the target (or go back to the last such spot), charge and fire;
-    laser cooling -> step to the nearest spot hidden from the threats (<= 25 m). None -> normal engage."""
+    laser cooling -> step to the nearest spot hidden from the target and the nearest other threat (<= 40 m). None -> normal engage."""
     las = None
     for w in state.me.get("weapons") or []:
         if w and w.get("kind") == "laser":
@@ -912,10 +912,11 @@ def _peek_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: Li
         return None
     t = state.t
     pm = m.setdefault("peek", {"cover": None, "cover_t": -1e9, "spot": None, "spot_t": -1e9})
-    threat_feet = [tuple(e.pos) for e in sorted(hot, key=lambda e: e.dist)[:4]] or [tuple(tgt.pos)]
-    if t - pm["cover_t"] > 1.0 or pm["cover"] is None or dist2d(pm["cover"], state.pos) > 30.0:
+    others = [e for e in sorted(hot, key=lambda e: e.dist) if e.id != tgt.id][:1]
+    threat_feet = [tuple(tgt.pos)] + [tuple(e.pos) for e in others]
+    if t - pm["cover_t"] > 1.0 or pm["cover"] is None or dist2d(pm["cover"], state.pos) > 45.0:
         try:
-            pm["cover"] = state.arena.nearest_cover(state.pos, threat_feet, 25.0, budget_ms=2.0)
+            pm["cover"] = state.arena.nearest_cover(state.pos, threat_feet, 40.0, budget_ms=2.5)
         except Exception:
             pm["cover"] = None
         pm["cover_t"] = t
