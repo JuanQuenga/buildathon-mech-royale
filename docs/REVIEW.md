@@ -11,10 +11,11 @@ before submitting.
 | 2 | `good-17` | 195a423 | **Scaling**: supply drops (3 cubes + full HP) ahead of healing in cover and opportunistic fights, up to 70 s away; crate 18→32, drone 45→60 | 5.2 |
 | 3 | `good-18` | ec61cd7 | **Break contact when a second hunter is in sight** (unless the target is below 30 % HP): the sim's deaths are 2–7 hunters converging | 5.2 |
 | 4 | `good-19` | 692371d | **Explore for a laser** until 120 s while armed without one, never take a mortar (sim: gun+lightning ≈4.5 vs gun+laser ≈6) | 5.25 |
-| 5 | `good-20` | 375d715 | **More aggression** on good-15 (laser + good-3 nav, 5.19): engage ratio 1.1→1.6, start fights from 40 % HP (was 60 %), heal below 40 % (was 55 %). The heal-more variant (good-8) lost 0.17 | 5.3 |
-| 6 | `good-21` | 2f800aa | **Seek by memory and by sound** on good-15: walk to remembered house bots, or toward gunfire heard in the last 6 s (110 m along the bearing) | 5.3 |
-| 7 | `good-12` | 025bc42 | (old nav) seek + scale, compare with good-7. Superseded by good-17 | — |
-| 8 | `good-13` | a57b78e | (old nav) seek + picky, compare with good-7 | — |
+| 5 | `good-22` | ac81dc0 | **good-15 + the stale jet-hop fix** (good-4's one nav fix that prevented zone deaths) ported into the good-3 navigation. Sim: zone deaths 3→1 in 96 matches, +0.40 ± 0.47 | 5.25 |
+| 6 | `good-20` | 375d715 | **More aggression** on good-15 (laser + good-3 nav, 5.19): engage ratio 1.1→1.6, start fights from 40 % HP (was 60 %), heal below 40 % (was 55 %). The heal-more variant (good-8) lost 0.17 | 5.3 |
+| 7 | `good-21` | 2f800aa | **Seek by memory and by sound** on good-15: walk to remembered house bots, or toward gunfire heard in the last 6 s (110 m along the bearing) | 5.3 |
+| 8 | `good-12` | 025bc42 | (old nav) seek + scale, compare with good-7. Superseded by good-17 | — |
+| 9 | `good-13` | a57b78e | (old nav) seek + picky, compare with good-7 | — |
 
 Official so far: good-15 5.19, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
