@@ -1223,6 +1223,39 @@ class Arena:
         scored.sort(key=lambda q: q[0])
         return [p for _, p in scored[:n]]
 
+    def reach_spot(self, item: Vec3, horiz: float = 3.5, vert: float = 4.0, cubes: float = 0) -> Optional[Vec3]:
+        """Nearest standable feet position within `horiz` (horizontal) and `vert` (vertical) of an item, e.g.
+        take: 4 / 4 m, cube: 3.5 / 4 m (use a little less). Prefers the main ground component. None if none."""
+        if not self.ok_nav:
+            return tuple(item)
+        k = self.size_class(cubes)
+        ix, iy = float(item[0]), float(item[1])
+        iz = float(item[2]) if len(item) > 2 else self.surface(ix, iy)
+        r = int(math.ceil(horiz))
+        best, bd = None, 1e18
+        Wb, nx = self._Wb, self.nx
+        ci = int(round((ix - self.x0) / self.step))
+        cj = int(round((iy - self.y0) / self.step))
+        for dj in range(-r, r + 1):
+            for di in range(-r, r + 1):
+                i, j = ci + di, cj + dj
+                if not (0 <= i < self.nx and 0 <= j < self.ny):
+                    continue
+                x, y = self.x0 + i * self.step, self.y0 + j * self.step
+                d = math.hypot(x - ix, y - iy)
+                if d > horiz:
+                    continue
+                v = j * nx + i
+                if not (Wb[v] >> (k + 3)) & 1:
+                    continue
+                z = self.surface(x, y)
+                if abs(z - iz) > vert:
+                    continue
+                score = d - (1.0 if (Wb[v] >> k) & 1 else 0.0)
+                if score < bd:
+                    best, bd = (x, y, z), score
+        return best
+
     def _candidate_spots(self, x, y, R, k, z=None, stride=1):
         """Lattice nodes within R of (x, y) for class k: (x, y, straight distance); same level as z."""
         if not self.ok_nav:

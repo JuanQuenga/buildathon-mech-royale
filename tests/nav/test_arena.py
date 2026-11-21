@@ -242,6 +242,31 @@ class TestPlanning(unittest.TestCase):
             self.assertLessEqual(math.dist(c[:2], pos[:2]), 60.5)
 
 
+class TestReach(unittest.TestCase):
+    def test_reach_spot_for_items_near_walls_and_on_roofs(self):
+        import random
+        rng = random.Random(3)
+        n = found = 0
+        while n < 100:
+            x, y = rng.uniform(-480, 530), rng.uniform(-310, 360)
+            c = A.clearance(x, y)
+            if 0.3 < c < 2.4 and A.surface(x, y) - A.height(x, y) < 0.5:
+                z = A.height(x, y) + 0.1
+                r = A.reach_spot((x, y, z), 3.5, 4.0)
+                n += 1
+                if r is not None:
+                    found += 1
+                    self.assertLessEqual(math.hypot(r[0] - x, r[1] - y), 3.5)
+                    self.assertLessEqual(abs(r[2] - z), 4.0)
+                    self.assertTrue(A.standable(r[0], r[1]))
+        self.assertGreaterEqual(found, 95)
+        # roof item -> roof spot (same level), not the street below
+        y = (-55.5 + -47.0) / 2
+        r = A.reach_spot((-459.0, y, A.p_top[69]), 3.5, 4.0)
+        self.assertIsNotNone(r)
+        self.assertGreater(r[2], A.p_top[69] - 1.0)
+
+
 class TestTiming(unittest.TestCase):
     def test_shot_clear_speed(self):
         import random

@@ -369,6 +369,8 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
 
     # ---------------- choose desired direction
     mode = intent.mode if intent else "hold"
+    if goal is not None and nav_ok:
+        goal = _reachable_goal(state, m, ar, goal, k)
     if goal is not None:
         gx, gy = goal[0], goal[1]
         dgoal = math.hypot(gx - x, gy - y)
@@ -467,6 +469,14 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     _cmd(m, state, speed)
 
     # ---------------- stall detection -> recovery
+    if goal is not None and _stalled(state, m) and math.hypot(goal[0] - x, goal[1] - y) < 3.5:
+        # pressed against something right next to the goal: we are within pickup reach, stop pushing
+        m["hist"] = m["hist"][-1:]
+        m["cmd_hist"] = []
+        out.move = (0.0, 0.0)
+        out.boost = False
+        out.eta = 0.0
+        return out
     if _stalled(state, m):
         m["stats"]["stalls"] += 1
         m["hist"] = m["hist"][-1:]
@@ -510,6 +520,23 @@ def _avoid_list(state: WorldState, threats: Threats, intent: Intent) -> List:
         cand.append((-(e.danger or 0.0), e.dist, e.pos))
     cand.sort(key=lambda c: (c[0], c[1]))
     return [c[2] for c in cand[:3]]
+
+
+def _reachable_goal(state: WorldState, m, ar, goal, k):
+    """If the goal point itself can't be stood on (item against a wall, on a ledge/roof edge), use the nearest
+    standable spot within pickup reach (Arena.reach_spot), cached per goal."""
+    key = (round(goal[0], 1), round(goal[1], 1), round(goal[2], 1) if len(goal) > 2 else 0.0, k)
+    c = m.get("reach_cache")
+    if c is not None and c[0] == key:
+        return c[1]
+    gz = float(goal[2]) if len(goal) > 2 else ar.surface(goal[0], goal[1])
+    out = goal
+    if not ar.standable(goal[0], goal[1], k) or abs(ar.surface(goal[0], goal[1]) - gz) > 2.0:
+        r = ar.reach_spot((goal[0], goal[1], gz), horiz=3.2, vert=3.8, cubes=_cubes(state))
+        if r is not None:
+            out = r
+    m["reach_cache"] = (key, out)
+    return out
 
 
 def _is_jet(w) -> bool:
