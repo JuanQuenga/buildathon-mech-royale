@@ -1,27 +1,12 @@
 # Review: Mech Royale entry (for the human and the coordinator)
 
 ## Please submit
-The table order is the queue. Every tag listed passed the **full Linux gate** (`eval/check.sh <tag>`: unit tests,
-native + Docker with the exact sandbox flags, big and late stress streams, slow-policy and crash guards, 0 missed
-replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 draws, mean 5.38), so a re-roll beats 5.56 only ~1 in 15, while one experiment run can resolve ~0.3 effects. Queue = experiments with a plausible practice-mean gain about every other slot, re-rolls in between. good-49 (`ffax`, practice-neutral by design, 0 effect in FFA self-play) is withdrawn from the queue.
+**Since 13:10 the submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it); this
+section mirrors it. Predictions vs official results are in `eval/RESULTS.md` ("Predictions before scoring").
 
-| Prio | Tag | Commit | Single hypothesis it tests | Expected official |
-| --- | --- | --- | --- | --- |
-| 1 | `good-65` | 87c9993 | **Slow fire** (`slow6x`): cap our speed at 6 m/s while engaging a target. Real showdowns: the practice leaders fire while moving ~6 m/s and take 24–28 dmg/s; we strafe at 11.6 m/s and take 41/s. Sim traces: standing shots deal 207/s vs 148/s while strafing | 5.6 |
-| 2 | `good-66` | ee04710 | **Stand to fire** (`stand1x`): stand still while at most one attacker has line of sight, 6 m/s with two, full strafe with three or more | 5.6 |
-| 3 | `good-67` | 8c58383 | **Close and slow** (`close60x`): slow6 + 60 m laser engagement range (the leaders' median; ours 90 m, 120 vs lightning) | 5.5 |
-| 4 | `good-68` | 1f02acd | **Twin draw of good-65** (slow6 + neutral `r37x`) | 5.6 |
-| 5 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
-| 6 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 7 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 8 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 9 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 10 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 11 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 12 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 13 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 14 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 15 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+Current queue: good-58 (isolate twin), good-69 (cycle twin), good-70 (isolate + cycle), good-55 (FFA candidate
+practice check), then re-rolls good-r9, good-r10. Withdrawn after good-65 (slow6) scored 4.77: good-66, good-67,
+good-68 (all slow/standing fire).
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -292,6 +277,7 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-65 | **4.77** | slow6: cap speed at 6 m/s while engaging: clearly worse (moving slowly while fighting the squad costs ~0.6) |
 | good-64 | 5.44 | arm-first + cycle |
 | good-63 | 5.42 | fight-regen cycle 40 → 90 % |
 | good-61 / good-62 | 5.19 / 5.27 | arm-first and twin: mean 5.23 (below base; the sim seeds it fixed are not the official seeds' problem) |

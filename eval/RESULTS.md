@@ -167,9 +167,12 @@ Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
 
 | Tag | Change (one each) | Prediction | Official |
 | --- | --- | --- | --- |
-| good-65 | slow6: 6 m/s cap while engaging | 5.45 (real leaders fire at ~6 m/s; sim says our accuracy is speed-independent, so +0.1 at most unless the real aim penalty is large) | |
-| good-66 | stand1: stand with ≤ 1 attacker in sight | 5.40 (stillx, no sideways movement, scored 5.25) | |
-| good-67 | close60: slow6 + 60 m laser range | 5.35 | |
-| good-68 | slow6 twin (r37x) | same as good-65 | |
+| good-65 | slow6: 6 m/s cap while engaging | 5.45 (real leaders fire at ~6 m/s; sim says our accuracy is speed-independent, so +0.1 at most unless the real aim penalty is large) | **4.77** (clearly worse: moving slowly while fighting the squad costs ~0.6; good-66/67/68 withdrawn) |
+| good-66 | stand1: stand with ≤ 1 attacker in sight | 5.40 | withdrawn after good-65 |
+| good-67 | close60: slow6 + 60 m laser range | 5.35 | withdrawn after good-65 |
+| good-68 | slow6 twin (r37x) | same as good-65 | withdrawn after good-65 |
+| good-58 | isolate twin (r34x) | 5.42 (isolate 5.48 one draw; sim +0.08 ± 0.12) | |
+| good-69 | cycle twin (r38x) | 5.40 (cycle 5.42; arm-first+cycle 5.44; sim +0.08 ± 0.12) | |
+| good-70 | isolate + cycle | 5.45 | |
 | good-55 | FFA candidate (openhold + ffahide3): practice check | 5.34 (FFA-only parts inactive in squad) | |
 | good-43 | snipe: hold 170 m with a laser | 5.25 | |
