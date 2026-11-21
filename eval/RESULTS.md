@@ -176,6 +176,6 @@ Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
 | good-70 | isolate + cycle | 5.45 | **5.21** |
 | good-55 | FFA candidate (openhold + ffahide3): practice check | 5.34 | withdrawn: practice cost already measured via good-50 (5.35) and good-53 (5.31) |
 | good-41 | widex: full sideways weight while closing/opening range | 5.45 (movement dose-response: standing 4.19 < 6 m/s 4.77 < no sideways 5.25 < base 5.34) | **5.23** (more lateral does not help; good-71/72 not queued) |
-| good-73 | weave: sideways weave (relative to the nearest attacker, 3–5 s reversals) while retreating | 5.45 (90 % of deaths come in retreat, which is radial motion; sim +0.06 ± 0.26) | |
+| good-73 | weave: sideways weave (relative to the nearest attacker, 3–5 s reversals) while retreating | 5.45 (90 % of deaths come in retreat, which is radial motion; sim +0.06 ± 0.26) | **5.38** (= base) |
 | good-ri41..46 | re-rolls of the isolate policy (best two-draw mean, 5.46) | 5.46 each; P(≥ 5.59) ≈ 16 % per draw | |
 | good-43 | snipe: hold 170 m with a laser | 5.25 | |
