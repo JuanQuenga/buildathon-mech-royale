@@ -28,6 +28,8 @@ P: Dict[str, Any] = {
     "zone_margin_frac": 0.25,      # aim this deep into the next circle (fraction of its radius)
     "zone_margin_max": 35.0,
     "heal_below": 0.55,            # start a heal cycle below this HP fraction (when no fight)
+    "heal_below_squad": 0.55,      # same in squad rounds (A/B: heal more often between kills)
+    "multi_retreat": 0.0,          # >0: with >=2 attackers on us, retreat unless target HP frac < this
     "heal_until": 0.92,
     "retreat_ratio": 0.8,          # retreat if my TTK on them > ratio * their TTK on me
     "engage_ratio_squad": 1.1,     # in squad mode take fights that are roughly even (kills are the score)
@@ -416,7 +418,8 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     # 3. heal cycle (stop shooting, break LOS, wait for regen)
     if m["heal"] and hpf >= P["heal_until"]:
         m["heal"] = False
-    if not m["heal"] and hpf < P["heal_below"]:
+    hb = P["heal_below_squad"] if state.mode_guess == "squad" else P["heal_below"]
+    if not m["heal"] and hpf < hb:
         m["heal"] = True
     if m["heal"]:
         threat_pos = [m["last_threat_pos"]] if m["last_threat_pos"] is not None and state.t - m["last_threat_t"] < 20 else []
@@ -500,7 +503,11 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         prev, since = m.get("fight_verdict"), m.get("fight_t", -1e9)
         if state.t - since < 3.0:
             thr *= 0.8 if prev == "retreat" else (1.25 if prev == "engage" else 1.0)
+        n_att = len([a for a in attackers if a in {e.id for e in fresh}])
+        tgt_frac = (best.hp if best.hp is not None else 1400.0) / max(1.0, best.max_hp or 1400.0)
         if best_r > thr or (state.hp / state.max_hp < 0.25 and best_r > 0.5):
+            out["verdict"] = "retreat"
+        elif P["multi_retreat"] > 0 and n_att >= 2 and tgt_frac > P["multi_retreat"]:
             out["verdict"] = "retreat"
         else:
             out["verdict"] = "engage"
