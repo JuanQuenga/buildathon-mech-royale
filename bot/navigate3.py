@@ -29,6 +29,15 @@ JET_TIMEOUT = 5.0
 PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 2.6, -2.6)
 
 
+def _jet_cap() -> float:
+    """A/B: brain profile `jet_cap` (0 = ground-only routes, no planned jet hops)."""
+    try:
+        from .brain import P as BP
+        return float(BP.get("jet_cap", JET_CAP))
+    except Exception:
+        return JET_CAP
+
+
 def _mem(state: WorldState) -> Dict[str, Any]:
     m = state.scratch.get("nav")
     if m is None:
@@ -440,7 +449,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
                     if True:
                         if m.get("jet") is None and _need_replan(state, m, goal):
                             st_, path = ar.plan_full(state.pos, goal, cubes=_cubes(state), budget_ms=PLAN_BUDGET_MS,
-                                                     jet_cap=JET_CAP, avoid=_avoid_list(state, threats, intent),
+                                                     jet_cap=_jet_cap(), avoid=_avoid_list(state, threats, intent),
                                                      smooth_ms=0.8)
                             m["stats"]["replans"] += 1
                             m["goal"] = tuple(goal)
