@@ -394,5 +394,25 @@ class TestAirLead(unittest.TestCase):
                          ((0, 0, 3.0), (0, 0, -11.0)))
 
 
+class TestOpenHold(unittest.TestCase):
+    def tearDown(self):
+        from bot import brain
+        brain.P["open_hold"] = False
+
+    def test_unarmed_opening_holds_fire_on_passive_mech(self):
+        from bot import brain
+        w = helpers.world(helpers.OpenArena())
+        e = enemy(5, (100, 0, 0), vel=(0, 0, 0), aim=(math.pi / 2, 0))   # not aiming at us
+        brain.P["open_hold"] = True
+        out, _ = run(w, obs(aim=(0.0, 0.0), mechs=[e]), Intent(mode="loot"))
+        out, _ = run(w, obs(tick=102, aim=(0.0, 0.0), mechs=[e]), Intent(mode="loot"))
+        self.assertFalse(out.fire[0])
+        brain.P["open_hold"] = False
+        w2 = helpers.world(helpers.OpenArena())
+        run(w2, obs(aim=(0.0, 0.0), mechs=[e]), Intent(mode="loot"))
+        out2, _ = run(w2, obs(tick=102, aim=(0.0, 0.0), mechs=[e]), Intent(mode="loot"))
+        self.assertTrue(out2.fire[0])
+
+
 if __name__ == "__main__":
     unittest.main()
