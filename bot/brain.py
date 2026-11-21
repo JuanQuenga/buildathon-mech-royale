@@ -771,7 +771,7 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
         if e.id in attackers or e.can_hit_me or (e.visible and e.dist < 120):
             inc += enemy_dps(e, e.dist)
     inc = max(inc, 1.0)
-    their_ttk = ehp / inc
+    their_ttk = max(ehp, 1.0) / inc     # ehp is 0 on the tick we die (FFA sim seed 10: ZeroDivisionError)
     best, best_r = None, 1e9
     for e in fresh:
         if not e.visible and state.t - e.last_seen_t > 0.6:
