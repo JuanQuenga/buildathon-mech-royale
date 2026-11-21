@@ -371,5 +371,28 @@ class TestValuation(unittest.TestCase):
         self.assertIn("gun", rec[0][0])
 
 
+class TestAirLead(unittest.TestCase):
+    def _tg(self, vz, vacc, z=20.0, ground=0.0):
+        tg = combat._Tgt()
+        tg.pos, tg.vel, tg.airborne, tg.vacc, tg.ground = (0, 0, z), (0, 0, vz), True, vacc, ground
+        return tg
+
+    def test_jetting_at_cap_keeps_rising(self):
+        lv, ta = combat._air_motion(self._tg(8.9, 0.0), (0, 0, 8.9), (0, 0, -11.0), 22.0, 0.6)
+        self.assertAlmostEqual(lv[2] * 0.6 + 0.5 * ta[2] * 0.36, 5.34, places=1)
+
+    def test_ballistic_uses_full_gravity(self):
+        lv, ta = combat._air_motion(self._tg(8.0, -22.0), (0, 0, 8.0), (0, 0, -11.0), 22.0, 0.6)
+        self.assertEqual(ta[2], -22.0)
+
+    def test_lands_before_impact(self):
+        lv, ta = combat._air_motion(self._tg(-8.0, -22.0, z=2.0), (0, 0, -8.0), (0, 0, -22.0), 22.0, 0.8)
+        self.assertAlmostEqual(lv[2] * 0.8 + 0.5 * ta[2] * 0.64, -2.0, places=3)
+
+    def test_no_estimate_keeps_old_model(self):
+        self.assertEqual(combat._air_motion(self._tg(3.0, None), (0, 0, 3.0), (0, 0, -11.0), 22.0, 0.5),
+                         ((0, 0, 3.0), (0, 0, -11.0)))
+
+
 if __name__ == "__main__":
     unittest.main()

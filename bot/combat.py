@@ -95,7 +95,7 @@ class _Me:
 class _Tgt:
     __slots__ = ("id", "kind", "pos", "vel", "lead_vel", "radius", "height", "hp", "hp_frac", "los", "dist", "agility",
                  "airborne", "rear", "mortar", "charging", "danger", "visible", "age", "threat", "facing_me", "bearing",
-                 "flip_rate", "since_flip", "flip_min_gap", "jumpy")
+                 "flip_rate", "since_flip", "flip_min_gap", "jumpy", "vacc", "ground")
 
     def __init__(self):
         self.agility = 0.3
@@ -103,6 +103,8 @@ class _Tgt:
         self.since_flip = None
         self.flip_min_gap = None
         self.jumpy = 0.0
+        self.vacc = None
+        self.ground = None
         self.airborne = False
         self.rear = False
         self.mortar = False
@@ -152,6 +154,43 @@ def fire_tick(cooldown: float) -> int:
     return 1 if cooldown <= TICK + 1e-6 else 2
 
 
+def _air_lead() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("air_lead", False))
+    except Exception:
+        return False
+
+
+JET_NET = 12.0       # jet_accel 34 - gravity 22 (m/s^2)
+RISE_CAP = 8.9       # observed vz while jetting at the cap (max_rise_speed 10 applied before gravity: 10 - 22*0.05)
+
+
+def _air_motion(tg: _Tgt, lv, tacc, g: float, tf: float):
+    """Vertical lead for an airborne target from its observed vertical acceleration: ballistic (-g) or jetting
+    (+12 m/s^2 up to the 10 m/s rise cap), and never below the ground under it."""
+    vz = float(tg.vel[2])
+    az = tg.vacc
+    if az is None:
+        return lv, tacc
+    tf = max(0.05, tf)
+    if az > -8.0:                              # thrust on: jetting (or hovering at the cap)
+        if vz >= RISE_CAP - 0.4:
+            a = 0.0
+        else:
+            tc = (RISE_CAP - vz) / JET_NET
+            a = JET_NET if tc >= tf else 2.0 * JET_NET * tc * (tf - 0.5 * tc) / (tf * tf)
+    else:
+        a = -g
+    vzl = vz
+    if tg.ground is not None:
+        drop = vz * tf + 0.5 * a * tf * tf
+        room = tg.ground - tg.pos[2]           # <= 0: how far its feet can fall
+        if drop < room:                        # it lands before the shot arrives: aim at it standing there
+            vzl, a = room / tf, 0.0
+    return (lv[0], lv[1], vzl), (tacc[0], tacc[1], a)
+
+
 def gun_solution(me: _Me, tg: _Tgt, st: Dict[str, float], g: float = 22.0, k: int = 1):
     """(yaw, pitch, t_flight, aim_point, dist) for the gun against a target, or None.
 
@@ -167,6 +206,8 @@ def gun_solution(me: _Me, tg: _Tgt, st: Dict[str, float], g: float = 22.0, k: in
     f = telegraph_factor(effective_flip_rate(tg.flip_rate, tg.since_flip, tg.flip_min_gap, tf0), tf0)
     lv = (f * tg.vel[0], f * tg.vel[1], tg.vel[2] if tg.airborne else 0.0)
     tacc = (0.0, 0.0, -g if (tg.airborne and tg.vel[2] < 0) else (-0.5 * g if tg.airborne else 0.0))
+    if tg.airborne and _air_lead():
+        lv, tacc = _air_motion(tg, lv, tacc, g, tf0)
     extra = (k - 1) * TICK
     lp = me.launch_pos if k == 1 else (me.pos[0] + me.vel[0] * k * TICK, me.pos[1] + me.vel[1] * k * TICK, me.pos[2] + me.vel[2] * k * TICK)
     origin = B.shot_origin(lp, me.aim[0], me.aim[1], me.muzzle)
@@ -320,6 +361,12 @@ def _targets(state: WorldState, intent: Intent, threats: Threats, me: _Me, mem) 
         tg.flip_min_gap = getattr(e, "flip_min_gap", None)
         tg.jumpy = getattr(e, "jumpy", 0.0)
         tg.airborne = getattr(e, "airborne", False)
+        tg.vacc = getattr(e, "vacc", None)
+        if tg.airborne and state.arena is not None:
+            try:
+                tg.ground = float(state.arena.ground_z(tg.pos[0], tg.pos[1], tg.pos[2]))
+            except Exception:
+                tg.ground = None
         tg.rear = getattr(e, "rear_exposed", False)
         tg.mortar = "mortar" in (e.weapons or [])
         tg.charging = e.charging

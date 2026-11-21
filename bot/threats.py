@@ -70,6 +70,7 @@ class EnemyX(EnemyThreat):
     flip_min_gap: Optional[float] = None  # shortest gap between its reversals (periodic strafers)
     jumpy: float = 0.0                    # fraction of the last 3 s it was airborne
     airborne: bool = False
+    vacc: Optional[float] = None          # vertical acceleration from consecutive observed velocities (m/s^2)
     rear_exposed: bool = False            # its back (outside its front arc) faces us: our hits x1.5
     age: float = 0.0                      # seconds since last in obs
     charge_t: float = 0.0                 # how long we've seen it charging (laser)
@@ -407,6 +408,13 @@ def _assess(state: WorldState) -> ThreatsX:
         e.agility = max(0.05, min(1.0, e.flip_rate / 2.0))
         e.lead_vel = tuple(tr.vel)
         e.airborne = abs(tr.vel[2]) > 0.8
+        if tr.visible_now:
+            vzm = mem.setdefault("vz", {})
+            pv = vzm.get(tr.id)
+            if pv is not None and 0.03 < t - pv[0] <= 0.16:
+                e.vacc = (float(tr.vel[2]) - pv[1]) / (t - pv[0])
+            if pv is None or pv[0] < t - 1e-6:
+                vzm[tr.id] = (t, float(tr.vel[2]))
         if tr.max_hp:
             e.hp_frac = float(tr.hp or 0) / max(1.0, float(tr.max_hp))
         e.charging = bool(tr.charging)
