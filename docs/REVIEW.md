@@ -1,9 +1,9 @@
 # Review: Mech Royale entry (for the human and the coordinator)
 
 ## Please submit
-Newest first. Each tag passed the native gate on the MacBook (`NATIVE_ONLY=1 eval/check.sh <tag>`: unit tests,
-recorded stream, slow-policy and crash tests, big and late stress streams, 0 missed replies). Run the Docker gate
-before submitting.
+The table order is the queue. Every tag listed passed the **full Linux gate** (`eval/check.sh <tag>`: unit tests,
+native + Docker with the exact sandbox flags, big and late stress streams, slow-policy and crash guards, 0 missed
+replies) on 11-21 ~05:15 ET.
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
@@ -11,9 +11,10 @@ before submitting.
 | 2 | `good-36` | 1ca1a5a | good-31 with even slower strafe reversals (every 6–10 s) | 5.6 |
 | 3 | `good-37` | 0ebc659 | good-31 with no sideways movement while engaging (hold range only; projectile dodge kept) | 5.5 |
 | 4 | `good-38` | a9a0bd3 | good-31 with no reversals at all (orbit one way) | 5.55 |
-| 5 | `good-32` | 0947af6 | (rage base, no steady strafe) laser standoff 170 m; rebase onto the new best if worth testing | — |
-| 6 | `good-33` | 18ce57f | (rage base) explore for a laser until 120 s, never take a mortar | — |
-| 7 | `good-34` | 709fd65 | (rage base) break contact at the 2nd hunter | — |
+
+Superseded (rage base without steady strafe; gated but less informative now, run only if the queue is empty):
+`good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
+break contact at the 2nd hunter). Steady-base versions follow as good-39+.
 
 Official so far: **good-31 5.56**, good-27 5.25, good-22 5.21, good-30 5.19, good-26 5.04, good-25 4.96, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
