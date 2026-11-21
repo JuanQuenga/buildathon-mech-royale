@@ -216,6 +216,21 @@ def _eta_real(state: WorldState, goal) -> float:
     return d * P["zone_path_factor"] / speed
 
 
+def _field_eta(state: WorldState, p) -> Optional[float]:
+    """Seconds of walking from p into the next circle (nav's cheap travel-time field), None if unavailable."""
+    try:
+        from . import navigate
+        f = getattr(navigate, "zone_eta_at", None)
+        if f is None:
+            return None
+        v = f(state, p[0], p[1], p[2] if len(p) > 2 else None)
+        if v is None or v != v:
+            return None
+        return float(v)
+    except Exception:
+        return None
+
+
 def _safe_point(state: WorldState, c, r, frm=None) -> Tuple[float, float, float]:
     """Point inside circle (c, r) closest to `frm` with a margin."""
     frm = frm or state.pos
@@ -286,6 +301,10 @@ def zone_plan(state: WorldState) -> Dict[str, Any]:
     target = _safe_point(state, c1, r1)
     inside_next = dist2d(state.pos, c1) <= max(0.0, r1 - 2.0)
     eta = _eta(state, target) if not inside_next else 0.0
+    if not inside_next:
+        fe = _field_eta(state, state.pos)  # nav's travel-time field: real walking time around buildings
+        if fe is not None and fe != math.inf:
+            eta = max(eta, fe)
     t_exit = _exit_time(state, state.pos)
     # arrival deadline: before the edge passes our position, and inside the next circle by shrink_end
     deadline = min(t_exit, float(z["shrink_end"])) if not inside_next else t_exit
@@ -304,6 +323,9 @@ def _in_safe_future(state: WorldState, p, extra_eta=0.0) -> bool:
     c1, r1 = z["next_center"], float(z["next_radius"])
     t_here = _eta_quick(state, p)
     back = dist2d(p, _safe_point(state, c1, r1, p)) * P["zone_path_factor"] / max(1.0, state.stat("walk_speed", 11.7))
+    fb = _field_eta(state, p)
+    if fb is not None:
+        back = max(back, fb)
     deadline = min(float(z["shrink_end"]), _exit_time(state, p)) if dist2d(p, c1) > r1 else _exit_time(state, p)
     return state.t + t_here + extra_eta + back + P["zone_buffer_s"] < deadline
 
