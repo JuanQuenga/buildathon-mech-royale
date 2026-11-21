@@ -79,6 +79,9 @@ DEFAULT_PROFILE = "base"
 PROFILES: Dict[str, Dict[str, Any]] = {
     "base": {},
     "greed": {"cube_greed": True},
+    "seek": {"cube_greed": True, "seek": True},                       # hunt the next house bot instead of holding
+    "hret": {"cube_greed": True, "hunter_retreat": 0.3},              # break contact when a 2nd hunter is in sight
+    "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
 
 
