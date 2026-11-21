@@ -99,6 +99,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "stack2": {"cube_greed": True, "seek": True, "seek_min_hp": 0.85, "heal_after_kill": True, "opp_min_hp_squad": 0.85, "crate_value": 32.0,
                "drone_value": 60.0, "drop_max_eta": 70.0, "drop_base": 60.0, "drop_first": True},  # seek + fresh + scale
     "farm": {"cube_greed": True, "crate_value": 32.0, "drone_value": 60.0, "explore_armed_until": 150.0, "seek": True},
+    "lseek": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True},   # good-7 + laser2
     "laser2": {"cube_greed": True, "laser_first": True, "no_mortar": True},
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
