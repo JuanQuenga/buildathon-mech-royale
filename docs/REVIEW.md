@@ -5,20 +5,20 @@ Newest first. Each tag passed the native gate on the MacBook (`NATIVE_ONLY=1 eva
 recorded stream, slow-policy and crash tests, big and late stress streams, 0 missed replies). Run the Docker gate
 before submitting.
 
-| Prio | Tag | Commit | Single hypothesis it tests (compare with good-27 = rage, 5.25) | Expected official |
+| Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-31` | 1f7fa6fa | (queued already) steady strafe on good-22 | 5.2 |
-| 2 | `good-32` | 0947af6 | **Range**: holding a laser, fight mechs from 170 m (normal: 28 m with lightning, 90 m with gun+laser). Tests whether the house tiers' aim falls off with range while our hitscan laser does not (sim +0.19, noise) | 5.35 |
-| 3 | `good-33` | 18ce57f | **First weapon**: explore for a laser until 120 s while armed without one, never take a mortar (sim: gun+laser ≈6 points vs gun+lightning ≈4.5, gun+mortar ≈2.8) | 5.3 |
-| 4 | `good-34` | 709fd65 | **Duel discipline**: break contact whenever a second hunter is in sight (unless the target is below 30 % HP). This check now overrides rage's never-retreat. Contrasts "one hunter at a time" with rage | 5.25 |
+| 1 | `good-35` | 370d88e | **Stack**: good-31 (steady strafe, 5.56) + rage. Profile `laser+nav3x+fixx+ragex+steadyx` | 5.6 |
+| 2 | `good-36` | 1ca1a5a | good-31 with even slower strafe reversals (every 6–10 s) | 5.6 |
+| 3 | `good-37` | 0ebc659 | good-31 with no sideways movement while engaging (hold range only; projectile dodge kept) | 5.5 |
+| 4 | `good-38` | a9a0bd3 | good-31 with no reversals at all (orbit one way) | 5.55 |
+| 5 | `good-32` | 0947af6 | (rage base, no steady strafe) laser standoff 170 m; rebase onto the new best if worth testing | — |
+| 6 | `good-33` | 18ce57f | (rage base) explore for a laser until 120 s, never take a mortar | — |
+| 7 | `good-34` | 709fd65 | (rage base) break contact at the 2nd hunter | — |
 
-Dropped as superseded by rage (which includes aggro, berserk and seek-by-sound): good-18, good-19, good-20, good-21, good-23 and good-24.
-The hybrids good-28/29 were skipped (hide 5.04). Base for new tags: good-27's profile `laser+nav3x+fixx+ragex`.
-
-Official so far: good-27 5.25, good-22 5.21, good-30 5.19, good-26 5.04, good-25 4.96, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
+Official so far: **good-31 5.56**, good-27 5.25, good-22 5.21, good-30 5.19, good-26 5.04, good-25 4.96, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
 
 ## Recommended final entry
-`good-27` (6720a56, rage: laser first + good-3 nav + hop fix + aggressive hunting), official **5.25**, until something beats it officially.
+**`good-31` (1f7fa6f, profile `laser+nav3x+fixx+steadyx`: laser first + good-3 nav + stale-hop fix + steady strafe), official 5.56.**
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
