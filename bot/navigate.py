@@ -29,7 +29,7 @@ JET_TIMEOUT = 5.0
 PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 2.6, -2.6)
 
 
-JUKE_MIN_RANGE = float(__import__("os").environ.get("MECH_JUKE_RANGE", "80"))   # A/B: 1e9 disables the juke
+JUKE_MIN_RANGE = float(__import__("os").environ.get("MECH_JUKE_RANGE", "1e9"))   # juke OFF: sim squad A/B +0.47 without it (our own hit rate drops); "80" re-enables
 NAVLOG = bool(__import__("os").environ.get("MECH_NAVLOG"))
 
 

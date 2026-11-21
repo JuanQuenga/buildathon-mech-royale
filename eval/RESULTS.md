@@ -64,3 +64,6 @@ small effects.
 | 11-21 ~03:05 (sim de87b36, load ~8) | good-3 | e12b612 | squad | 64 | 3.67 | 3.14 | **−0.53 (−0.91..−0.17)** | **regression**; zone 4→0 but kills 3.59→3.05. Bisecting. |
 | 11-21 ~03:20 (sim de87b36) | good-3 | a77011d (juke + roof weapons + zone field ETA) | squad | 64 | 3.56 | 3.28 | −0.28 (−0.62..+0.08) | bisect: regression already here; zone 3→0 |
 | 11-21 ~03:30 (sim de87b36) | good-3 | a28e180 (+ detection) | squad | 64 | 3.66 | 3.25 | −0.41 (−0.89..+0.06) | bisect |
+| 11-21 ~04:00 (sim de87b36) | 0e30c54 | 0e30c54 + MECH_JUKE_RANGE=1e9 (juke off) | squad | 64 | 3.14 | 3.61 | **+0.47 (+0.06..+0.86)** | juke was the regression → off by default |
+| 11-21 ~04:10 (sim de87b36) | 0e30c54 | + old loot params (no roof/far weapons) | squad | 64 | 3.30 | 3.11 | −0.19 (−0.53..+0.17) | keep new loot params |
+| 11-21 ~04:20 (sim de87b36) | 0e30c54 | + use_zone_field=0 | squad | 64 | 3.28 | 3.25 | −0.03 (−0.33..+0.27) | neutral; keep field (safer zone ETAs) |
