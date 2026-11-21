@@ -128,6 +128,10 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
     if len(m["attackers_ever"]) >= 3 and m["infight"] < 1:
         m["focus"] += 0.05
     ev_ffa, ev_squad = m["infight"], m["focus"]
+    # combat's threats module also gathers evidence (e.g. enemy HP drops we didn't cause): take the stronger
+    se = getattr(threats, "squad_evidence", None)
+    if isinstance(se, dict):
+        ev_ffa = max(ev_ffa, 1.5 * float(se.get("infight", 0.0) or 0.0))
     if ev_ffa >= 3 and ev_ffa > ev_squad:
         state.mode_guess = "ffa"
     elif ev_squad >= 2 and ev_ffa < 1.5:
@@ -569,7 +573,8 @@ def _face_yaw(state: WorldState, m: Dict[str, Any], fresh: List[EnemyThreat], zp
     if math.hypot(v[0], v[1]) > 2:
         # slow scan around the travel direction so the 120 deg wedge sees flanks
         return math.atan2(v[1], v[0]) + 0.9 * math.sin(state.t * 0.8)
-    return None
+    # standing still: sweep the full circle (~10 s per turn) so nobody walks up on our blind side
+    return ((state.t * 0.6) % (2 * math.pi)) - math.pi
 
 
 def _track_sounds(state: WorldState, m: Dict[str, Any]) -> None:
