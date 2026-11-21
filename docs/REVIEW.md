@@ -22,7 +22,25 @@ Superseded (rage base without steady strafe; gated but less informative now, run
 `good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
 break contact at the 2nd hunter). Steady-base versions follow as good-39+.
 
-Official so far: **good-31 5.56**, good-27 5.25, good-22 5.21, good-30 5.19, good-26 5.04, good-25 4.96, good-15 5.19, good-17 5.06, good-16 4.88, good-14 5.17, good-10 5.10, good-7 5.00, good-11 5.00, good-6 4.96, good-3 4.88/4.85, good-8 4.79, good-9 (chaos control) 4.79, good-4 4.58, good-5 4.46.
+## Official results (48 fixed-seed practice matches each; identical-build noise ±0.03, between builds ~±0.1)
+| Tag | Score | What it changed |
+| --- | --- | --- |
+| good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-27 | 5.25 | good-22 + rage (hunt by memory/sound, engage ratio 1.6, fight from 40 % HP, berserk) |
+| good-22 | 5.21 | laser first + good-3 navigation + stale-hop fix |
+| good-15 / good-30 | 5.19 / 5.19 | laser + nav3 / good-22 + juke (0.3–1.0 s reversals beyond 80 m) |
+| good-14 | 5.17 | seek + nav3 |
+| good-10 | 5.10 | greed + laser first |
+| good-17 | 5.06 | seek + nav3 + scale |
+| good-26 | 5.04 | good-22 + hide |
+| good-7 / good-11 | 5.00 / 5.00 | seek / seek + laser + no mortar |
+| good-6 / good-25 | 4.96 / 4.96 | greed / good-22 + combat hops |
+| good-3 / good-16 | 4.88, 4.85 / 4.88 | old base (two runs) / ground-only routes |
+| good-8 / good-9 | 4.79 / 4.79 | fresh (heal after kill) / chaos control |
+| good-4 / good-5 | 4.58 / 4.46 | old nav / good-4 + good-3 brain |
+
+Pending (queued above): good-32..44.
+
 
 ## Recommended final entry
 **`good-31` (1f7fa6f, profile `laser+nav3x+fixx+steadyx`: laser first + good-3 nav + stale-hop fix + steady strafe), official 5.56.**
