@@ -93,7 +93,7 @@ The only official squad-mode number we have: **kit example bot = 1.15** (officia
 | Squad setting | Example bot in the sim (mean of 16 − place) |
 | --- | --- |
 | Non-engaged house bots retaliate for 4 s after being hit | 0.22 ± 0.18 (n = 32) |
-| **No retaliation (default)** | **1.00 ± 0.34 (n = 32)**, after the tier retune: see below |
+| **No retaliation (default)** | **1.00 ± 0.34 (n = 32)**; after the kiting/jink tier retune **0.92 ± 0.31 (n = 48)**: deaths 31× easy (the early engager), 6× medium, 3× hard, 2× expert, 5× NPC, 1× zone; a cluster at 300 s when all engage |
 
 So in the sim the example bot dies mostly to the one or two engaged bots. Who killed it and when is in `--out`.
 

@@ -39,7 +39,8 @@ UPGRADE_PREF = ["armor", "plating", "nanites", "gun_damage", "gun_rate", "laser_
 
 
 class BuiltinBot:
-    def __init__(self, tier, world, cfg, seed, slot):
+    def __init__(self, tier, world, cfg, seed, slot, nav=None):
+        self.nav = nav
         self.tier = tier
         self.p = dict(TIERS[tier])
         self.W = world
@@ -273,6 +274,11 @@ class BuiltinBot:
                     rr = R * math.sqrt(self.rng.random())
                     self.wander = (zc[0] + rr * math.cos(a_), zc[1] + rr * math.sin(a_))
                 goal = self.wander
+        if urgent and self.nav is not None:
+            z_ = obs["zone"]
+            wp = self.nav.waypoint(z_["next_center"], z_["next_radius"], x, y)
+            if wp is not None:
+                goal = wp
         if goal is not None:
             mv, jump, boost = self._steer(me, goal, t, boost_ok=boost_ok or urgent)
             if urgent and not me["in_zone"]:
@@ -366,6 +372,27 @@ class BuiltinBot:
         if gun and gun["kind"] == "gun" and gun["ammo"] < gun["stats"]["mag"] * 0.4 and aim_t is None and gun["reload"] == 0:
             a["reload"] = True
         return a
+
+
+class NavContext:
+    """per-match cache of zone flow fields shared by all built-in bots"""
+
+    def __init__(self, world):
+        from nav import NavGrid
+        g = getattr(world, "_navgrid", None)
+        if g is None:
+            g = NavGrid(world)
+            world._navgrid = g
+        self.g = g
+        self.fields = {}
+
+    def waypoint(self, centre, radius, x, y):
+        key = (round(centre[0], 1), round(centre[1], 1), round(radius, 1))
+        f = self.fields.get(key)
+        if f is None:
+            f = self.g.field_to_circle(centre[0], centre[1], radius)
+            self.fields[key] = f
+        return self.g.next_waypoint(f, x, y)
 
 
 class SquadDirector:

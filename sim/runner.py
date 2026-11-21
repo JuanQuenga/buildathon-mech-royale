@@ -260,6 +260,7 @@ def run_match(world, seed, mode="squad", bot_cmds=("python3 -u bot/main.py",), f
         validator = Validator()
     budget_s = (budget_ms if budget_ms is not None else cfg["bot"]["tick_budget_ms"]) / 1000.0
     ctrls = {}
+    navctx = None
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
     house_ids, house_tiers = [], {}
@@ -274,7 +275,10 @@ def run_match(world, seed, mode="squad", bot_cmds=("python3 -u bot/main.py",), f
             tier = e[1]
             if tier not in TIERS:
                 raise ValueError(f"unknown built-in tier {tier}; known {sorted(TIERS)}")
-            b = BuiltinBot(tier, world, cfg, seed, i)
+            if navctx is None and sim.get("builtin_nav", True):
+                from builtin import NavContext
+                navctx = NavContext(world)
+            b = BuiltinBot(tier, world, cfg, seed, i, nav=navctx)
             b.external = False
             ctrls[i] = b
             if e[0] == "house":
