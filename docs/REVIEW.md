@@ -3,28 +3,27 @@
 ## Please submit
 The table order is the queue. Every tag listed passed the **full Linux gate** (`eval/check.sh <tag>`: unit tests,
 native + Docker with the exact sandbox flags, big and late stress streams, slow-policy and crash guards, 0 missed
-replies). Agreed with the coordinator (08:00): **re-rolls first, at most one experiment per hour** (no single-hypothesis variant has beaten the base policy beyond noise). Engineering time goes to FFA (track 2, below). good-49 is the FFA candidate's practice check.
+replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 draws, mean 5.38), so a re-roll beats 5.56 only ~1 in 15, while one experiment run can resolve ~0.3 effects. Queue = experiments with a plausible practice-mean gain about every other slot, re-rolls in between. good-49 (`ffax`, practice-neutral by design, 0 effect in FFA self-play) is withdrawn from the queue.
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-50` | a634383 | **Opening hold-fire** (`openholdx`): while unarmed, in the first 45 s, and unless the round is known to be squad, never start a fight (only answer fire, or finish a killable mech). Real showdowns: all three of our opening deaths (18.7, 24.6, 32.8 s) were gun fights **we** started in the first 5 s while unarmed. Changes practice openings too (sim squad +0.21 ± 0.53), so this run checks the practice cost. FFA candidate | 5.4 |
+| 1 | `good-52` | 2d14b1f | good-31 + **longer planned jet climbs** (`jet60x`: jet_cap 40 → 60 m, roof weapons up to 35 m). Navigation is the one lever with large real effects (good-4 hop rules −0.3, ground-only −0.29 = jet_cap 0), so the dose-response may continue upward | 5.5 |
 | 2 | `good-r4` | 0647f5f | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 | 3 | `good-r5` | 964946c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 4 | `good-r6` | fe55d11 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 5 | `good-49` | 20b1e60 | **FFA candidate**: good-31 policy + `ffax` (FFA-only tactics, inactive in squad unless the detector errs, ~7 % in sim). Its official run checks the switch costs nothing in practice before we consider it for the final; it is also a near-re-roll of the good-31 policy | 5.3 |
+| 4 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 5 | `good-r6` | fe55d11 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 | 6 | `good-r7` | 7b21405 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 7 | `good-r8` | 90709e2 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 8 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 9 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 10 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 11 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 12 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 13 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 7 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 8 | `good-r8` | 90709e2 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 9 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 10 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 11 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 12 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 13 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 | 14 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 | 15 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 | 16 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
-| 17 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 18 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 17 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -151,7 +150,7 @@ SELFPLAY_V5
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
 | --- | --- | --- | --- |
-| **steady strafe on laser + nav3 + hop fix** (good-31 policy and its re-rolls) | 31: 5.56, 46: 5.29, 47: 5.40 | **5.42** (n=3, SD 0.14) | the recommended policy; good-r1…r16 are further re-rolls |
+| **steady strafe on laser + nav3 + hop fix** (good-31 policy and its re-rolls) | 31: 5.56, 46: 5.29, 47: 5.40, r1: 5.25, r2: 5.29, r3: 5.48 | **5.38** (n=6, SD 0.12) | the recommended practice policy; good-r4…r16 are further re-rolls |
 | steady family incl. variants | 31, 46, 35, 36, 37, 38, 39 | 5.31 (n=7) | no variant of it beats it beyond noise |
 | non-steady laser + nav3 (+ hop fix) | 15: 5.19, 22: 5.21, 27: 5.25, 30: 5.19 | 5.21 (n=4) | |
 | nav3 without laser first | 14: 5.17, 17: 5.06, 16: 4.88 | 5.04 | |
@@ -162,6 +161,10 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-50 | 5.35 | good-31 + opening hold-fire (FFA candidate): no practice cost |
+| good-r3 | 5.48 | re-roll of good-31 |
+| good-r2 | 5.29 | re-roll of good-31 |
+| good-r1 | 5.25 | re-roll of good-31 |
 | good-48 | 5.35 | good-31 + gun discipline beyond 150 m |
 | good-40 | 5.25 | good-31 + airborne gun lead |
 | good-42 | **4.73** | good-31 + break contact at the 2nd hunter: clearly worse (−0.7); idea and relatives dropped |

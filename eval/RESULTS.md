@@ -34,6 +34,7 @@ official numbers and say so here in bold.**
 | 11-21 ~06:45 | 8ff6019 / 72710d6 | good-46 / good-39 | 5.29 / 5.27 | re-roll of good-31 (good-31 drew ~+0.27 high) / boost strafe: no gain |
 | 11-21 ~07:26 | b0592f6 | good-47 | 5.40 | second re-roll of good-31: policy mean 5.42 over 3 draws (5.56, 5.29, 5.40) |
 | 11-21 ~07:48 | 633caaf / 0208ea2 / 6d78ab0 | good-40 / good-48 / good-42 | 5.25 / 5.35 / **4.73** | airborne lead / gun discipline: both within noise of the 5.42 policy mean; break contact at the 2nd hunter clearly worse (dropped) |
+| 11-21 ~08:48 | 0b3d535 / a3de7d6 / 3539b7c / a634383 | good-r1 / r2 / r3 / good-50 | 5.25 / 5.29 / 5.48 / 5.35 | re-rolls: base policy mean 5.38, SD 0.12 over 6 draws; opening hold-fire costs nothing in practice |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
