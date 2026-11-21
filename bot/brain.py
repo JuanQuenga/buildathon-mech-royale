@@ -86,6 +86,8 @@ P: Dict[str, Any] = {
     "berserk": False,              # A/B: squad/unknown rounds: never retreat from a fight (90 % of deaths came in
                                    # retreat mode; points are kills, so trade to the end on the best target)
     "berserk_max_ratio": 4.0,      # ...but still retreat from hopeless fights (TTK ratio above this)
+    "hide": False,                 # A/B survival-first: squad/unknown rounds, no fight on us: break line of sight from
+                                   # every visible house bot (shared vision is how the squad finds us), never hunt
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -127,6 +129,10 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ghostx": {"conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0},
     "hopcx": {"combat_hop": True},
     "jet60x": {"jet_cap": 60.0, "roof_weapon_dz": 35.0},
+    "hidex": {"hide": True, "conveyor": True, "conveyor_until": 480.0, "seek": False, "drone_value": 0.0,
+              "heal_below_squad": 0.8, "heal_below": 0.7},
+    "ragex": {"engage_ratio_squad": 1.6, "opp_min_hp_squad": 0.4, "heal_below_squad": 0.4, "seek": True, "seek_min_hp": 0.5,
+              "seek_sound": True, "berserk": True, "seek_mem_s": 60.0, "seek_max_m": 400.0},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
@@ -564,6 +570,9 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     attackers = set(threats.attackers)
     m["att_now"] = tuple(attackers)
     hot = [e for e in fresh if e.id in attackers or e.can_hit_me or e.dist < 60]
+    if P["hide"] and state.mode_guess != "ffa":   # survival-first: only mechs hunting us count as a fight
+        hs = set(getattr(threats, "hunters", None) or [])
+        hot = [e for e in fresh if e.id in attackers or e.id in hs or e.dist < 25]
     face = _face_yaw(state, m, fresh, zp)
     mode_g = state.mode_guess
 
@@ -626,6 +635,15 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             it = Intent(mode="engage", goal=None, target_id=tgt.id, desired_range=_desired_range(state, tgt),
                         urgency=0.5, face=yaw_to(state.pos, tgt.pos), allow_fire=True,
                         avoid=[e.pos for e in hot if e.id != tgt.id], reason=f"engage {tgt.id} r={fight['ratio']:.2f}")
+            return _finish(state, m, it)
+
+    # 2a. survival-first: stay out of sight of passive house bots
+    if P["hide"] and state.mode_guess != "ffa" and not hot:
+        seen_by = [e for e in fresh if e.visible and e.dist < 220]
+        if seen_by:
+            m["last_threat_pos"], m["last_threat_t"] = seen_by[0].pos, state.t
+            it = Intent(mode="heal", goal=_cover_from(state, [e.pos for e in seen_by], zp), urgency=0.5, face=face,
+                        allow_fire=False, allow_boost=True, avoid=[e.pos for e in seen_by], reason="hide")
             return _finish(state, m, it)
 
     # 2b. shot by a mech we cannot see (behind us / beyond near range): turn to it and fight, or go to cover
