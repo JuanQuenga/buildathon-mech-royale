@@ -120,7 +120,8 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
                              "death_cause": r.get("death_cause") or "survived", "kills": r.get("kills", 0),
                              "missed_replies": r.get("missed_replies", 0), "late": r.get("late_replies", 0),
                              "cubes": r.get("cubes", 0), "zone_dmg": r.get("zone_dmg", 0),
-                             "tracebacks": int(r.get("bot_stderr_tracebacks", 0) or 0)})
+                             "tracebacks": int(r.get("bot_stderr_tracebacks", 0) or 0),
+                             "two_weapons": len([w for w in (r.get("loadout") or []) if w]) >= 2})
                 continue
             for m in r.get("mechs") or []:
                 if not m.get("tracked"):
@@ -209,7 +210,10 @@ def main():
             print(f"    causes cand {causes(rc)}  missed_replies={miss} tracebacks={tbk}")
             kb = statistics.mean(float(r.get("kills", 0) or 0) for r in rb) if rb else 0
             kc = statistics.mean(float(r.get("kills", 0) or 0) for r in rc) if rc else 0
-            print(f"    kills/match base {kb:.2f} cand {kc:.2f}   time alive base {alive_b:.0f}s cand {alive_c:.0f}s")
+            w2b = 100 * statistics.mean(1.0 if r.get("two_weapons") else 0.0 for r in rb) if rb else 0
+            w2c = 100 * statistics.mean(1.0 if r.get("two_weapons") else 0.0 for r in rc) if rc else 0
+            print(f"    kills/match base {kb:.2f} cand {kc:.2f}   time alive base {alive_b:.0f}s cand {alive_c:.0f}s   "
+                  f"2 weapons at end base {w2b:.0f}% cand {w2c:.0f}%")
             lines.append(f"| {time.strftime('%m-%d %H:%M')} | {bs} | {cs} | {mode} | {len(common)} | {mb:.2f} | {mc:.2f} | "
                          f"{mc - mb:+.2f} ({lo:+.2f}..{hi:+.2f}) | {causes(rc)} miss={miss} tb={tbk} |")
         if a.log:

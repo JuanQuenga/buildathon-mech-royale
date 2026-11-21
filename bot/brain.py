@@ -35,6 +35,9 @@ P: Dict[str, Any] = {
     "engage_ratio_squad": 1.1,     # in squad mode take fights that are roughly even (kills are the score)
     "engage_ratio_ffa": 0.6,       # in FFA only clearly favourable fights
     "loot_max_dist": 160.0,
+    "loot_max_dist_weapon": 260.0,  # empty slot 1: travel further for a weapon
+    "roof_weapon_dz": 25.0,
+    "weapon_first_value": 60.0,
     "drone_min_hp_frac": 0.6,
     "crate_min_hp_frac": 0.5,
     "memory_item_s": 90.0,
@@ -684,10 +687,12 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
         if bl.get(i, -1e9) > state.t:
             continue
         d = dist2d(r["pos"], state.pos)
-        if d > P["loot_max_dist"]:
+        need_weapon = r["type"] == "pickup" and kinds[1] is None
+        if d > (P["loot_max_dist_weapon"] if need_weapon else P["loot_max_dist"]):
             continue
         dz = r["pos"][2] - state.pos[2]
-        if dz > 6:  # roof loot: only nav knows if reachable; skip unless very close
+        # roof loot: nav can jet-hop onto roofs (~60 m climb with full energy); only worth it for a first secondary
+        if dz > (P["roof_weapon_dz"] if need_weapon else 6):
             continue
         val = 0.0
         if r["type"] == "pickup":
@@ -696,7 +701,7 @@ def _loot_choice(state: WorldState, m, fresh, zp, hpf) -> Optional[Intent]:
                 continue
             v = WEAPON_VALUE.get(k, 1.0)
             if kinds[1] is None:
-                val = 40 * v
+                val = P["weapon_first_value"] * v  # a second weapon early is the biggest combat lever
             else:
                 worst = min(WEAPON_VALUE.get(kinds[1], 1), WEAPON_VALUE.get(kinds[0] or "gun", 1))
                 if v <= worst + 0.5:
@@ -837,7 +842,14 @@ def summary(state: WorldState) -> Dict[str, Any]:
         cause = "zone" if zone > other else "outgunned"
     if m.get("stuck_s", 0) > 8:
         cause += "+stuck"
-    return {"mode_guess": state.mode_guess, "evidence": state.mode_evidence, "modes": m["modes"],
+    combat_stats = None
+    try:
+        from . import combat as _combat
+        if hasattr(_combat, "summary"):
+            combat_stats = _combat.summary(state)
+    except Exception:
+        pass
+    return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence, "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
             "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"]}

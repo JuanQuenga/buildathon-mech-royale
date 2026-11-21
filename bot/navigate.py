@@ -11,6 +11,7 @@ catches everything and falls back to straight-line steering toward the goal.
 from __future__ import annotations
 
 import math
+import random
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -26,6 +27,9 @@ ROUTE_AVOID = False         # exposure-aware A* (Arena.plan_full avoid=); see _a
 JET_CAP = 40.0              # max climb (m) the planner may use; energy is waited for at the hop base
 JET_TIMEOUT = 5.0
 PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 2.6, -2.6)
+
+
+JUKE_MIN_RANGE = 80.0
 
 
 def _mem(state: WorldState) -> Dict[str, Any]:
@@ -356,8 +360,15 @@ def _engage_dir(state: WorldState, intent: Intent, m) -> Optional[Tuple[float, f
     radial = max(-1.0, min(1.0, (d - want) / 15.0))
     if state.t >= m["strafe_t"]:
         m["strafe_sign"] = -m["strafe_sign"]
-        # deterministic jitter from tick so the period is not predictable
-        m["strafe_t"] = state.t + 1.2 + ((state.tick * 7919) % 13) / 10.0
+        # Beyond ~80 m random reversals every 0.3-1.0 s ("juke") cut incoming gun damage far more than a slow
+        # strafe (sim duel harness vs expert gun: 93 -> 56 dmg/s at 120 m, 72 -> 27 at 180 m). Up close
+        # nothing helps much, so keep the steadier strafe there (more of our own shots land).
+        if d > JUKE_MIN_RANGE:
+            m["strafe_t"] = state.t + 0.3 + 0.7 * random.random()
+            m["juking"] = True
+        else:
+            m["strafe_t"] = state.t + 1.2 + 1.2 * random.random()
+            m["juking"] = False
     s = m["strafe_sign"]
     tx, ty = -uy * s, ux * s
     w_t = 0.85 if abs(radial) < 0.7 else 0.4
@@ -477,6 +488,9 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
 
     # ---------------- dodge incoming projectiles
     dodge = threats.dodge if threats is not None else None
+    if mode == "engage" and m.get("juking") and threats is not None and hasattr(threats, "dodge_shell"):
+        # while juking, reacting to bullets makes us predictable: only dodge mortar shells
+        dodge = getattr(threats, "dodge_shell", None)
     if dodge is not None and (dodge[0] or dodge[1]):
         soon = min((p.t_impact for p in (threats.incoming or [])), default=1.0)
         w = 1.0 if soon < 0.6 else 0.5
