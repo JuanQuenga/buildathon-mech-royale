@@ -22,8 +22,9 @@ action  = assembled + sanitized by main (tick echoed, numbers finite, move clamp
 
 Exactly one module owns each action field. Every call is wrapped: an exception returns that module's previous
 output (logged to stderr, rate-limited). After `SOFT_BUDGET` (18 ms since the obs was read) remaining modules are
-skipped and their previous outputs reused. The policy runs in a worker thread; if it hasn't answered by
-`HARD_CUTOFF` (30 ms) main replies with the previous continuous controls (move/boost/aim) and no fire.
+skipped and their previous outputs reused. The policy runs in a forked, niced child process (the parent only
+does I/O); if it hasn't answered by `HARD_CUTOFF` (26 ms) the parent replies with the previous continuous controls
+(move/boost/aim) and no fire. `MECH_GUARD=thread` switches to the older worker-thread guard.
 **Per-module target: p99 < 3 ms, max < 10 ms on 1 CPU.** Expensive work (path planning) must be cached /
 amortised across ticks (keep it in `state.scratch["<module>"]`).
 
@@ -99,5 +100,5 @@ docker build -t mech-bot . && python3 <kit>/check/check.py --map-dir /arena -- d
   --tmpfs /tmp:rw,size=64m --user 65534:65534 -v "<kit>/arena:/arena:ro" mech-bot
 ```
 
-Env knobs: `MECH_HARD_CUTOFF_MS` (30), `MECH_SOFT_BUDGET_MS` (18), `MECH_STATS` (path), `MECH_DEBUG` (=1 attaches
+Env knobs: `MECH_HARD_CUTOFF_MS` (26), `MECH_GUARD` (process|thread), `MECH_BRAIN` (brain tunables, A/B only), `MECH_SOFT_BUDGET_MS` (18), `MECH_STATS` (path), `MECH_DEBUG` (=1 attaches
 debug drawings from `brain.debug`).
