@@ -105,6 +105,10 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "lseek": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True},   # good-7 + laser2
     "lhunt": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "explore_for_laser_until": 120.0},
     "lstand": {"cube_greed": True, "seek": True, "laser_first": True, "no_mortar": True, "laser_standoff": 120.0},
+    "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
+    "standx": {"laser_standoff": 120.0},
+    "laserx": {"laser_first": True, "no_mortar": True},
+    "picky_x": {"squad_picky": True, "engage_ratio_squad": 0.6},
     "laser2": {"cube_greed": True, "laser_first": True, "no_mortar": True},
     "fresh": {"cube_greed": True, "heal_after_kill": True, "opp_min_hp_squad": 0.85},  # full HP before new fights
 }
@@ -114,9 +118,10 @@ def _env_overrides() -> None:
     """MECH_BRAIN='heal_below=0.7,engage_ratio_squad=0.8' overrides tunables (eval A/B only)."""
     import os
     prof = os.environ.get("MECH_PROFILE", DEFAULT_PROFILE)
-    for k, v in PROFILES.get(prof, {}).items():
-        if k in P:
-            P[k] = v
+    for part in prof.split("+"):          # composable: "seek+scale" applies seek, then scale
+        for k, v in PROFILES.get(part.strip(), {}).items():
+            if k in P:
+                P[k] = v
     P["profile"] = prof
     spec = os.environ.get("MECH_BRAIN", "")
     for part in spec.split(","):
