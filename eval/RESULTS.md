@@ -161,3 +161,15 @@ gun+lightning 4.3 / 4.9, gun+mortar 2.6 / 2.9, gun only 2.3 / 1.7.
 **The sim's paired noise at 96 seeds is about ±0.4.** Laser-first looked +0.55 on greed but −0.28 on seek. Official runs (±0.1) decide.
 
 **Sim repeatability:** the laser profile on the same 96 seeds scored 5.38 one run and 5.09 the next. The sim cannot resolve effects below ~0.4; use it only for crashes and large effects.
+
+## Predictions before scoring (written when queued; official result filled in after)
+Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
+
+| Tag | Change (one each) | Prediction | Official |
+| --- | --- | --- | --- |
+| good-65 | slow6: 6 m/s cap while engaging | 5.45 (real leaders fire at ~6 m/s; sim says our accuracy is speed-independent, so +0.1 at most unless the real aim penalty is large) | |
+| good-66 | stand1: stand with ≤ 1 attacker in sight | 5.40 (stillx, no sideways movement, scored 5.25) | |
+| good-67 | close60: slow6 + 60 m laser range | 5.35 | |
+| good-68 | slow6 twin (r37x) | same as good-65 | |
+| good-55 | FFA candidate (openhold + ffahide3): practice check | 5.34 (FFA-only parts inactive in squad) | |
+| good-43 | snipe: hold 170 m with a laser | 5.25 | |
