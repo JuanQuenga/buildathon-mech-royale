@@ -410,6 +410,8 @@ def _ehp(state: WorldState) -> float:
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
     m = _mem(state)
+    if m.get("first_weapon_t") is None and (state.weapon_kinds() + [None])[1] is not None:
+        m["first_weapon_t"] = round(state.t, 1)
     _remember_items(state, m)
     _update_round(state, threats, m)
     _track_sounds(state, m)
@@ -911,7 +913,8 @@ def summary(state: WorldState) -> Dict[str, Any]:
     return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence, "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
-            "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx")}
+            "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),
+            "first_weapon_t": m.get("first_weapon_t")}
 
 
 def debug(state: WorldState, intent: Intent, threats: Threats, nav, cmb) -> Dict[str, Any]:
