@@ -164,6 +164,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ffastandx": {"ffa_stand": True},
     "lookx": {"look_around": True},
     "ffahidex": {"ffa_hide": True},
+    "ffahide3x": {"ffa_hide": True, "ffa_hide_alive": 3},
     "openholdx": {"open_hold": True},
     "chaos2x": {"scan_phase": 2.5},
     "chaos3x": {"scan_phase": 4.0},
