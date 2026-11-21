@@ -264,6 +264,19 @@ held, by distinct mechs that hit us in the last 3 s; `eval/diag/peek_cond.py`):
 Inside a real peek cycle damage intake is only 6–11 % lower than strafing in the open: cover fighting as built is not
 the step change. Not iterated.
 
+## Movement while fighting the squad (official dose-response)
+| engage movement | tag | official |
+| --- | --- | --- |
+| stand still with ≤ 1 attacker in sight | good-66 | 4.19 |
+| speed capped at 6 m/s | good-65 | 4.77 |
+| no sideways movement (range keeping only) | good-37 | 5.25 |
+| base strafe, reversals every 1.2–2.4 s | good-22 | 5.21 |
+| steady strafe, reversals every 3–5 s (base) | good-31 family | 5.34 (mean of 9) |
+| reversals every 6–10 s / never | good-36 / good-38 | 5.13 / 5.35 |
+| boost-run strafe | good-39 | 5.27 |
+Against the house squad, lateral movement while fighting is worth ~1 point; the FFA leaders' slow firing does not
+transfer. Untested direction: more lateral movement while closing range (good-41 `widex`, queued).
+
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
 | --- | --- | --- | --- |
@@ -278,6 +291,7 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-66 | **4.19** | stand to fire with ≤ 1 attacker in sight: disastrous |
 | good-65 | **4.77** | slow6: cap speed at 6 m/s while engaging: clearly worse (moving slowly while fighting the squad costs ~0.6) |
 | good-64 | 5.44 | arm-first + cycle |
 | good-63 | 5.42 | fight-regen cycle 40 → 90 % |
