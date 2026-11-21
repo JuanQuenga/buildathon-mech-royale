@@ -45,6 +45,9 @@ MARGIN = 0.4
 CAP = 8.0
 R_PLAN = tuple(2.5 * s + MARGIN for s in SCALES)
 DIRS = ((1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1))
+JDIRS = DIRS + tuple((2 * a, 2 * b) for a, b in DIRS)   # jet edges: 1 or 2 blocks away
+MAX_JET_CLIMB = 40.0
+MIN_COMP = 20
 KIND = {"building": 1, "stadium": 2, "bridge": 3}
 
 
@@ -184,6 +187,10 @@ def main(arena_dir, out_path):
         sizes = np.bincount(lab[lab >= 0].ravel())
         main_c = int(np.argmax(sizes))
         walk |= ((lab == main_c).astype(np.uint8) << k)
+        # bit k+3: standable on any component of >= MIN_COMP cells (roofs, stadium bowl/stands, decks)
+        bigc = np.zeros(len(sizes) + 1, bool)
+        bigc[:len(sizes)] = sizes >= MIN_COMP
+        walk |= ((bigc[np.where(lab >= 0, lab, len(sizes))]).astype(np.uint8) << (k + 3))
         print(f"class {k}: r_plan {rp:.2f}  main component {sizes[main_c]} cells, "
               f"{(sizes >= 50).sum()} comps >=50 cells", file=sys.stderr)
         if k == 0:
@@ -198,10 +205,15 @@ def main(arena_dir, out_path):
     K = len(SCALES)
     node = np.full((K, by, bx), 255, np.uint8)
     emask = np.zeros((K, by, bx), np.uint8)
+    jmask = np.zeros((K, by, bx), np.uint16)
+    jclimb = np.zeros((K, by, bx, len(JDIRS)), np.uint8)
+    nosky = (np.isfinite(ceil))
     pad_nx, pad_ny = bx * BLOCK, by * BLOCK
     for k, rp in enumerate(R_PLAN):
         wk = np.zeros((pad_ny, pad_nx), bool)
-        wk[:ny, :nx] = (walk >> k) & 1
+        wk[:ny, :nx] = (walk >> (k + 3)) & 1
+        mainb = np.zeros((pad_ny, pad_nx))
+        mainb[:ny, :nx] = (walk >> k) & 1
         dd = np.zeros((pad_ny, pad_nx))
         dd[:ny, :nx] = dists[k]
         # score: clearance (saturating) minus distance from block centre
@@ -209,6 +221,7 @@ def main(arena_dir, out_path):
         cdist = np.hypot(ox - (BLOCK - 1) / 2, oy - (BLOCK - 1) / 2)
         sc = np.minimum(dd, rp + 2.5).reshape(by, BLOCK, bx, BLOCK).transpose(0, 2, 1, 3).reshape(by, bx, BLOCK * BLOCK)
         sc = sc - 0.15 * np.tile(cdist.ravel(), (by, bx, 1))
+        sc = sc + 2.0 * mainb.reshape(by, BLOCK, bx, BLOCK).transpose(0, 2, 1, 3).reshape(by, bx, BLOCK * BLOCK)
         wb = wk.reshape(by, BLOCK, bx, BLOCK).transpose(0, 2, 1, 3).reshape(by, bx, BLOCK * BLOCK)
         sc = np.where(wb, sc, -1e9)
         best = np.argmax(sc, axis=2)
@@ -221,34 +234,54 @@ def main(arena_dir, out_path):
         fj = BJ * BLOCK + bo_y
         NS = 32
         tt = np.linspace(0, 1, NS)
-        wk_full = ((walk >> k) & 1).astype(bool)
-        for d, (di, dj) in enumerate(DIRS):
+        wk_full = ((walk >> (k + 3)) & 1).astype(bool)
+
+        def sample(di, dj):
             tb_i, tb_j = BI + di, BJ + dj
             valid = has & (tb_i >= 0) & (tb_i < bx) & (tb_j >= 0) & (tb_j < by)
             tb_ic, tb_jc = np.clip(tb_i, 0, bx - 1), np.clip(tb_j, 0, by - 1)
             valid &= has[tb_jc, tb_ic]
             gi, gj = fi[tb_jc, tb_ic], fj[tb_jc, tb_ic]
-            # sample along the segment at NS points, nearest vertex
-            si = np.rint(fi[..., None] + (gi - fi)[..., None] * tt).astype(int)
-            sj = np.rint(fj[..., None] + (gj - fj)[..., None] * tt).astype(int)
-            si = np.clip(si, 0, nx - 1)
-            sj = np.clip(sj, 0, ny - 1)
-            okk = wk_full[sj, si].all(axis=2)
+            si = np.clip(np.rint(fi[..., None] + (gi - fi)[..., None] * tt).astype(int), 0, nx - 1)
+            sj = np.clip(np.rint(fj[..., None] + (gj - fj)[..., None] * tt).astype(int), 0, ny - 1)
+            return valid, si, sj
+
+        walked = {}
+        for d, (di, dj) in enumerate(DIRS):
+            valid, si, sj = sample(di, dj)
+            stand = wk_full[sj, si]
             zz = g[sj, si]
             rise = np.diff(zz, axis=2)
-            okk &= (rise <= STEP_UP).all(axis=2)
-            emask[k] |= ((valid & okk).astype(np.uint8) << d)
+            # walk / drop: never rise more than step_up between samples; samples we cannot stand on are only
+            # allowed while airborne after a drop (well below the highest surface so far)
+            runmax = np.maximum.accumulate(zz, axis=2)
+            okk = (rise <= STEP_UP).all(axis=2) & (stand | (zz < runmax - 3.0)).all(axis=2) & stand[..., -1]
+            e = valid & okk
+            walked[(di, dj)] = e
+            emask[k] |= (e.astype(np.uint8) << d)
+        for d, (di, dj) in enumerate(JDIRS):
+            valid, si, sj = sample(di, dj)
+            if (di, dj) in walked:
+                valid &= ~walked[(di, dj)]
+            zz = g[sj, si]
+            climb = zz.max(axis=2) - zz[..., 0]
+            okk = valid & (climb > STEP_UP) & (climb <= MAX_JET_CLIMB) & ~nosky[sj, si].any(axis=2)
+            jmask[k] |= (okk.astype(np.uint16) << d)
+            jclimb[k][..., d] = np.where(okk, np.clip(np.ceil((climb + 0.3) * 4), 0, 255), 0).astype(np.uint8)
         nn = has.sum()
         ne = sum(int(((emask[k] >> d) & 1).sum()) for d in range(8))
-        print(f"class {k}: {nn} nodes, {ne} directed edges", file=sys.stderr)
+        nj = sum(int(((jmask[k] >> d) & 1).sum()) for d in range(len(JDIRS)))
+        print(f"class {k}: {nn} nodes, {ne} walk/drop edges, {nj} jet edges", file=sys.stderr)
 
     gcm = np.clip(np.round(g * 100), -32000, 32000).astype(np.int16)
     ccm = np.where(np.isinf(ceil), 32767, np.clip(np.round(ceil * 100), -32000, 32000)).astype(np.int16)
     kind_f = kind | (steep.astype(np.uint8) << 4) | (np.isfinite(ceil).astype(np.uint8) << 5)
     meta = dict(world_sha1=sha, nx=nx, ny=ny, minX=x0, minY=y0, block=BLOCK, scales=SCALES, r_plan=R_PLAN,
-                step_up=STEP_UP, max_slope_deg=MAX_SLOPE_DEG, height=HEIGHT, dirs=DIRS, version=1)
+                step_up=STEP_UP, max_slope_deg=MAX_SLOPE_DEG, height=HEIGHT, dirs=DIRS, jdirs=JDIRS,
+                max_jet_climb=MAX_JET_CLIMB, version=2)
     np.savez_compressed(out_path, meta=np.frombuffer(json.dumps(meta).encode(), np.uint8), g=gcm, ceil=ccm,
-                        kind=kind_f, dwall=dwall, walk=walk, comp=comp0, node=node, emask=emask)
+                        kind=kind_f, dwall=dwall, walk=walk, comp=comp0, node=node, emask=emask, jmask=jmask,
+                        jclimb=jclimb)
     print(f"wrote {out_path} in {time.time() - t0:.1f}s", file=sys.stderr)
 
 

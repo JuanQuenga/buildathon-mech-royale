@@ -22,6 +22,8 @@ WP_REACH = 2.5
 STALL_WINDOW = 1.2          # s of history used to detect a stall
 STALL_MIN_FRAC = 0.2        # moved less than this fraction of the expected distance => stalled
 ENERGY_RESERVE = 35.0       # keep this much for jets / escapes unless urgent
+JET_CAP = 40.0              # max climb (m) the planner may use; energy is waited for at the hop base
+JET_TIMEOUT = 5.0
 PROBE_ANGLES = (0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.9, -1.9, 2.6, -2.6)
 
 
@@ -244,18 +246,23 @@ def _advance_path(state: WorldState, m, ar, k) -> None:
     path = m["path"]
     x, y = state.pos[0], state.pos[1]
     # drop reached waypoints, or waypoints we have passed (closer to the next one than this one to it)
+    z = state.pos[2]
     while len(path) > 1:
         w0, w1 = path[0], path[1]
+        if _is_jet(w0):
+            break
         d0 = math.hypot(w0[0] - x, w0[1] - y)
-        if d0 < WP_REACH:
+        if d0 < WP_REACH and abs(z - w0[2]) < 4.0:
             path.pop(0)
             continue
+        if _is_jet(w1):
+            break
         seg = math.hypot(w1[0] - w0[0], w1[1] - w0[1])
         if math.hypot(w1[0] - x, w1[1] - y) < seg - 0.5 and ar is not None and ar.walk_line(x, y, w1[0], w1[1], k):
             path.pop(0)
             continue
         break
-    if len(path) == 1 and math.hypot(path[0][0] - x, path[0][1] - y) < 1.0:
+    if len(path) == 1 and not _is_jet(path[0]) and math.hypot(path[0][0] - x, path[0][1] - y) < 1.0:
         path.pop(0)
 
 
@@ -265,9 +272,11 @@ def _lookahead(state: WorldState, m, ar, k) -> Optional[Tuple[float, float, floa
         return None
     x, y = state.pos[0], state.pos[1]
     tgt = path[0]
+    if _is_jet(tgt):
+        return tgt
     # look one/two waypoints further if straight-walkable (shortcut corners)
     for j in (2, 1):
-        if j < len(path) and math.hypot(path[j][0] - x, path[j][1] - y) < 45.0:
+        if j < len(path) and not any(_is_jet(w) for w in path[:j + 1]) and math.hypot(path[j][0] - x, path[j][1] - y) < 45.0:
             if ar.walk_line(x, y, path[j][0], path[j][1], k):
                 for _ in range(j):
                     path.pop(0)
@@ -371,20 +380,26 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
             else:
                 tgt = None
                 if nav_ok:
-                    og = _offmesh_escape(state, m, ar, k)
-                    if og is not None and dgoal > 6.0:
-                        tgt = og
-                    else:
-                        if _need_replan(state, m, goal):
-                            path = ar.plan(state.pos, goal, cubes=_cubes(state), budget_ms=PLAN_BUDGET_MS)
+                    if True:
+                        if m.get("jet") is None and _need_replan(state, m, goal):
+                            st_, path = ar.plan_full(state.pos, goal, cubes=_cubes(state), budget_ms=PLAN_BUDGET_MS,
+                                                     jet_cap=JET_CAP)
                             m["stats"]["replans"] += 1
                             m["goal"] = tuple(goal)
                             m["plan_t"] = state.t
-                            m["pending"] = bool(path) and len(path) == 1 and dgoal > 12 and not ar.walk_line(x, y, gx, gy, k)
-                            m["path"] = list(path) if path else []
-                            m["unreachable"] = not path
+                            m["pending"] = st_ == "pending"
+                            m["path"] = list(path) if st_ == "ok" else []
+                            m["unreachable"] = st_ == "fail"
+                            if st_ == "fail" and not ar.walkable(x, y, k):
+                                og2 = _offmesh_escape(state, m, ar, k)
+                                if og2 is not None:
+                                    m["path"] = [(og2[0], og2[1], ar.surface(og2[0], og2[1]), "walk", 0.0)]
                         _advance_path(state, m, ar, k)
                         tgt = _lookahead(state, m, ar, k)
+                        if tgt is not None and _is_jet(tgt):
+                            jo = _jet_hop(state, m, ar, tgt, urgency)
+                            if jo is not None:
+                                return jo
                         if tgt is None:
                             tgt = (gx, gy)
                 else:
@@ -402,10 +417,6 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
                 eta_s = L / walk_v
     elif mode == "engage" and intent is not None and intent.target_id is not None:
         want = _engage_dir(state, intent, m)
-    elif nav_ok:
-        og = _offmesh_escape(state, m, ar, k)
-        if og is not None:
-            want = unit2(og[0] - x, og[1] - y)
 
     # ---------------- dodge incoming projectiles
     dodge = threats.dodge if threats is not None else None
@@ -481,6 +492,53 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     if not grounded and m.get("recover") is None and nav_ok and not ar.walkable(x, y, k) and energy > 10 and urgency >= 0.5:
         out.boost = True
     return out
+
+
+def _is_jet(w) -> bool:
+    return len(w) > 3 and w[3] == "jet"
+
+
+def _jet_hop(state: WorldState, m, ar, wp, urgency: float) -> Optional[NavOut]:
+    """Execute a planned jump+jet hop to waypoint wp=(x, y, z, 'jet', climb). Returns the NavOut to use, or
+    None when the hop is finished/aborted (caller continues normal steering)."""
+    x, y, z = state.pos
+    grounded = bool(state.me.get("grounded", True))
+    energy = state.energy
+    climb = float(wp[4]) if len(wp) > 4 else max(0.0, wp[2] - z)
+    need = ar.jet_energy(climb) if ar is not None else 2.0 * climb + 6.0
+    j = m.get("jet")
+    d = math.hypot(wp[0] - x, wp[1] - y)
+    dirx, diry = unit2(wp[0] - x, wp[1] - y)
+    if j is None:
+        if not grounded:
+            return NavOut(move=(dirx, diry), boost=energy > 5)
+        if energy < need and not (urgency >= 0.8 and energy >= 0.6 * need):
+            # wait at the base for energy (regen starts energy_regen_delay after the last spend)
+            return NavOut(move=(0.0, 0.0), eta=(need - energy) / 18.0 + 1.0)
+        m["jet"] = {"t0": state.t, "z0": z, "climb": climb, "to": wp, "air": False}
+        m["stats"]["jets"] += 1
+        return NavOut(move=(dirx, diry), jump=True, boost=True, eta=2.0)
+    # in progress
+    if not grounded:
+        j["air"] = True
+    top = j["z0"] + j["climb"] + 1.0
+    if state.t - j["t0"] > JET_TIMEOUT or (grounded and j["air"]):
+        m["jet"] = None
+        landed_ok = abs(z - wp[2]) < 2.5 and d < 8.0
+        if landed_ok:
+            if m["path"] and m["path"][0] is wp:
+                m["path"].pop(0)
+        else:
+            m["path"] = []        # failed hop: replan from where we are
+            m["jet_fail"] = m.get("jet_fail", 0) + 1
+        return None
+    if grounded and not j["air"] and state.t - j["t0"] > 0.4:
+        # jump did not take (blocked?): retry once next tick
+        return NavOut(move=(dirx, diry), jump=True, boost=True, blocked=True)
+    boost = z < top and energy > 1.0
+    # until the feet clear the edge, push gently toward the wall; once above, go for the landing spot
+    mv = (dirx, diry) if z >= top - 1.0 or d > 3.0 else (dirx * 0.5, diry * 0.5)
+    return NavOut(move=mv, boost=boost, jump=False, eta=1.0)
 
 
 def _cmd(m, state: WorldState, mag: float) -> None:

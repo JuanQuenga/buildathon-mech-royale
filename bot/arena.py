@@ -21,6 +21,7 @@ calls (main.py does); methods here avoid raising on bad input where cheap.
 """
 from __future__ import annotations
 
+import array
 import hashlib
 import heapq
 import json
@@ -55,7 +56,7 @@ def size_scale(cubes: float) -> float:
 
 class _Search:
     """Resumable reverse weighted A* from a goal node toward a (moving) start node on one size class."""
-    __slots__ = ("goal", "k", "target", "open", "g", "parent", "closed", "done_fail", "expanded", "t_last")
+    __slots__ = ("goal", "k", "target", "open", "g", "parent", "closed", "done_fail", "expanded", "t_last", "cap")
 
     def __init__(self, goal: int, k: int, target: int):
         self.goal, self.k, self.target = goal, k, target
@@ -64,12 +65,15 @@ class _Search:
         self.parent: Dict[int, int] = {goal: -1}
         self.closed: set = set()
         self.done_fail = False
+        self.cap = 40.0
         self.expanded = 0
         self.t_last = 0.0
 
 
 class Arena:
     W_ASTAR = 1.4                 # heuristic weight (bounded-suboptimal, much faster)
+    JET_FIXED = 25.0              # extra cost (m-equivalent) of any jump+jet hop: noise, energy, risk
+    JET_PER_M = 1.5               # per metre climbed
     MAX_SEARCHES = 10
 
     # ------------------------------------------------------------------ loading
@@ -121,7 +125,8 @@ class Arena:
         self.step = float(t.get("step", 1.0))
         sc = float(t.get("scale", 0.01))
         self.H = (np.fromfile(path, "<i2").reshape(self.ny, self.nx).astype(np.float32) * sc)
-        self._Hl = self.H.ravel().tolist()        # python floats: fast scalar bilinear
+        # array.array, not list: fast scalar access and invisible to the cyclic GC (no full-collection pauses)
+        self._Hl = array.array("f", self.H.ravel().tobytes())
         b = w["bounds"]
         self.bounds = (float(b["minX"]), float(b["maxX"]), float(b["minY"]), float(b["maxY"]))
         rules = w.get("rules") or {}
@@ -142,7 +147,7 @@ class Arena:
                 i0, i1 = gi * c, min(self.nx, gi * c + c + 1)
                 if i0 < self.nx:
                     tmax[gj, gi] = row[:, i0:i1].max()
-        self.cell_tmax = tmax.ravel().tolist()
+        self.cell_tmax = array.array("f", tmax.ravel().tobytes())
 
     def _load_solids(self, w):
         prisms = w.get("prisms") or []
@@ -241,7 +246,7 @@ class Arena:
             raise ValueError("bake grid mismatch")
         self.meta = meta
         self.G = z["g"].astype(np.float32) / 100.0
-        self._Gl = self.G.ravel().tolist()
+        self._Gl = array.array("f", self.G.ravel().tobytes())
         self.KIND = z["kind"]
         self._Kb = self.KIND.tobytes()
         self.CEIL = z["ceil"]
@@ -278,10 +283,20 @@ class Arena:
             d = dwl[np.minimum(fj, self.ny - 1), np.minimum(fi, self.nx - 1)] / 10.0
             # prefer open ground: up to +3 m per edge near walls
             pen[ids] = np.clip((self.r_plan[k] + 2.5 - d) * 1.2, 0, 3.0)
-            self.NXY.append((xs.tolist(), ys.tolist()))
-            self.NPEN.append(pen.tolist())
+            self.NXY.append((array.array("d", xs.tobytes()), array.array("d", ys.tobytes())))
+            self.NPEN.append(array.array("d", pen.tobytes()))
         self.DOFF = [di + dj * self.BX for di, dj in DIRS]
         self.DLEN = [B * (SQ2 if di and dj else 1.0) for di, dj in DIRS]
+        self._DOFFSET = set(self.DOFF)
+        jd = [tuple(v) for v in meta.get("jdirs", [])]
+        self.JOFF = [di + dj * self.BX for di, dj in jd]
+        self.JLEN = [B * math.hypot(di, dj) for di, dj in jd]
+        if "jmask" in z.files and jd:
+            self.jmask = [array.array("H", z["jmask"][k].astype("<u2").tobytes()) for k in range(self.K)]
+            self.jclimb = [z["jclimb"][k].tobytes() for k in range(self.K)]
+        else:
+            self.jmask = [array.array("H", bytes(2 * self.BX * self.BY)) for _ in range(self.K)]
+            self.jclimb = [bytes(self.BX * self.BY * max(1, len(jd))) for _ in range(self.K)]
         self.ok_nav = True
 
     # ------------------------------------------------------------------ small helpers
@@ -624,19 +639,45 @@ class Arena:
             return self.height(x, y)
         return self._Gl[v]
 
-    def walk_line(self, x0, y0, x1, y1, k=0, step=0.5) -> bool:
-        """Straight walk from (x0,y0) to (x1,y1) stays on the main walkable component of class k with no
-        ledge taller than step_up (vectorised; ~20 us)."""
+    def standable(self, x, y, k=0) -> bool:
+        """On any sizeable walkable component (ground, roofs, stadium bowl/stands) for class k."""
+        if not self.ok_nav:
+            return True
+        return bool((self._Wb[self._vidx(x, y)] >> (k + 3)) & 1)
+
+    def walk_line(self, x0, y0, x1, y1, k=0, step=0.5, main=False) -> bool:
+        """Straight walk (x0,y0)->(x1,y1) stays on standable ground of class k (main component only if
+        main=True), never rising more than step_up between samples (drops are allowed). Vectorised, ~20 us."""
         if not self.ok_nav:
             return True
         L = math.hypot(x1 - x0, y1 - y0)
         n = int(L / step) + 2
-        t = np.linspace(0.0, 1.0, n)
+        sh = k if main else k + 3
+        if n <= 40:
+            # short line: plain Python over bytes/array (no numpy call overhead)
+            Wb, Gl, nx, ny = self._Wb, self._Gl, self.nx, self.ny
+            fx0, fy0 = (x0 - self.x0) / self.step, (y0 - self.y0) / self.step
+            dfx, dfy = (x1 - x0) / self.step / (n - 1), (y1 - y0) / self.step / (n - 1)
+            prev = None
+            for q in range(n):
+                i = int(fx0 + dfx * q + 0.5)
+                j = int(fy0 + dfy * q + 0.5)
+                if i < 0 or j < 0 or i >= nx or j >= ny:
+                    return False
+                v = j * nx + i
+                if not (Wb[v] >> sh) & 1:
+                    return False
+                gz = Gl[v]
+                if prev is not None and gz - prev > STEP_UP:
+                    return False
+                prev = gz
+            return True
+        t = np.arange(n) * (1.0 / (n - 1))
         i = np.rint((x0 + (x1 - x0) * t - self.x0) / self.step).astype(np.int32)
         j = np.rint((y0 + (y1 - y0) * t - self.y0) / self.step).astype(np.int32)
         if i.min() < 0 or j.min() < 0 or i.max() >= self.nx or j.max() >= self.ny:
             return False
-        if not ((self.WALK[j, i] >> k) & 1).all():
+        if not ((self.WALK[j, i] >> sh) & 1).all():
             return False
         g = self.G[j, i]
         return bool((np.diff(g) <= STEP_UP).all())
@@ -646,8 +687,13 @@ class Arena:
         xs, ys = self.NXY[k]
         return xs[n], ys[n]
 
-    def snap(self, x, y, k=0, max_r=3, need_line=True) -> int:
-        """Nearest lattice node (id) to (x, y) for class k, -1 if none within max_r blocks."""
+    def node_z(self, n, k=0) -> float:
+        xs, ys = self.NXY[k]
+        return self.surface(xs[n], ys[n])
+
+    def snap(self, x, y, k=0, max_r=3, need_line=True, z=None) -> int:
+        """Nearest lattice node (id) to (x, y[, z]) for class k, -1 if none within max_r blocks.
+        With z, nodes on another level (roof vs street) are heavily penalised."""
         if not self.ok_nav:
             return -1
         B = self.block
@@ -669,6 +715,10 @@ class Arena:
                     if off[n] == 255:
                         continue
                     d = (xs[n] - x) ** 2 + (ys[n] - y) ** 2
+                    if z is not None:
+                        dz = abs(self.surface(xs[n], ys[n]) - z)
+                        if dz > 2.0:
+                            d += 400.0 + 25.0 * dz * dz
                     if d < fd:
                         fallback, fd = n, d
                     if d < bd and (not need_line or self.walk_line(x, y, xs[n], ys[n], k)):
@@ -676,6 +726,21 @@ class Arena:
             if best >= 0 and r >= 1:
                 break
         return best if best >= 0 else fallback
+
+    @staticmethod
+    def jet_energy(climb: float) -> float:
+        """Energy to climb `climb` metres: jump (free ~2.75 m) then jet at ~8.9 m/s for 15 energy/s.
+        Theory 1.7/m; replay house bots used ~2.4/m; plan with 2.0/m + 6 reserve."""
+        return 2.0 * max(0.0, climb - 2.0) + 6.0
+
+    @staticmethod
+    def jet_cap(energy: float) -> float:
+        """Largest climb (m) affordable with `energy`, bucketed (0, 8, 16, 25, 40) so searches are shared."""
+        c = max(0.0, (energy - 6.0) / 2.0 + 2.0)
+        for b in (40.0, 25.0, 16.0, 8.0):
+            if c >= b:
+                return b
+        return 0.0
 
     def _search(self, s: _Search, start: int, budget_s: float) -> bool:
         """Advance reverse search toward `start`. True when start is closed (path known)."""
@@ -686,12 +751,19 @@ class Arena:
         k = s.k
         xs, ys = self.NXY[k]
         em = self.emask[k]
+        jm = self.jmask[k]
+        jc = self.jclimb[k]
+        cap4 = s.cap * 4.0
         pen = self.NPEN[k]
-        DOFF, DLEN = self.DOFF, self.DLEN
+        DOFF, DLEN, JOFF, JLEN = self.DOFF, self.DLEN, self.JOFF, self.JLEN
+        nj = len(JOFF)
         W = self.W_ASTAR
+        NN = len(em)
         sx, sy = xs[start], ys[start]
-        if s.target != start:
-            # re-target the heuristic (the start moved): rebuild priorities
+        t_end = time.perf_counter() + budget_s
+        if s.target != start and (len(s.open) < 6000 or
+                                  math.hypot(xs[s.target] - sx, ys[s.target] - sy) > 40.0):
+            # the start moved: re-target the heuristic (small open lists only, or a big move)
             s.target = start
             s.open = [(s.g[n] + W * math.hypot(xs[n] - sx, ys[n] - sy), n) for (_, n) in s.open if n not in s.closed]
             heapq.heapify(s.open)
@@ -700,8 +772,8 @@ class Arena:
             s.open = [(W * math.hypot(xs[n] - sx, ys[n] - sy), n)]
         g, parent, closed, op = s.g, s.parent, s.closed, s.open
         push, pop = heapq.heappush, heapq.heappop
-        t_end = time.perf_counter() + budget_s
         cnt = 0
+        JF, JM = self.JET_FIXED, self.JET_PER_M
         while op:
             f, n = pop(op)
             if n in closed:
@@ -712,52 +784,79 @@ class Arena:
                 return True
             gn = g[n]
             cnt += 1
-            if cnt & 63 == 0 and time.perf_counter() > t_end:
+            if cnt & 15 == 0 and time.perf_counter() > t_end:
                 push(op, (f, n))
                 closed.discard(n)
                 return False
-            # reverse search: we need edges m -> n (walking from m to n). Edge bit REV[d] at m.
+            # reverse search: incoming walk edges m -> n are bit REV[d] at m = n + DOFF[d]
             for d in range(8):
                 m = n + DOFF[d]
-                if m < 0 or m >= len(em):
-                    continue
-                if not (em[m] >> REV[d]) & 1:
-                    continue
-                if m in closed:
+                if m < 0 or m >= NN or not (em[m] >> REV[d]) & 1 or m in closed:
                     continue
                 gm = gn + DLEN[d] + pen[m]
                 if gm < g.get(m, 1e18):
                     g[m] = gm
                     parent[m] = n
                     push(op, (gm + W * math.hypot(xs[m] - sx, ys[m] - sy), m))
+            if cap4 > 0:
+                # incoming jet edges: m = n - JOFF[d] has bit d
+                for d in range(nj):
+                    m = n - JOFF[d]
+                    if m < 0 or m >= NN or not (jm[m] >> d) & 1 or m in closed:
+                        continue
+                    c4 = jc[m * nj + d]
+                    if c4 > cap4:
+                        continue
+                    gm = gn + JLEN[d] + JF + JM * c4 * 0.25 + pen[m]
+                    if gm < g.get(m, 1e18):
+                        g[m] = gm
+                        parent[m] = n
+                        push(op, (gm + W * math.hypot(xs[m] - sx, ys[m] - sy), m))
         s.done_fail = True
         return False
 
-    def _get_search(self, goal: int, k: int, start: int) -> _Search:
-        key = (goal, k)
+    def _get_search(self, goal: int, k: int, start: int, cap: float) -> _Search:
+        key = (goal, k, cap)
         s = self._searches.get(key)
         if s is None:
             if len(self._searches) >= self.MAX_SEARCHES:
                 old = min(self._searches.items(), key=lambda kv: kv[1].t_last)[0]
                 del self._searches[old]
             s = _Search(goal, k, start)
+            s.cap = cap
             self._searches[key] = s
         s.t_last = time.perf_counter()
         return s
 
-    def plan_nodes(self, start: Vec3, goal: Vec3, k=0, budget_ms=3.0):
+    def edge_kind(self, a: int, b: int, k=0):
+        """('walk', 0) or ('jet', climb_m) for consecutive path nodes a -> b."""
+        dd = b - a
+        em = self.emask[k]
+        for d in range(8):
+            if self.DOFF[d] == dd and (em[a] >> d) & 1:
+                return ("walk", 0.0)
+        jm = self.jmask[k]
+        nj = len(self.JOFF)
+        for d in range(nj):
+            if self.JOFF[d] == dd and (jm[a] >> d) & 1:
+                return ("jet", self.jclimb[k][a * nj + d] * 0.25)
+        return ("walk", 0.0)
+
+    def plan_nodes(self, start: Vec3, goal: Vec3, k=0, budget_ms=3.0, jet_cap=40.0):
         """(status, node list start..goal). status: 'ok' | 'pending' | 'fail' | 'nonav'."""
         if not self.ok_nav:
             return "nonav", []
-        sn = self.snap(start[0], start[1], k, max_r=3)
-        gn = self.snap(goal[0], goal[1], k, max_r=6, need_line=False)
+        sz = float(start[2]) if len(start) > 2 else None
+        gz = float(goal[2]) if len(goal) > 2 else None
+        sn = self.snap(start[0], start[1], k, max_r=3, z=sz)
+        gn = self.snap(goal[0], goal[1], k, max_r=6, need_line=False, z=gz)
         if sn < 0 or gn < 0:
             return "fail", []
         gx, gy = self._node_xy(gn, k)
         self.last_goal_snapped = math.hypot(gx - goal[0], gy - goal[1]) < 4.0
         if sn == gn:
             return "ok", [sn]
-        s = self._get_search(gn, k, sn)
+        s = self._get_search(gn, k, sn, float(jet_cap))
         if not self._search(s, sn, budget_ms / 1000.0):
             return ("fail" if s.done_fail else "pending"), []
         out = [sn]
@@ -771,7 +870,7 @@ class Arena:
         return "ok", out
 
     def smooth(self, x0, y0, nodes: List[int], k=0, max_checks=80) -> List[Tuple[float, float]]:
-        """String-pull a node path from (x0, y0) with walk-line checks. Returns 2D waypoints (excl. start)."""
+        """String-pull a walk-only node path from (x0, y0) with walk-line checks (2D waypoints excl. start)."""
         xs, ys = self.NXY[k]
         pts = [(xs[n], ys[n]) for n in nodes]
         if not pts:
@@ -786,15 +885,13 @@ class Arena:
                 out.extend(pts[i:])
                 break
             hi = min(n - 1, i + 12)
-            lo = i
-            # farthest j in [i, hi] walkable in a straight line from (ax, ay) (binary search)
             if self.walk_line(ax, ay, pts[hi][0], pts[hi][1], k):
                 j = hi
                 checks += 1
             else:
                 checks += 1
-                j = lo
-                a, b = lo, hi - 1
+                j = i
+                a, b = i, hi - 1
                 while a <= b and checks < max_checks:
                     mid = (a + b) // 2
                     checks += 1
@@ -808,38 +905,66 @@ class Arena:
             i = j + 1
         return out
 
-    def plan(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 3.0) -> List[Vec3]:
+    def plan_full(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 3.0, jet_cap: float = 40.0):
+        """(status, waypoints) with waypoints [(x, y, z, act, climb)], act 'walk' or 'jet' (the hop that
+        ARRIVES at this waypoint is a jump+jet of `climb` metres from the previous waypoint)."""
+        if not self.ok_nav:
+            return "nonav", [(float(goal[0]), float(goal[1]), float(goal[2]) if len(goal) > 2 else 0.0, "walk", 0.0)]
+        k = self.size_class(cubes)
+        st, nodes = self.plan_nodes(start, goal, k, budget_ms, jet_cap)
+        if st != "ok":
+            self.last_raw_path = []
+            return st, []
+        xs, ys = self.NXY[k]
+        self.last_raw_path = [(xs[n], ys[n]) for n in nodes]
+        # split into walk runs at jet edges
+        out = []
+        run = [nodes[0]]
+        ax, ay = float(start[0]), float(start[1])
+        for a, b in zip(nodes, nodes[1:]):
+            kind, climb = self.edge_kind(a, b, k)
+            if kind == "jet":
+                for (x, y) in self.smooth(ax, ay, run, k, max_checks=40):
+                    out.append((x, y, self.surface(x, y), "walk", 0.0))
+                bx_, by_ = xs[b], ys[b]
+                out.append((bx_, by_, self.surface(bx_, by_), "jet", climb))
+                ax, ay = bx_, by_
+                run = [b]
+            else:
+                run.append(b)
+        for (x, y) in self.smooth(ax, ay, run, k, max_checks=60):
+            out.append((x, y, self.surface(x, y), "walk", 0.0))
+        gx, gy = float(goal[0]), float(goal[1])
+        gz = float(goal[2]) if len(goal) > 2 else self.surface(gx, gy)
+        if out and math.hypot(out[-1][0] - gx, out[-1][1] - gy) > 0.5:
+            if self.walk_line(out[-1][0], out[-1][1], gx, gy, k) or not self.last_goal_snapped:
+                out.append((gx, gy, gz, "walk", 0.0))
+        elif out:
+            out[-1] = (gx, gy, gz, out[-1][3], out[-1][4])
+        # drop a leading waypoint we can bypass on foot
+        if len(out) >= 2 and out[0][3] == "walk" and out[1][3] == "walk" and \
+                self.walk_line(start[0], start[1], out[1][0], out[1][1], k):
+            out = out[1:]
+        if not out:
+            out = [(gx, gy, gz, "walk", 0.0)]
+        return "ok", out
+
+    def plan(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 3.0,
+             jet_cap: float = 40.0) -> List[Vec3]:
         """Walkable waypoints from start to goal (excluding start, including goal). [] if unreachable.
 
-        If the search has not finished within budget_ms, returns [goal] (straight line) and keeps the
-        search state: calling again (any start nearby) continues it."""
+        Jet hops are included as plain waypoints (use plan_full for the hop types). If the search has not
+        finished within budget_ms, returns [goal] (straight line) and keeps the search state: calling again
+        (any start nearby) continues it."""
         t0 = time.perf_counter()
         self.stats["plan_calls"] += 1
         try:
-            if not self.ok_nav:
-                return [tuple(goal)]
-            k = self.size_class(cubes)
-            st, nodes = self.plan_nodes(start, goal, k, budget_ms)
+            st, wps = self.plan_full(start, goal, cubes, budget_ms, jet_cap)
             if st == "fail":
-                self.last_raw_path = []
                 return []
-            if st != "ok":
-                self.last_raw_path = []
+            if st == "pending":
                 return [tuple(goal)]
-            xs, ys = self.NXY[k]
-            self.last_raw_path = [(xs[n], ys[n]) for n in nodes]
-            pts = self.smooth(start[0], start[1], nodes, k)
-            # final hop to the true goal when it is walkable from the last node
-            gx, gy = float(goal[0]), float(goal[1])
-            if pts and math.hypot(pts[-1][0] - gx, pts[-1][1] - gy) > 0.5:
-                if self.walk_line(pts[-1][0], pts[-1][1], gx, gy, k) or not self.last_goal_snapped:
-                    pts.append((gx, gy))
-            if len(pts) >= 2 and self.walk_line(start[0], start[1], pts[1][0], pts[1][1], k):
-                pts = pts[1:]
-            out = [(x, y, self.surface(x, y)) for (x, y) in pts]
-            if out and math.hypot(out[-1][0] - gx, out[-1][1] - gy) < 0.6:
-                out[-1] = (gx, gy, float(goal[2]) if len(goal) > 2 else out[-1][2])
-            return out or [tuple(goal)]
+            return [(w[0], w[1], w[2]) for w in wps]
         except Exception as e:
             _log("plan error", repr(e))
             return [tuple(goal)]
@@ -848,15 +973,16 @@ class Arena:
             if dt > self.stats["plan_ms_max"]:
                 self.stats["plan_ms_max"] = dt
 
-    def path_len(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 2.0) -> float:
-        """Length (m) along the planned path; math.inf if unreachable. While the search is still pending,
-        returns a conservative estimate (1.35 x straight line)."""
+    def path_len(self, start: Vec3, goal: Vec3, cubes: float = 0, budget_ms: float = 2.0,
+                 jet_cap: float = 40.0) -> float:
+        """Length (m) along the planned path, jet hops counted at their horizontal length plus 2x the climb;
+        math.inf if unreachable. While the search is still pending, returns 1.35 x straight line."""
         d = math.hypot(goal[0] - start[0], goal[1] - start[1])
         if not self.ok_nav:
             return d
         try:
             k = self.size_class(cubes)
-            st, nodes = self.plan_nodes(start, goal, k, budget_ms)
+            st, nodes = self.plan_nodes(start, goal, k, budget_ms, jet_cap)
             if st == "fail":
                 return math.inf
             if st != "ok":
@@ -865,6 +991,8 @@ class Arena:
             L = math.hypot(xs[nodes[0]] - start[0], ys[nodes[0]] - start[1])
             for a, b in zip(nodes, nodes[1:]):
                 L += math.hypot(xs[b] - xs[a], ys[b] - ys[a])
+                if (b - a) not in self._DOFFSET:
+                    L += 2.0 * self.edge_kind(a, b, k)[1]
             L += math.hypot(goal[0] - xs[nodes[-1]], goal[1] - ys[nodes[-1]])
             return L * 0.97   # lattice paths are slightly longer than smoothed ones
         except Exception:
@@ -882,7 +1010,7 @@ class Arena:
         t_end = time.perf_counter() + budget_ms / 1000.0
         k = self.size_class(cubes)
         x, y = float(pos[0]), float(pos[1])
-        cands = self._candidate_spots(x, y, max_dist, k)
+        cands = self._candidate_spots(x, y, max_dist, k, z=float(pos[2]) if len(pos) > 2 else None)
         cands.sort(key=lambda c: c[2])
         sc = size_scale(cubes)
         for (cx, cy, dd) in cands:
@@ -903,7 +1031,7 @@ class Arena:
                 return (cx, cy, cz)
         return None
 
-    def _candidate_spots(self, x, y, R, k):
+    def _candidate_spots(self, x, y, R, k, z=None):
         """Lattice nodes within R of (x, y) for class k: (x, y, straight distance)."""
         if not self.ok_nav:
             out = []
@@ -927,5 +1055,7 @@ class Arena:
                     continue
                 d = math.hypot(xs[n] - x, ys[n] - y)
                 if d <= R:
+                    if z is not None and abs(self.surface(xs[n], ys[n]) - z) > 3.0:
+                        continue     # other level (roof / pit): not a quick cover spot
                     out.append((xs[n], ys[n], d))
         return out
