@@ -4,9 +4,10 @@
 **Since 13:10 the submit queue is the file `coord/queue/mech.txt`** (the coordinator's runner submits from it); this
 section mirrors it. Predictions vs official results are in `eval/RESULTS.md` ("Predictions before scoring").
 
-Current queue: good-58 (isolate twin), good-69 (cycle twin), good-70 (isolate + cycle), good-55 (FFA candidate
-practice check), then re-rolls good-r9, good-r10. Withdrawn after good-65 (slow6) scored 4.77: good-66, good-67,
-good-68 (all slow/standing fire).
+Current queue (14:00, we fell to 33rd: cut 5.58 > our 5.56): good-70 (isolate + cycle), then re-rolls of the isolate
+policy good-ri41…ri46 (isolate is the best two-draw mean, 5.48 / 5.44 = 5.46; each draw has ≈ 16 % chance of ≥ 5.59,
+the base policy ≈ 2 %). Cycle twin good-69 = 5.21 (cycle mean 5.32, no). good-55 withdrawn (practice cost already
+measured).
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
