@@ -17,6 +17,7 @@ official numbers and say so here in bold.**
 | 11-21 ~01:55 | 696e4ec | good-8 | 4.79 | main + fresh profile (heal after kill, new fights at 85 %). Sim said +0.20 vs greed; official −0.17 vs good-6 |
 | 11-21 ~02:10 | e6718e7 | good-9 | 4.79 | chaos control: good-3 with only the idle torso-scan phase shifted. −0.08 vs good-3 → tag-to-tag noise ≈ ±0.1 |
 | 11-21 ~02:32 | 1cd7676 | good-10 | **5.10** | greed + laser first (laser valued 3.6 > lightning 3.0). +0.14 vs good-6 (its base). New best |
+| 11-21 ~02:38 | ddbc83a | good-11 | 5.00 | seek + laser first + no mortar: = good-7 (seek). Laser-first gave +0.14 on greed, 0 on seek |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
