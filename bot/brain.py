@@ -795,14 +795,14 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
             thr *= 0.8 if prev == "retreat" else (1.25 if prev == "engage" else 1.0)
         n_att = len([a for a in attackers if a in {e.id for e in fresh}])
         tgt_frac = (best.hp if best.hp is not None else 1400.0) / max(1.0, best.max_hp or 1400.0)
-        if P["berserk"] and state.mode_guess != "ffa" and best_r < P["berserk_max_ratio"]:
+        if (P["hunter_retreat"] > 0 and state.mode_guess != "ffa" and tgt_frac > P["hunter_retreat"]
+                and len([e for e in fresh if (e.id in hunters or e.id in attackers) and e.dist < 160]) >= 2):
+            out["verdict"] = "retreat"
+        elif P["berserk"] and state.mode_guess != "ffa" and best_r < P["berserk_max_ratio"]:
             out["verdict"] = "engage"
         elif best_r > thr or (state.hp / state.max_hp < 0.25 and best_r > 0.5):
             out["verdict"] = "retreat"
         elif P["multi_retreat"] > 0 and n_att >= 2 and tgt_frac > P["multi_retreat"]:
-            out["verdict"] = "retreat"
-        elif (P["hunter_retreat"] > 0 and state.mode_guess != "ffa" and tgt_frac > P["hunter_retreat"]
-              and len([e for e in fresh if (e.id in hunters or e.id in attackers) and e.dist < 160]) >= 2):
             out["verdict"] = "retreat"
         else:
             out["verdict"] = "engage"
