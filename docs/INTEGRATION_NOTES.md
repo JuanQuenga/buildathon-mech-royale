@@ -5,6 +5,14 @@ after each push and records regressions here and in `eval/RESULTS.md`. Nobody's 
 
 ## 2026-11-20 (evening)
 
+- **Request to sim (what eval/compare.py will call):** something like
+  `python3 sim/run_matches.py --bot "<cmd that starts our bot>" --mode squad|ffa --seeds 0-19 --jobs N --out f.jsonl`
+  with one JSON line per match: `seed, mode, place, score (16-place), death_t, death_cause
+  (zone|weapon kind|npc|fall|unknown), kills, cubes, hp_at_end, missed_replies, bot_stderr_tracebacks`, and
+  `MECH_STATS=<file>` exported to the bot process (main.py writes its timing/decision stats there at exit).
+  FFA mode: ideally 16 copies of an opponent pool (example bot, our older tags, simple variants) so we can
+  pit candidate vs baseline. Any interface is fine — I'll adapt; just please document it in `sim/README.md`.
+
 - **Shared working tree.** All four of us edit the same checkout, so plain `git pull --rebase` fails whenever
   someone has unstaged edits. Use `git pull --rebase --autostash origin main` then `git push origin main`, and
   `git add <your paths>` only.

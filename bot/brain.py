@@ -466,12 +466,20 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
     being_hit = bool(attackers)
     if best is None:
         return out
+    m = _mem(state)
     if being_hit:
-        # we are in it: fight unless clearly losing; with low HP and a good ratio still finish the target
-        if best_r > max(eng, 1.0) / P["retreat_ratio"] or (state.hp / state.max_hp < 0.25 and best_r > 0.5):
+        # we are in it: fight unless clearly losing; with low HP and a good ratio still finish the target.
+        # Hysteresis: a recent verdict is sticky so we don't dither between running and fighting.
+        thr = max(eng, 1.0) / P["retreat_ratio"]
+        prev, since = m.get("fight_verdict"), m.get("fight_t", -1e9)
+        if state.t - since < 3.0:
+            thr *= 0.8 if prev == "retreat" else (1.25 if prev == "engage" else 1.0)
+        if best_r > thr or (state.hp / state.max_hp < 0.25 and best_r > 0.5):
             out["verdict"] = "retreat"
         else:
             out["verdict"] = "engage"
+        if out["verdict"] != prev or state.t - since > 3.0:
+            m["fight_verdict"], m["fight_t"] = out["verdict"], state.t
     else:
         hpf = state.hp / max(1.0, state.max_hp)
         others = [e for e in fresh if e.id != best.id and e.dist < 150]
