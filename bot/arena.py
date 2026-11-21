@@ -267,6 +267,7 @@ class Arena:
         B = self.block
         self.NXY = []
         self.NPEN = []
+        self.NZ = []
         dwl = self.DW
         for k in range(self.K):
             off = node[k].astype(np.int32)
@@ -285,6 +286,9 @@ class Arena:
             pen[ids] = np.clip((self.r_plan[k] + 2.5 - d) * 1.2, 0, 3.0)
             self.NXY.append((array.array("d", xs.tobytes()), array.array("d", ys.tobytes())))
             self.NPEN.append(array.array("d", pen.tobytes()))
+            nzv = np.full(self.BX * self.BY, np.nan)
+            nzv[ids] = self.G[np.minimum(fj, self.ny - 1), np.minimum(fi, self.nx - 1)]
+            self.NZ.append(array.array("d", nzv.tobytes()))
         self.DOFF = [di + dj * self.BX for di, dj in DIRS]
         self.DLEN = [B * (SQ2 if di and dj else 1.0) for di, dj in DIRS]
         self._DOFFSET = set(self.DOFF)
@@ -999,40 +1003,193 @@ class Arena:
             return d * 1.35
 
     # ------------------------------------------------------------------ tactics
+    NBINS = 720                     # shadow buffer: 0.5 deg bins
+
+    def shadow(self, src: Vec3, radius: float = 250.0, min_h: float = 8.0):
+        """Angular depth buffer from feet position `src`: for each 0.5 deg bin, the distance to the nearest
+        tall solid edge (prism top >= src ground + min_h, base below the eye). Points farther than the buffer
+        in their bin are hidden behind a building (terrain and low walls ignored: verify with shot_clear).
+        Cached per (rounded src, radius) for the current tick."""
+        key = ("shadow", round(src[0]), round(src[1]), round(src[2]), int(radius), min_h)
+        hit = self._los_cache.get(key)
+        if hit is not None:
+            return hit
+        sx, sy, sz = float(src[0]), float(src[1]), float(src[2])
+        gi0, gj0 = self._cell_ij(sx - radius, sy - radius)
+        gi1, gj1 = self._cell_ij(sx + radius, sy + radius)
+        parts = []
+        ce = self.cell_edges
+        zthr = sz + min_h
+        for gj in range(max(0, gj0), min(self.GY, gj1 + 1)):
+            for gi in range(max(0, gi0), min(self.GX, gi1 + 1)):
+                c = gj * self.GX + gi
+                if ce[c] is not None and self.cell_maxtop[c] >= zthr:
+                    parts.append(ce[c])
+        buf = np.full(self.NBINS, 1e9)
+        if parts:
+            ids = np.unique(np.concatenate(parts))
+            ids = ids[(self.ETOP[ids] >= zthr) & (self.EBASE[ids] <= sz + 6.0)]
+            if ids.size:
+                ax, ay = self.EAX[ids] - sx, self.EAY[ids] - sy
+                bx, by = self.EBX[ids] - sx, self.EBY[ids] - sy
+                L = np.hypot(bx - ax, by - ay)
+                ns = np.maximum(2, np.ceil(L / 0.75).astype(np.int64) + 1)
+                rep = np.repeat(np.arange(ids.size), ns)
+                off = np.arange(rep.size) - np.repeat(np.cumsum(ns) - ns, ns)
+                f = off / np.repeat(ns - 1, ns)
+                px = ax[rep] + (bx - ax)[rep] * f
+                py = ay[rep] + (by - ay)[rep] * f
+                d = np.hypot(px, py)
+                keep = d <= radius
+                b = ((np.arctan2(py[keep], px[keep]) + math.pi) * (self.NBINS / (2 * math.pi))).astype(np.int64) % self.NBINS
+                np.minimum.at(buf, b, d[keep])
+                # close 1-bin gaps between samples of near edges
+                buf = np.minimum(buf, np.maximum(np.roll(buf, 1), np.roll(buf, -1)))
+        self._los_cache[key] = buf
+        return buf
+
+    def hidden_by_shadow(self, buf, src: Vec3, pts, body_r: float = 2.5) -> List[bool]:
+        """For each feet point: fully behind the shadow buffer (its whole body width), so not visible."""
+        out = []
+        sx, sy = float(src[0]), float(src[1])
+        nb = self.NBINS
+        k = nb / (2 * math.pi)
+        for p in pts:
+            dx, dy = p[0] - sx, p[1] - sy
+            d = math.hypot(dx, dy)
+            if d < 1.0:
+                out.append(False)
+                continue
+            a = math.atan2(dy, dx) + math.pi
+            half = math.atan2(body_r, d) * k
+            b0 = int((a * k) - half)
+            b1 = int((a * k) + half) + 1
+            ok = True
+            for b in range(b0, b1 + 1):
+                if buf[b % nb] + 1.0 > d:
+                    ok = False
+                    break
+            out.append(ok)
+        return out
+
+    def exposure(self, pts, threats, radius: float = 230.0) -> List[int]:
+        """Number of threat positions (feet) that are NOT shadowed from each point (cheap exposure map)."""
+        counts = [0] * len(pts)
+        for tp in threats:
+            buf = self.shadow(tp, radius)
+            for i, h in enumerate(self.hidden_by_shadow(buf, tp, pts)):
+                if not h and math.hypot(pts[i][0] - tp[0], pts[i][1] - tp[1]) <= radius:
+                    counts[i] += 1
+        return counts
+
+    def _verified_hidden(self, c: Vec3, threats, sc: float) -> bool:
+        cx, cy, cz = c
+        for tp in threats:
+            for src in ((tp[0], tp[1], tp[2] + 7.0), (tp[0], tp[1], tp[2] + 8.0)):
+                for hz in (4.5 * sc, 8.6 * sc):
+                    if self.shot_clear(src, (cx, cy, cz + hz)):
+                        return False
+        return True
+
     def nearest_cover(self, pos: Vec3, threat_pos, max_dist: float = 60.0, cubes: float = 0,
                       budget_ms: float = 3.0) -> Optional[Vec3]:
         """Nearby reachable feet position hidden (shots and sight) from the threat(s), or None.
 
-        threat_pos: one feet position or a list of them."""
+        threat_pos: one feet position or a list of them. Candidates are same-level lattice nodes within
+        max_dist; shadow buffers pre-filter, then the best few are verified exactly."""
         if not threat_pos:
             return None
-        threats = [threat_pos] if isinstance(threat_pos[0], (int, float)) else list(threat_pos)
+        threats = [threat_pos] if isinstance(threat_pos[0], (int, float)) else list(threat_pos)[:4]
         t_end = time.perf_counter() + budget_ms / 1000.0
         k = self.size_class(cubes)
         x, y = float(pos[0]), float(pos[1])
-        cands = self._candidate_spots(x, y, max_dist, k, z=float(pos[2]) if len(pos) > 2 else None)
-        cands.sort(key=lambda c: c[2])
+        z = float(pos[2]) if len(pos) > 2 else self.surface(x, y)
         sc = size_scale(cubes)
-        for (cx, cy, dd) in cands:
+        cands = self._candidate_spots(x, y, max_dist, k, z=z, stride=1 if max_dist <= 40 else 2)
+        if not cands:
+            return None
+        pts = [(c[0], c[1]) for c in cands]
+        hidden = [True] * len(cands)
+        for tp in threats:
+            R = math.hypot(tp[0] - x, tp[1] - y) + max_dist + 5
+            buf = self.shadow(tp, min(R, 300.0))
+            for i, h in enumerate(self.hidden_by_shadow(buf, tp, pts, 2.5 * sc)):
+                if not h:
+                    hidden[i] = False
+        # score: distance, penalise moving toward the threats
+        tx = sum(t[0] for t in threats) / len(threats)
+        ty = sum(t[1] for t in threats) / len(threats)
+        dthr = math.hypot(tx - x, ty - y) or 1.0
+        scored = []
+        for i, c in enumerate(cands):
+            if not hidden[i]:
+                continue
+            toward = ((c[0] - x) * (tx - x) + (c[1] - y) * (ty - y)) / dthr
+            scored.append((c[2] + 0.8 * max(0.0, toward), c))
+        scored.sort()
+        for _, c in scored[:8]:
             if time.perf_counter() > t_end:
                 break
-            cz = self.surface(cx, cy)
-            hidden = True
-            for tp in threats:
-                eye = (tp[0], tp[1], tp[2] + 8.0)
-                mz = (tp[0], tp[1], tp[2] + 7.0)
-                for hz in (4.5 * sc, 8.5 * sc):
-                    if self.shot_clear(mz, (cx, cy, cz + hz)) or self.shot_clear(eye, (cx, cy, cz + hz)):
-                        hidden = False
-                        break
-                if not hidden:
-                    break
-            if hidden:
-                return (cx, cy, cz)
+            cz = self.surface(c[0], c[1])
+            if self._verified_hidden((c[0], c[1], cz), threats, sc):
+                return (c[0], c[1], cz)
         return None
 
-    def _candidate_spots(self, x, y, R, k, z=None):
-        """Lattice nodes within R of (x, y) for class k: (x, y, straight distance)."""
+    def flank_positions(self, pos: Vec3, target: Vec3, rng: float = 60.0, n: int = 4, cubes: float = 0,
+                        other_threats=()) -> List[Vec3]:
+        """Walkable spots ~rng from `target` with a clear shot at it, off our current bearing (+-50..130 deg),
+        preferring low exposure to other threats and short trips. Best first."""
+        k = self.size_class(cubes)
+        tx, ty = float(target[0]), float(target[1])
+        tz = float(target[2]) if len(target) > 2 else self.surface(tx, ty)
+        base = math.atan2(pos[1] - ty, pos[0] - tx)
+        cands = []
+        for da in (0.9, -0.9, 1.4, -1.4, 1.9, -1.9, 2.3, -2.3):
+            for rr in (rng * 0.8, rng, rng * 1.2):
+                a = base + da
+                px, py = tx + rr * math.cos(a), ty + rr * math.sin(a)
+                if self.walkable(px, py, k) and self.in_bounds(px, py, 3.0):
+                    cands.append((px, py))
+        if not cands:
+            return []
+        expo = self.exposure(cands, list(other_threats)) if other_threats else [0] * len(cands)
+        sc = size_scale(cubes)
+        out = []
+        for (px, py), e in sorted(zip(cands, expo), key=lambda q: q[1] * 40 + math.hypot(q[0][0] - pos[0], q[0][1] - pos[1])):
+            pz = self.surface(px, py)
+            if self.shot_clear((px, py, pz + 7.0 * sc), (tx, ty, tz + 4.5)):
+                out.append((px, py, pz))
+                if len(out) >= n:
+                    break
+        return out
+
+    def hold_spots(self, center, radius: float, threats=(), n: int = 5, cubes: float = 0) -> List[Vec3]:
+        """Good places to hold inside a circle (final zones): walkable, inside with margin, low exposure to
+        known threats, close to walls on several sides (cover to break LOS), not on noise islands."""
+        k = self.size_class(cubes)
+        cx, cy = float(center[0]), float(center[1])
+        R = max(3.0, radius - 4.0)
+        cands = [c for c in self._candidate_spots(cx, cy, R, k, stride=1 if R < 40 else 2)
+                 if self.walkable(c[0], c[1], k)]
+        if not cands:
+            return []
+        pts = [(c[0], c[1]) for c in cands]
+        expo = self.exposure(pts, list(threats)) if threats else [0] * len(pts)
+        scored = []
+        for (px, py), e in zip(pts, expo):
+            # cover richness: walls within ~10 m in several directions
+            walls = 0
+            for a in range(8):
+                ang = a * math.pi / 4
+                if not self.walk_line(px, py, px + 9 * math.cos(ang), py + 9 * math.sin(ang), k):
+                    walls += 1
+            dc = math.hypot(px - cx, py - cy) / max(R, 1.0)
+            scored.append((e * 3.0 - min(walls, 4) * 0.7 + dc * 1.5, (px, py, self.surface(px, py))))
+        scored.sort(key=lambda q: q[0])
+        return [p for _, p in scored[:n]]
+
+    def _candidate_spots(self, x, y, R, k, z=None, stride=1):
+        """Lattice nodes within R of (x, y) for class k: (x, y, straight distance); same level as z."""
         if not self.ok_nav:
             out = []
             for a in range(16):
@@ -1047,15 +1204,16 @@ class Arena:
         rb = int(R / B) + 1
         off = self.node_off[k]
         xs, ys = self.NXY[k]
+        nz = self.NZ[k]
         out = []
-        for j in range(max(0, bj - rb), min(self.BY, bj + rb + 1)):
-            for i in range(max(0, bi - rb), min(self.BX, bi + rb + 1)):
+        for j in range(max(0, bj - rb), min(self.BY, bj + rb + 1), stride):
+            for i in range(max(0, bi - rb), min(self.BX, bi + rb + 1), stride):
                 n = j * self.BX + i
                 if off[n] == 255:
                     continue
                 d = math.hypot(xs[n] - x, ys[n] - y)
                 if d <= R:
-                    if z is not None and abs(self.surface(xs[n], ys[n]) - z) > 3.0:
+                    if z is not None and abs(nz[n] - z) > 3.0:
                         continue     # other level (roof / pit): not a quick cover spot
                     out.append((xs[n], ys[n], d))
         return out
