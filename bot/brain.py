@@ -905,7 +905,10 @@ def _peek_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: Li
     for w in state.me.get("weapons") or []:
         if w and w.get("kind") == "laser":
             las = w
+    ps = m.setdefault("peek_stat", {})
     if las is None or state.arena is None or not (30.0 <= tgt.dist <= 220.0):
+        k = "no_laser" if las is None else ("range" if state.arena is not None else "no_arena")
+        ps[k] = ps.get(k, 0) + 1
         return None
     t = state.t
     pm = m.setdefault("peek", {"cover": None, "cover_t": -1e9, "spot": None, "spot_t": -1e9})
@@ -918,6 +921,8 @@ def _peek_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: Li
         pm["cover_t"] = t
     cover = pm["cover"]
     if cover is None or not _inside_zone_soon(state, cover):
+        k = "no_cover" if cover is None else "cover_zone"
+        ps[k] = ps.get(k, 0) + 1
         return None
     charge = float(las.get("charge", 0) or 0)
     cd = float(las.get("cooldown", 0) or 0)
@@ -931,7 +936,9 @@ def _peek_intent(state: WorldState, m: Dict[str, Any], tgt: EnemyThreat, hot: Li
     elif pm["spot"] is not None and t - pm["spot_t"] < 8.0:
         goal, why = pm["spot"], "peek: step out"              # ready, hidden: back to the last firing spot
     else:
+        ps["no_spot"] = ps.get("no_spot", 0) + 1
         return None
+    ps["active"] = ps.get("active", 0) + 1
     return Intent(mode="engage", goal=goal, target_id=tgt.id, desired_range=None, urgency=0.5, face=face,
                   allow_fire=True, avoid=[e.pos for e in hot if e.id != tgt.id], reason=f"{why} {tgt.id}")
 
@@ -1447,7 +1454,7 @@ def summary(state: WorldState) -> Dict[str, Any]:
     except Exception:
         pass
     return {"combat": combat_stats, "mode_guess": state.mode_guess, "evidence": state.mode_evidence,
-            "mode_first": m.get("mode_first"), "mode_flips": m.get("mode_flips", 0), "modes": m["modes"],
+            "mode_first": m.get("mode_first"), "mode_flips": m.get("mode_flips", 0), "peek_stat": m.get("peek_stat"), "modes": m["modes"],
             "kills": state.kills, "hp": round(state.hp), "t": state.t, "zone_out_s": round(m["zone_out_s"], 1),
             "cause": cause, "cubes": state.me.get("cubes", 0), "weapons": state.weapon_kinds(),
             "attackers": len(m["attackers_ever"]), "foreign_deaths": m["foreign_deaths"], "last": m.get("last_ctx"),
