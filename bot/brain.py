@@ -129,6 +129,7 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
         foreign = max(0, drop - ours)
         if foreign and t < 200:
             m["infight"] += 3.0 * foreign
+            m["early_foreign"] = m.get("early_foreign", 0) + foreign
         m["foreign_deaths"] += foreign
         m["alive_seen"] = state.alive
     # beams not aimed at us
@@ -155,9 +156,14 @@ def _update_round(state: WorldState, threats: Threats, m: Dict[str, Any]) -> Non
     # combat's threats module also gathers evidence (e.g. enemy HP drops we didn't cause): take the stronger
     se = getattr(threats, "squad_evidence", None)
     if isinstance(se, dict):
-        ev_ffa = max(ev_ffa, 1.5 * float(se.get("infight", 0.0) or 0.0))
-    if ev_ffa >= 3 and ev_ffa > ev_squad:
+        ev_ffa = max(ev_ffa, float(se.get("infight", 0.0) or 0.0))
+    # Sim calibration: in squad rounds unexplained enemy HP drops still happen (drones, chains), so infighting
+    # evidence alone is noisy (squad runs: infight 0-15 vs focus 17-45; FFA: infight ~9 vs focus ~3).
+    # A mech dying early that we did not kill is the decisive FFA signal; otherwise compare the two.
+    if m.get("early_foreign", 0) >= 1 or (ev_ffa >= 3 and ev_ffa > 1.5 * ev_squad):
         state.mode_guess = "ffa"
+    elif ev_squad >= 6 and ev_ffa < ev_squad:
+        state.mode_guess = "squad"
     elif ev_squad >= 2 and ev_ffa < 1.5:
         state.mode_guess = "squad"
     else:
