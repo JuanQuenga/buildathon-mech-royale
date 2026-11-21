@@ -14,14 +14,15 @@ python3 check/check.py --map-dir /arena -- docker run --rm -i --network none --c
 
 | Path | What |
 | --- | --- |
-| `bot/main.py` | protocol loop, worker-thread deadline guard, action assembly |
+| `bot/main.py` | protocol loop and deadline guard (policy runs in a forked child; the parent always replies in time), action assembly |
 | `bot/state.py` | shared world state and interface types |
 | `bot/brain.py` | objectives (zone, loot, fights, healing), inventory, upgrades, squad-vs-FFA detection |
-| `bot/arena.py`, `bot/navigate.py` | map geometry, line of sight, path planning, movement |
-| `bot/threats.py`, `bot/combat.py` | threat tracking, projectile dodging, aiming and firing |
+| `bot/arena.py`, `bot/navigate.py`, `bot/navbake.npz` | map geometry, line of sight, baked walk grid + budgeted A* (jet hops onto roofs), movement, zone travel-time field |
+| `bot/threats.py`, `bot/combat.py`, `bot/ballistics.py` | threat tracking, projectile dodging, lead/slew/mortar ballistics, aiming and firing |
 | `sim/` | local proxy simulator used for evaluation (not part of the image) |
 | `eval/` | paired-seed comparisons, timing stress test, results log |
-| `docs/INTERFACES.md` | module contract |
+| `tests/`, `tools/` | unit tests (combat, nav), nav bake and replay tools (not part of the image) |
+| `docs/` | module contract (`INTERFACES.md`), design notes (`combat.md`, `nav.md`), `INTEGRATION_NOTES.md` |
 
 ## Credits, libraries, prior code
 
@@ -32,7 +33,8 @@ python3 check/check.py --map-dir /arena -- docker run --rm -i --network none --c
   the initial placeholder behaviour mirrored the kit's `python/example_bot.py`. The kit's `check/check.py` is
   used for testing and is not shipped.
 - Libraries: Python standard library, [NumPy](https://numpy.org) 2.5.5 (BSD-3-Clause). Base image
-  `python:3.13-slim` (pinned by digest).
+  `python:3.13-slim` (pinned by digest). The local simulator in `sim/` (not shipped) also uses NumPy.
+- `bot/navbake.npz` is generated from the kit's map by our own `tools/nav/bake.py`.
 
 ## License
 
