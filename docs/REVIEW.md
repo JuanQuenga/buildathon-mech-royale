@@ -244,7 +244,19 @@ Reading: hiding longer is better again (+0.29 ± 0.65 per match), on top of hide
 survival direction is consistent. The FFA candidate is now **good-55** (`openholdx+ffahide3x`); v7 (200 matches,
 good-55 policy vs base) and v8 (peek vs base, FFA no-collapse check) are running.
 
-SELFPLAY_V7
+**v7** (seeds 7000–7199, 200 matches): the FFA candidate good-55 policy (`openholdx+ffahide3x`) vs base
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx+openholdx+ffahide3x | 800 | 9.01 ± 0.33 | 1.00 | 115 | 97/800 | 12 (771/800) | 90 | 0 |
+| var:laser+nav3x+fixx+steadyx | 800 | 8.79 ± 0.32 | 1.58 | 109 | 90/800 | 13 (775/800) | 99 | 0 |
+
+Reading: **+0.22 ± 0.48 per match**. Across independent seed sets the survival-first package keeps a positive point
+estimate (v4 hide-5 vs base +0.26, v6 hide-3 vs hide-5 +0.29, v7 +0.22; pooled v4 + v7 ≈ +0.24 ± 0.34): suggestive,
+not proven, and in the direction the real showdown data favours. It survives longer (115 vs 109 s) with fewer kills.
+v8 checks that peek (good-54) does not collapse in FFA.
+
+SELFPLAY_V8
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
