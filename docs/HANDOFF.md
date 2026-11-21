@@ -1,69 +1,44 @@
-# Handoff (MacBook agent → next agent), 11-21 ~05:20 ET
+# Handoff (Linux agent), 11-21 ~10:20 ET
 
-## Current best
-**good-31 (1f7fa6f) = 5.56 official** (12th of ~160 at the time). Branch `var/F-steady`, built on main with
-`DEFAULT_PROFILE = "laser+nav3x+fixx+steadyx"`:
-- `laser`: cube_greed + a laser valued above lightning as the first secondary
-- `nav3x`: frozen good-3 navigation module `bot/navigate3.py` (main.py swaps it in)
-- `fixx`: good-4's stale jet-hop fix ported into navigate3 (`hopfix3`)
-- `steadyx`: engage strafe reversals every 3–5 s (normal: 1.2–2.4 s) ← the step change (+0.35 over good-22)
+Read `docs/REVIEW.md` first: it holds the submit queue (the coordinator syncs to it at :07/:27/:47), the official
+results, family means, the FFA analysis and the final-entry recommendation. This file is the working state.
 
-## Queue (docs/REVIEW.md "Please submit", all natively gated, tags pushed)
-1. good-35 (370d88e): good-31 + rage (stack)
-2. good-36 (1ca1a5a): reversals every 6–10 s
-3. good-37 (0ebc659): no sideways movement while engaging
-4. good-38 (a9a0bd3): never reverse (orbit)
-5–7. good-32/33/34 are on the rage base without steady strafe (range 170 m / laser hunt / duel discipline). Rebase
-   them onto the new best before using them (e.g. `laser+nav3x+fixx+steadyx+snipex`).
+## Where things stand
+- **Practice board:** our best draw is good-31 = 5.56 (rank ~21 of 250; the cut (32nd) is ~5.27 and rising; leader
+  kyoto-max 6.31). The base policy (`laser+nav3x+fixx+steadyx`) has a true mean of **5.34** (9 official draws,
+  SD 0.13). No single-knob variant has beaten it beyond noise.
+- **Official noise:** behaviour-neutral re-rolls of one policy: SD ≈ 0.13 per 48-match run (the sim overstates it at
+  0.27). One run resolves effects ≳ 0.3; identical builds repeat to ±0.03.
+- **Practice scoring:** 16 − place only. House bots never fight each other, so points = our kills before we die
+  (sim: 98 % of points). We die at ~100–110 s after ~5 kills. The lever is damage taken / survival time.
+- **Structural branch:** good-54 = base + `peekx` (fight from cover with the laser) is at the top of the queue.
+  If it beats the base mean by ≳ 0.25, re-roll it once (`eval/make_rerolls.sh "laser+nav3x+fixx+steadyx+peekx" 17 32`
+  makes gated re-roll tags) and make it the new base; consider extending peek to gun duels.
+- **FFA final candidate:** good-53 = base + `openholdx` (never start a fight while unarmed in the first 45 s unless
+  the round is known squad) + `ffahidex` (FFA-only survival-first while > 5 alive). Evidence: real showdowns (our
+  three opening deaths were fights we started unarmed; FFA placement follows damage taken, not dealt), FFA self-play
+  ffahide +0.26 ± 0.48 (200 matches), openhold sim-neutral, openhold practice 5.35 (no cost).
 
-## How variants work
-`bot/brain.py: DEFAULT_PROFILE` picks a profile; profiles compose with `+` (deltas in `PROFILES`: `ragex`, `hidex`,
-`snipex`, `lhuntx`, `hretx`, `stillx`, `slowx`, `orbitx`, `steadyx`, `jukex`, `fixx`, `nav3x`, `perchx`, `capx`,
-`hopcx`, ...). `MECH_PROFILE=...` overrides locally. To make a tag: create a branch from main, change only the
-`DEFAULT_PROFILE` line, gate it, tag it. main itself stays `"base"`. Nav-related switches are read by
-navigate3 from `brain.P` (`strafe_mode`, `jet_cap`, `hopfix3`, `combat_hop`).
+## Running / queued background jobs (all detached; check `ps -eo args | grep run_matches`)
+- FFA self-play chain on cores 0–2 (`taskset`), 25-seed chunks into `mech-royale/work/sim/sp_<v>_<seed>.jsonl`,
+  `.done` marker when finished: v6 (ffahide 5 vs 3 alive) → v7 (good-53 combo vs base, 200 matches) → v8 (peek vs base).
+  Summarise with `python3 eval/selfplay.py <files>`; per-match paired differences are the honest CI (seats in one
+  match are not independent).
+- Cast recorder (`eval/diag/cast/cap.mjs`) writes `mech-royale/work/cast/live3.jsonl` / `state3.jsonl` until ~13:00.
+  We are not in the Top-16 Showdown lineup while ranked below 16th.
 
-## Official results (48 fixed seeds; tag-to-tag noise ≈ ±0.1)
-| Tag | Score | What |
-| --- | --- | --- |
-| good-31 | **5.56** | good-22 + steady strafe (3–5 s reversals) |
-| good-27 | 5.25 | good-22 + rage (hunt by memory/sound, engage ratio 1.6, fight from 40 % HP, berserk) |
-| good-22 | 5.21 | laser + nav3 + stale-hop fix |
-| good-15 | 5.19 | laser + nav3 |
-| good-30 | 5.19 | good-22 + juke (0.3–1.0 s reversals) |
-| good-14 | 5.17 | seek + nav3 |
-| good-10 | 5.10 | greed + laser first |
-| good-17 | 5.06 | good-14 + scale (drops first, crate/drone values) |
-| good-26 | 5.04 | good-22 + hide (break LOS from every house bot) |
-| good-7 / good-11 | 5.00 / 5.00 | seek / seek + laser + no mortar |
-| good-6 / good-25 | 4.96 / 4.96 | greed / good-22 + combat hops |
-| good-3 | 4.88, 4.85 | (rerun of the same commit) |
-| good-16 | 4.88 | ground-only routes |
-| good-8 / good-9 | 4.79 / 4.79 | fresh (heal after kill) / chaos control (good-3, scan phase shifted) |
-| good-4 / good-5 | 4.58 / 4.46 | old nav / good-4 + good-3 brain |
+## Tools added today
+- `eval/make_rerolls.sh <policy> <first> <last>`: gated re-roll tags `good-r<n>` (scan-phase deltas `r<n>x`).
+- `sim/run_matches.py --ffa "var:<profile>*n,..."`: tracked self-play of our own variants; `eval/selfplay.py` table.
+- `eval/diag/cast/*.py`: real showdown analysis (ffa, tl timeline, opening, rear, range, profile, move, lead).
+- Bot stats now carry `mode_first`, `mode_flips` (round detector timing) and `peek_stat`.
+- Switches added (all default off; profile deltas in `bot/brain.py: PROFILES`): `airx`, `sboostx`, `sboost50x`,
+  `widex`, `discx`, `ffax`, `ffastandx`, `lookx`, `ffahidex`, `ffahide3x`, `openholdx`, `strictffax`, `peekx`,
+  `chaos*x`, `r1x..r64x`.
 
-**Lessons:** movement in fights and navigation dominate. Stricter hop-energy rules −0.4; ground-only −0.29; combat
-hops −0.25; juke ±0; steady strafe +0.35. Behaviour knobs (seek, fresh, scale, hide, rage, laser) are worth ≤ 0.15.
-
-## Planned follow-ups (not started unless noted)
-- Explore the strafe direction further on the good-31 base (good-36/37/38 queued). Also: strafe only when the
-  enemy aims at us; time reversals to enemy shots/laser charge; shoot-then-move (stand still while the gun/laser
-  fires at long range, move between shots). The likely mechanism is our own accuracy (torso slew lag + lead error
-  on reversals).
-- Airborne-target gun lead: it uses gravity only, while real house bots jet-hop ~30 % of the time. This is a
-  hit-rate fix in the same family. Not started.
-- Rebase good-32/33/34 onto the steady base.
-
-## Tooling (MacBook paths; Linux defaults still work)
-- Env: `MECH_KIT=<mechfight-kit dir>`, `MECH_PY=<python with numpy>`; `MECH_REPLAY` for the sample replay.
-- Native gate: `NATIVE_ONLY=1 eval/check.sh <ref>` (the Docker gate is the default on Linux). The `native_slow` test
-  flaked once or twice at load ~5 on the laptop (1 late reply); a rerun passed.
-- **The sim cannot rank variants:** paired noise is ±0.4 at 96 seeds, and the same profile scored 5.38 and 5.09 on
-  two runs. It was wrong about good-3 vs good-4, juke, fresh, laser-on-seek and steady. Use it for crashes and FFA
-  sanity only. Calibration: `--squad join_per_loss=0.6` puts good-4 near its official level.
-- FFA sanity (sim, 64 seeds, lineup `bot*1,builtin:expert*5,builtin:hard*5,builtin:brawler*3,builtin:sniper*2`):
-  the nav3/laser/rage/hide profiles all scored 10.7–11.0 vs 10.2 for seek.
-- The public cast (`wss://watch.joinbuilders.org/live`, `/state`) streams FFA Showdowns of the top-16 practice
-  teams, with a full `result` record per mech (kills, damage by weapon, first-weapon time, cubes, upgrades). The feed
-  backfills from tick 0 on connect. Seen: top practice bots take their first weapon at 0–5 s (ours ~12 s), and the
-  practice #1 (azing) died first in that FFA.
+## Gotchas
+- Never `pkill -f` a pattern that appears in your own command line (it kills your shell, exit 144): kill by PID.
+- Sim batches read `bot/` from their checkout: run long batches from a frozen worktree (`git worktree add --detach`).
+- Gate (`eval/check.sh`) under heavy load can flake `native_slow` by one late reply; do not pin it with `taskset`
+  onto cores that a sim batch saturates. Combat unit tests pin fire-suppressing switches off (`tests/combat/helpers.py`).
+- Machine budget: ≤ 3 CPU-bound processes, temp files under `mech-royale/work/` (TMPDIR), not /tmp.
