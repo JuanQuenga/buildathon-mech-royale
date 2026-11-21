@@ -358,7 +358,8 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
         mv = rec["dir"]
         out.move = mv
         out.jump = rec.get("jump", False) and grounded
-        out.boost = rec.get("jet", False) and energy > 8
+        # recovery jets only clear low obstacles: stop climbing ~7 m above the start (no accidental roofs)
+        out.boost = rec.get("jet", False) and energy > 8 and z < rec.get("z0", z) + 7.0
         out.blocked = True
         if rec.get("jet"):
             m["stats"]["jets"] += 1
@@ -492,16 +493,20 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
         else:
             # jump + jet toward where we want to go (over the obstacle)
             jet = energy > (15 if urgency >= 0.7 else 30)
-            m["recover"] = {"until": state.t + (1.4 if jet else 0.5), "dir": (want[0], want[1]), "jump": True, "jet": jet}
+            m["recover"] = {"until": state.t + (1.4 if jet else 0.5), "dir": (want[0], want[1]), "jump": True, "jet": jet,
+                            "z0": z}
         out.blocked = True
         out.jump = grounded and m["recover"]["jump"]
     else:
         if state.t - (m.get("last_ok_t") or 0) > 3.0:
             m["n_stall"] = 0
         m["last_ok_t"] = state.t if m.get("n_stall", 0) == 0 else m.get("last_ok_t", state.t)
-    # in the air with jet intent from offmesh escape: keep jetting toward the goal while climbing a wall
-    if not grounded and m.get("recover") is None and nav_ok and not ar.walkable(x, y, k) and energy > 10 and urgency >= 0.5:
-        out.boost = True
+    # In the air `boost` means JET. Outside an explicit jet hop / jet recovery never jet: walking off a roof
+    # edge (planned drop) with boost held would rocket us onto the next roof.
+    if not grounded and m.get("jet") is None:
+        rec = m.get("recover")
+        if not (rec is not None and rec.get("jet")):
+            out.boost = False
     return out
 
 
