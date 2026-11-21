@@ -487,6 +487,18 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
         it.arrive_by = zp.get("deadline")
         return _finish(state, m, it)
 
+    # 1b. squad: pick up nearby cubes (kill drops) before starting the next fight
+    if P["cube_greed"] and state.mode_guess != "ffa" and not attackers and int(state.me.get("cubes", 0) or 0) < 10:
+        cb = [r for r in m["items"].values() if r["type"] == "cube" and dist2d(r["pos"], state.pos) < P["cube_grab_m"]
+              and abs(r["pos"][2] - state.pos[2]) < 4.0 and m["blacklist"].get(r["id"], -1e9) <= state.t]
+        if cb:
+            c = min(cb, key=lambda r: dist2d(r["pos"], state.pos))
+            if m["stuck_s"] > 4.0:
+                m["blacklist"][c["id"]] = state.t + 30
+                m["last_progress_t"] = state.t
+            return _finish(state, m, Intent(mode="loot", goal=c["pos"], loot_id=c["id"], urgency=0.3, face=face,
+                                            reason=f"grab cube {c['id']}"))
+
     # 2. in a fight
     if hot:
         tgt = fight.get("target")
@@ -545,18 +557,6 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
         it = Intent(mode="heal", goal=goal, urgency=0.3, face=face, allow_fire=False, allow_boost=True,
                     reason=f"heal {hpf:.2f}")
         return _finish(state, m, it)
-
-    # 3b. squad: pick up nearby cubes (kill drops) before starting the next fight
-    if P["cube_greed"] and state.mode_guess != "ffa" and not attackers and int(state.me.get("cubes", 0) or 0) < 10:
-        cb = [r for r in m["items"].values() if r["type"] == "cube" and dist2d(r["pos"], state.pos) < P["cube_grab_m"]
-              and abs(r["pos"][2] - state.pos[2]) < 4.0 and m["blacklist"].get(r["id"], -1e9) <= state.t]
-        if cb:
-            c = min(cb, key=lambda r: dist2d(r["pos"], state.pos))
-            if m["stuck_s"] > 4.0:
-                m["blacklist"][c["id"]] = state.t + 30
-                m["last_progress_t"] = state.t
-            return _finish(state, m, Intent(mode="loot", goal=c["pos"], loot_id=c["id"], urgency=0.3, face=face,
-                                            reason=f"grab cube {c['id']}"))
 
     # 4. opportunistic fight on a visible mech (not attacking us yet)
     tgt = fight.get("target")
