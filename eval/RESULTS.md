@@ -18,6 +18,7 @@ official numbers and say so here in bold.**
 | 11-21 ~02:10 | e6718e7 | good-9 | 4.79 | chaos control: good-3 with only the idle torso-scan phase shifted. −0.08 vs good-3 → tag-to-tag noise ≈ ±0.1 |
 | 11-21 ~02:32 | 1cd7676 | good-10 | **5.10** | greed + laser first (laser valued 3.6 > lightning 3.0). +0.14 vs good-6 (its base). New best |
 | 11-21 ~02:38 | ddbc83a | good-11 | 5.00 | seek + laser first + no mortar: = good-7 (seek). Laser-first gave +0.14 on greed, 0 on seek |
+| 11-21 ~02:50 | 2db6e00 | good-14 | **5.17** | good-7 (seek) + good-3's navigate.py: +0.17. good-4's nav changes (jet-hop energy rules) cost score in the real game. New best |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 
@@ -138,3 +139,5 @@ gun+lightning 4.3 / 4.9, gun+mortar 2.6 / 2.9, gun only 2.3 / 1.7.
 | lseek (seek + laser first + no mortar) | 4.76 (**−0.28 vs seek**) | 4.70 | 109 s |
 
 **The sim's paired noise at 96 seeds is about ±0.4.** Laser-first looked +0.55 on greed but −0.28 on seek. Official runs (±0.1) decide.
+
+**Sim repeatability:** the laser profile on the same 96 seeds scored 5.38 one run and 5.09 the next. The sim cannot resolve effects below ~0.4; use it only for crashes and large effects.
