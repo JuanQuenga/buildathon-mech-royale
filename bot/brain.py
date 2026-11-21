@@ -82,6 +82,7 @@ P: Dict[str, Any] = {
     "hopfix3": False,              # nav3 only: good-4's stale jet-hop state fix
     "combat_hop": False,           # nav3 only: periodic jump + jet hops while fighting
     "scan_phase": 0.0,             # chaos control: idle torso-scan phase shift (behaviour-neutral re-roll of trajectories)
+    "gun_disc_m": 0.0,             # A/B >0: no gun fire at a mech beyond this unless it fights us / is our target / killable
     "air_lead": False,             # A/B: gun lead for airborne targets from their observed vertical acceleration
                                    # (jetting +12 m/s^2 to the 10 m/s cap, else -g; clamp at the ground below)
     "strafe_boost": 0.0,           # A/B >0 (nav3): boost-run the engage strafe while energy > this (off below it - 30)
@@ -151,6 +152,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "stillx": {"strafe_mode": "still"},
     "airx": {"air_lead": True},
     "chaosx": {"scan_phase": 1.0},
+    "discx": {"gun_disc_m": 150.0},
     "chaos2x": {"scan_phase": 2.5},
     "sboostx": {"strafe_boost": 80.0},
     "sboost50x": {"strafe_boost": 50.0},          # more boost: on above 50 energy, off below 20

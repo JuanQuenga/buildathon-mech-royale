@@ -154,6 +154,29 @@ def fire_tick(cooldown: float) -> int:
     return 1 if cooldown <= TICK + 1e-6 else 2
 
 
+def _gun_disc_m() -> float:
+    try:
+        from .brain import P as BP
+        return float(BP.get("gun_disc_m", 0.0))
+    except Exception:
+        return 0.0
+
+
+def _gun_held(tg, intent, threats) -> bool:
+    """A/B gun discipline: no gun fire at a mech beyond gun_disc_m that is not already fighting us, not the brain's
+    target and not killable (FFA showdown 11-21 6 AM: we plinked a laser bot at 176 m with the gun and lost the duel)."""
+    lim = _gun_disc_m()
+    if lim <= 0 or tg.kind != "mech" or tg.dist <= lim:
+        return False
+    if intent is not None and intent.target_id == tg.id:
+        return False
+    if tg.id in (getattr(threats, "attackers", None) or ()) or tg.id in (getattr(threats, "hunters", None) or ()):
+        return False
+    if tg.id in (getattr(threats, "killable", None) or ()):
+        return False
+    return True
+
+
 def _air_lead() -> bool:
     try:
         from .brain import P as BP
@@ -564,7 +587,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
         else:
             if tg.kind == "crate" and not tg.los:
                 continue
-            if gun_ready or (gun and tg.dist < 230):
+            if (gun_ready or (gun and tg.dist < 230)) and not _gun_held(tg, intent, threats):
                 gs = gun_solution(me, tg, gst, g, gun_k)
                 if gs is not None and gs[4] < float(gst.get("range", 230.0)) - 2:
                     p0 = gun_p(me, tg, gs, (gs[0], gs[1]), gst)
