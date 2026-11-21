@@ -90,6 +90,8 @@ P: Dict[str, Any] = {
                                    # every visible house bot (shared vision is how the squad finds us), never hunt
     "perch": False,                # A/B: hold on a tall roof (10-35 m above the terrain) inside the next circle instead of
                                    # on the ground (ground-only routes cost -0.29 officially; roofs make pursuers jet up)
+    "hide_until": 1e9,             # hybrid: hide only before this match time...
+    "hide_alive_min": 0,           # ...and while more than this many mechs are alive
     "seek": False,                 # A/B: squad/unknown: with a secondary and healthy, walk to the nearest remembered
                                    # house bot instead of holding (more kills before the hunters stack up)
     "seek_min_hp": 0.8,
@@ -136,6 +138,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ragex": {"engage_ratio_squad": 1.6, "opp_min_hp_squad": 0.4, "heal_below_squad": 0.4, "seek": True, "seek_min_hp": 0.5,
               "seek_sound": True, "berserk": True, "seek_mem_s": 60.0, "seek_max_m": 400.0},
     "perchx": {"perch": True},
+    "hide240x": {"hide": True, "hide_until": 240.0, "conveyor": True, "conveyor_until": 240.0},
+    "hide10x": {"hide": True, "hide_alive_min": 10, "conveyor": True, "conveyor_until": 480.0},
     "groundx": {"jet_cap": 0.0, "roof_weapon_dz": 6.0},
     "lhuntx": {"explore_for_laser_until": 120.0, "no_mortar": True},
     "hretx": {"hunter_retreat": 0.3},                                  # deltas for composing
@@ -573,7 +577,7 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
     attackers = set(threats.attackers)
     m["att_now"] = tuple(attackers)
     hot = [e for e in fresh if e.id in attackers or e.can_hit_me or e.dist < 60]
-    if P["hide"] and state.mode_guess != "ffa":   # survival-first: only mechs hunting us count as a fight
+    if _hiding(state):   # survival-first: only mechs hunting us count as a fight
         hs = set(getattr(threats, "hunters", None) or [])
         hot = [e for e in fresh if e.id in attackers or e.id in hs or e.dist < 25]
     face = _face_yaw(state, m, fresh, zp)
@@ -641,7 +645,7 @@ def choose_intent(state: WorldState, threats: Threats) -> Intent:
             return _finish(state, m, it)
 
     # 2a. survival-first: stay out of sight of passive house bots
-    if P["hide"] and state.mode_guess != "ffa" and not hot:
+    if _hiding(state) and not hot:
         seen_by = [e for e in fresh if e.visible and e.dist < 220]
         if seen_by:
             m["last_threat_pos"], m["last_threat_t"] = seen_by[0].pos, state.t
@@ -817,9 +821,16 @@ def _assess_fight(state: WorldState, threats: Threats, fresh: List[EnemyThreat],
     return out
 
 
+def _hiding(state: WorldState) -> bool:
+    return (P["hide"] and state.mode_guess != "ffa" and state.t < P["hide_until"]
+            and state.alive > P["hide_alive_min"])
+
+
 def _spare(state: WorldState, threats: Threats, e: EnemyThreat) -> bool:
     """Conveyor: leave this mech alone (it is not hunting us and not nearly dead)."""
     if not P["conveyor"] or state.mode_guess == "ffa" or state.t >= P["conveyor_until"] or e.kind != "mech":
+        return False
+    if P["hide"] and not _hiding(state):
         return False
     hunters = set(getattr(threats, "hunters", None) or [])
     if e.id in hunters or e.id in set(threats.attackers):
