@@ -74,12 +74,18 @@ SHA-1 of `world.json`; a mismatch is logged and the bake is still used (the map 
 6. Boost: urgency ≥ 0.7 with energy > 12, retreat with energy > 35, urgency ≥ 0.4 with energy > 80, never with
    `max_speed`. `max_speed` caps the move length (silent walking).
 7. **Stall detection**: commanded movement for 1.2 s but < 20 % of the expected displacement → recovery:
-   back-off + sidestep (0.6 s), then jump + jet toward the target (1.4 s, if energy allows), and replan.
-   `blocked=True` while recovering.
+   back-off + sidestep (0.6 s), then jump + jet toward the target (1.4 s, if energy allows, never more than 7 m
+   above the start), and replan. `blocked=True` while recovering. A stall within 3.5 m of the goal counts as
+   arrival (pickup reach) instead. In the air, `boost` (= jet) is only ever on during a planned hop or a jet
+   recovery: walking off a roof with boost held would otherwise rocket the mech onto the next roof.
 8. **Jet hops**: wait at the base until energy ≥ `2·(climb − 2) + 6` (or ≥ 60 % of it when urgency ≥ 0.8), then
    jump + boost toward the landing node, boost until feet are 1 m above the climb top, keep moving in; done
    when grounded within 2.5 m of the landing level, otherwise replan.
 9. Off the main component with no plan (noise island, pit): head for the nearest main node; stalls trigger jumps.
+10. Goals that cannot be stood on (items against walls, on roof edges) are replaced by `Arena.reach_spot` (nearest
+    standable spot within 3.2 m horizontal / 3.8 m vertical, same level preferred).
+11. Bad input (NaN position or goal) → zero move / goal ignored; any exception → straight-line fallback, logged
+    (rate-limited) to stderr.
 
 Zone helpers: `navigate.eta(state, goal)` (path seconds at walk speed + 0.5 s; inf if unreachable),
 `navigate.safe_route(state)` → `point` (inside the next circle with a margin, walkable), `eta`, `leave_by`
@@ -122,8 +128,13 @@ while measuring, so tails are pessimistic). Microseconds unless noted.
 | `navigate.step` in closed loop (navsim, 16 routes) | 0.05 ms | 1.8 ms | (noise) |
 | `navigate` in the full bot on the kit checker | | 4.4 ms | 7.0 ms |
 
+Same bench inside the match sandbox (`docker run --cpus 1 --memory 512m --read-only --user 65534`, image built
+from commit 2768eeb, host load average ~75): `Arena.load` 267 ms, `shot_clear` p50 40 / p99 171 us, `los` p50 88 /
+p99 312 us, `walk_line` 5 m p50 6 us, A* cold p50 5.2 / p99 17 ms (unbudgeted), `plan_full` cached p50 1.1 ms,
+`plan(budget_ms=2)` max 2.3 ms, `nearest_cover` p50 1.0 / max 2.1 ms. The kit checker on that image: PASS, ready
+in 1.7 s, whole-bot answer p50 2.8 / p99 7.5 / max 12.3 ms.
+
 Memory: the arena adds ~50 MB RSS (numpy grids + edge arrays); policy process peak 73 MB on the checker.
-Docker `--cpus 1` numbers: not measured yet (the docker socket is shared; the integrator's `eval/check.sh` runs it).
 
 ## Movement capabilities: verified vs not
 
