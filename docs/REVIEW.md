@@ -11,8 +11,10 @@ replies) on 11-21 ~05:15 ET.
 | 2 | `good-36` | 1ca1a5a | good-31 with even slower strafe reversals (every 6–10 s) | 5.6 |
 | 3 | `good-37` | 0ebc659 | good-31 with no sideways movement while engaging (hold range only; projectile dodge kept) | 5.5 |
 | 4 | `good-38` | a9a0bd3 | good-31 with no reversals at all (orbit one way) | 5.55 |
-| 5 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
-| 6 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 5 | `good-39` | 72710d6 | good-31 + **boost-run the engage strafe** (19.5 vs 11.7 m/s) while energy > 80, off below 50 (keeps a jet reserve). Top-16 bots boost 27–44 % of their firing time in the cast; if house bots under-lead, lateral speed is what makes them miss. Sim: squad +0.38 ± 0.58, FFA +0.33 ± 2.0 (no collapse). Profile `…steadyx+sboostx` | 5.65 |
+| 6 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
+| 7 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 8 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
 
 Superseded (rage base without steady strafe; gated but less informative now, run only if the queue is empty):
 `good-32` (0947af6, 170 m laser standoff), `good-33` (18ce57f, laser hunt to 120 s, no mortar), `good-34` (709fd65,
