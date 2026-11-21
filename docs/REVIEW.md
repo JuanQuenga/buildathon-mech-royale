@@ -9,7 +9,7 @@ replies). Update 08:55: the official SD of base-policy draws is only ~0.12 (6 dr
 | --- | --- | --- | --- | --- |
 | 1 | `good-54` | ab489ab | **Structural: fight from cover with the laser** (`peekx`). Laser ready: hold a sighted spot, charge, fire; laser cooling (1.65 s): step to the nearest spot hidden from the target and the nearest other threat (≤ 40 m); no cover or no laser: normal steady strafe. Why: the practice leaders (kyoto-max 6.31, giddygiddyboy 6.0) take 24–28 dmg/s, move ~6 m/s while firing at ~60 m and live 150–160 s in real showdowns; we take 41/s at 11.6 m/s and live 95 s. Practice points are kills before death, so damage taken is the lever. Sim squad +0.23 ± 0.67, alive 117 → 125 s | 5.6 |
 | 2 | `good-52` | 2d14b1f | good-31 + **longer planned jet climbs** (`jet60x`: jet_cap 40 → 60 m, roof weapons up to 35 m). Navigation is the one lever with large real effects (good-4 hop rules −0.3, ground-only −0.29 = jet_cap 0), so the dose-response may continue upward | 5.5 |
-| 3 | `good-53` | 6301311 | **FFA final candidate** = good-31 policy + opening hold-fire + FFA survival-first (`openholdx+ffahidex`). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.38 |
+| 3 | `good-55` | 70874eb | **FFA final candidate** = base policy + opening hold-fire + FFA survival-first until 3 mechs remain (`openholdx+ffahide3x`; replaces good-53, which hid only until 5). Practice check before entering it for the final: hold-fire alone cost nothing (good-50 5.35) and FFA hide is inactive in squad rounds, so expect the base level | 5.34 |
 | 4 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
 | 5 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
 | 6 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
@@ -213,7 +213,18 @@ Reading: **+0.26 ± 0.48 per match** (paired within matches): positive, not sign
 (114 vs 105 s) and kills less, which is the direction the real showdown data favours (placement follows damage taken
 and survival). v6 = hide until 5 alive vs until 3 alive; v7 = the combined candidate good-53 vs base, 200 matches.
 
-SELFPLAY_V6
+**v6** (seeds 6000–6099, 100 matches): FFA hide until 3 alive vs until 5 alive
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx+ffahide3x | 400 | 9.12 ± 0.45 | 1.18 | 127 | 50/400 | 12 (386/400) | 50 | 0 |
+| var:laser+nav3x+fixx+steadyx+ffahidex | 400 | 8.82 ± 0.45 | 1.21 | 119 | 46/400 | 12 (390/400) | 59 | 0 |
+
+Reading: hiding longer is better again (+0.29 ± 0.65 per match), on top of hide-5 vs base (+0.26 ± 0.48): the
+survival direction is consistent. The FFA candidate is now **good-55** (`openholdx+ffahide3x`); v7 (200 matches,
+good-55 policy vs base) and v8 (peek vs base, FFA no-collapse check) are running.
+
+SELFPLAY_V7
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
@@ -265,8 +276,8 @@ Pending: the queue above. good-45 (boost above 50 energy, 77e995c) is gated and 
 ## Recommended final entry
 - **Practice board / qualification:** the best official draw of the base policy (`laser+nav3x+fixx+steadyx`), today
   good-31 at 5.56; re-rolls good-r* keep adding draws.
-- **Final (16-entrant FFA, new seeds):** **good-53** (6301311): the same base policy plus opening hold-fire and FFA
-  survival-first, provided its practice check is clean and FFA self-play v7 does not contradict it. Fall back to
+- **Final (16-entrant FFA, new seeds):** **good-55** (70874eb): the same base policy plus opening hold-fire and FFA
+  survival-first until 3 mechs remain, provided its practice check is clean and FFA self-play v7 does not contradict it. Fall back to
   good-50 (hold-fire only, practice 5.35), then to the base policy (good-31). Reason: in 20 real showdowns placement
   follows damage taken and survival, our bot takes the most damage of the field and dies at 95 s, and all three of our
   opening deaths were fights we started unarmed. Both switches are inactive or measured-neutral in practice.
