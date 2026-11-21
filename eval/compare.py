@@ -52,11 +52,14 @@ def bot_cmd(path):
     return f"{PY} -u {path}/bot/main.py"
 
 
+SIM_ROOT = REPO
+
+
 def run(ref_path, mode, seeds, jobs, tmp, tag):
     """Returns one row per tracked-bot sample: seed, place, score, death_t, cause, kills, missed, late, tracebacks."""
     out = os.path.join(tmp, f"{tag}-{mode}.jsonl")
     logs = os.path.join(tmp, f"logs-{tag}-{mode}")
-    sim_root = REPO  # always use the CURRENT sim so both bots face the same opponents
+    sim_root = SIM_ROOT  # a committed sim (worktree) so both bots face the same opponents
     extra = f"--ffa {shlex.quote(FFA_SPEC)}" if mode == "ffa" else ""
     cmd = RUNNER.format(bot=shlex.quote(bot_cmd(ref_path)), mode=mode, seeds=seeds, out=out, jobs=jobs, root=sim_root,
                         logs=logs, extra=extra)
@@ -103,7 +106,7 @@ def run(ref_path, mode, seeds, jobs, tmp, tag):
             if "error" in r:
                 print(f"  sim error seed {r.get('seed')}: {r['error'][:300]}", file=sys.stderr)
                 continue
-            for m in r["mechs"]:
+            for m in r.get("mechs") or []:
                 if not m.get("tracked"):
                     continue
                 cause = m.get("killed_with") or "survived"
@@ -150,9 +153,14 @@ def main():
     ap.add_argument("--seeds", default="0-23")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--log", action="store_true", help="append the result to eval/RESULTS.md")
+    ap.add_argument("--sim-ref", default="HEAD", help="commit whose sim/ to use (default HEAD; 'worktree' = the live tree)")
     a = ap.parse_args()
     tmp = tempfile.mkdtemp(prefix="mechcmp.")
+    global SIM_ROOT
     try:
+        if a.sim_ref != "worktree":
+            SIM_ROOT, ssha = worktree(a.sim_ref, tmp)
+            print(f"sim from {ssha}")
         bp, bs = worktree(a.base, tmp)
         cp, cs = worktree(a.cand, tmp)
         lines = []

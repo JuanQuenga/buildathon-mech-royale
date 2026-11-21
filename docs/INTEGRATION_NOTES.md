@@ -63,7 +63,21 @@ break LOS or win the trade.
   then), `face` (when nothing to shoot and no danger), `mode == engage` + `target_id` -> laser pre-charge behind
   cover if seen < 2 s ago.
 
-## 2026-11-20 (evening)
+## 2026-11-20 (late evening)
+
+- **Deadline guard is now a forked child process** (fb2966c). The policy (all modules) runs in a niced child;
+  the parent only reads stdin, forwards the newest obs, and replies with the child's action or a fallback at
+  26 ms. Reason: with the thread guard, a long numpy/C call held the GIL and the parent missed its own cutoff
+  (bot-internal max 42 ms on one pinned core). Consequences for you: nothing prints to stdout from the child
+  (it's redirected to stderr anyway); module state lives in the child; `MECH_GUARD=thread` restores the old mode.
+- **Timing on the stress streams (eval/make_stress_stream.py: 15 visible mechs + 12 npcs, 80 projectiles, 40
+  pickups, 1 CPU docker)**: combat `threats.assess` p99 13 ms / max 18 ms is now the biggest cost (was 0.8 ms
+  in the placeholder). Please cap per-tick work (e.g. shot_clear only for the 4–6 most relevant enemies,
+  projectile checks vectorised or limited to those within ~150 m and closing). Target p99 < 4 ms there.
+  `navigate.step` p99 3 ms / max 4 ms: fine. Brain's own cost came from calling `arena.nearest_cover` every
+  tick (3 ms each): now cached.
+- Real sim matches (fixture-like loads): whole-policy p99 ~9–20 ms. Fine for now, but every ms we add raises
+  the fallback rate on busy late-game ticks.
 
 - **New Intent field `max_speed`** (m/s, None = no cap). Nav: clamp `move` length to `max_speed / walk_speed`
   and don't boost. The brain sets it to ~4.5 m/s in `hold` (moving under `sound.step_speed` = 5 m/s is silent:

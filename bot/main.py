@@ -32,7 +32,7 @@ if ROOT not in sys.path:
 from bot import state as st  # noqa: E402
 
 BOT_NAME = "OSU-Walker"
-HARD_CUTOFF_S = float(os.environ.get("MECH_HARD_CUTOFF_MS", "30")) / 1000.0   # reply no later than this
+HARD_CUTOFF_S = float(os.environ.get("MECH_HARD_CUTOFF_MS", "26")) / 1000.0   # reply no later than this
 SOFT_BUDGET_S = float(os.environ.get("MECH_SOFT_BUDGET_MS", "18")) / 1000.0   # skip optional modules after this
 CONTINUOUS = ("move", "boost", "aim")
 STATS_PATH = os.environ.get("MECH_STATS")  # optional: write timing/decision stats JSON here at exit (eval)
