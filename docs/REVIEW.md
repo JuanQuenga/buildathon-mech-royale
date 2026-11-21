@@ -134,7 +134,19 @@ unarmed to find pickups): in the sim, arming time barely changes (median 11.9 �
 arming is limited by distance to weapons, not by vision. v4 tests `ffahidex` (FFA survival-first: hide from
 non-hunters, fight only attackers/killable while more than 5 mechs are alive).
 
-SELFPLAY_V4
+**v4** (seeds 4000–4099, 100 matches): FFA survival-first `ffahidex`
+
+| Variant | n | mean (16 − place) | kills | alive s | survived | ffa detected (median s) | ever 'squad' | tracebacks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| var:laser+nav3x+fixx+steadyx+ffahidex | 400 | 9.29 ± 0.46 | 1.15 | 114 | 54/400 | 11 (384/400) | 46 | 0 |
+| var:laser+nav3x+fixx+steadyx | 400 | 8.78 ± 0.43 | 1.43 | 99 | 42/400 | 10 (394/400) | 31 | 0 |
+
+Reading: +0.52 ± 0.69 per match (paired within matches; the per-row CIs above treat seats as independent and are
+too narrow). It survives longer with fewer kills, the same pattern as the real showdown places 5–10. Promising but
+not established; 100 more matches (v4b) are queued. Gated tag: **good-51** (028206c, FFA-only, so practice is
+unaffected except through detector errors).
+
+SELFPLAY_V5
 
 ## Family means (pick the final entry by these, not by the best single draw)
 | Family | Draws | Mean | Notes |
