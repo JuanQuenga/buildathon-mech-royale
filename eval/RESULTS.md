@@ -12,6 +12,8 @@ official numbers and say so here in bold.**
 | 11-21 ~00:30 | f8db786 | good-3 | **4.88** (rank 20/~157; cut #32 = 4.48; top 5.58) | **same seeds as good-4, +0.30 for the OLDER tag although the sim rated good-4 ≥ good-3**. good-3 is the base to beat |
 | 11-21 ~00:45 | f8db786 | good-3 (rerun) | 4.85 | identical commit resubmitted: timing noise ±0.03. Any behaviour change re-rolls every match, so between-tag noise is larger (chaos control tag pending) |
 | 11-21 ~01:00 | 5e2b91e | good-6 | **4.96** (rank ~26; cut 4.77) | main + cube_greed (hunter model, weapon-first, pickup fix, 2-death FFA guess). New best |
+| 11-21 ~01:35 | 37f5786 | good-5 | 4.46 | good-4 + good-3 brain.py: did NOT recover good-3. Either the regression is outside the brain, or tag-to-tag noise is ~±0.3 |
+| 11-21 ~01:40 | 3dd9bcd | good-7 | **5.00** | main + seek profile (sim +0.22 vs greed). New best, but only +0.04 over good-6 |
 
 ### Sim calibration vs official (MacBook, sim f683099, good-4, seeds 0-47)
 

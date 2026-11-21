@@ -5,15 +5,16 @@ Newest first. Each tag passed the native gate on the MacBook (`NATIVE_ONLY=1 eva
 recorded stream, slow-policy and crash tests, big and late stress streams, 0 missed replies). Run the Docker gate
 before submitting.
 
-| Tag | Commit | Single hypothesis it tests (vs good-6 = main + cube_greed, official 4.96) | Expected official |
-| --- | --- | --- | --- |
-| `good-7` | 3dd9bcd | **seek**: when healthy (≥80 % HP) with a secondary weapon and nothing else to do, walk to the nearest remembered house bot instead of holding, so kills come one at a time before the squad escalates (sim +0.22 vs greed, 96 seeds) | 5.1 |
-| `good-8` | 696e4ec | **fresh**: after each kill heal out of sight, and start new fights only at ≥85 % HP (sim +0.20 vs greed) | 5.1 |
+| Prio | Tag | Commit | Single hypothesis it tests | Expected official |
+| --- | --- | --- | --- | --- |
+| 1 | `good-9` | e6718e7 | **Chaos control**: good-3 with only the idle torso-scan phase shifted (behaviour-neutral). Its distance from good-3 (4.88/4.85) is the tag-to-tag noise: any behaviour change re-rolls all 48 trajectories | 4.6–5.1 |
 
-Submitted already: good-5 (37f5786, good-4 + good-3 brain, scoring), good-6 (5e2b91e) = 4.96.
+More tags (scaling, stacked seek+fresh, picky, laser) follow after the sim screens finish (~2:10 AM).
+
+Submitted: good-5 4.46, good-6 4.96, good-7 (seek) 5.00, good-8 (fresh) scoring.
 
 ## Recommended final entry
-`good-6` (5e2b91e), official **4.96**, until something beats it officially.
+`good-7` (3dd9bcd, seek), official **5.00**, until something beats it officially.
 
 ## What the bot does
 Python bot (`bot/`): a forked policy process with a hard 26 ms reply guard. Per observation: threat assessment →
