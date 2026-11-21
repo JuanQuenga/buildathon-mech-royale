@@ -183,5 +183,7 @@ Base policy (`laser+nav3x+fixx+steadyx`) true mean 5.34, SD 0.13 per draw.
 | good-76 | firefixx: re-check the gun shot against the final aim after a laser override | 5.36 (review: +8 % gun damage to mechs in its sim, score +0.02) | **5.23** |
 | good-77 | cubex + drop95x (supply drops first, reach 60 s) | 5.45 | **5.19** |
 | good-78 | keepgunx: gun valued above lightning (no gun-for-lightning swap) | 5.38 | **5.33** |
-| good-79 | coverfixx: retreat cover hidden from the nearest three threats (bug: `_cover_from` used only the first threat) | 5.42 (88 % of deaths happen in retreat) | |
+| good-79 | coverfixx: retreat cover hidden from the nearest three threats (bug: `_cover_from` used only the first threat) | 5.42 (88 % of deaths happen in retreat) | **5.35** (= base) |
 | good-80 | cubex twin (r40x) | 5.45 | |
+| good-81 | precomx on base + cover fix: before fighting, move (firing) to a flank spot ≤ 70 m with a clear shot where fewer other mechs can see us; decline opportunity fights when none exists | 5.45 (sim smoke: a better spot exists only in a minority of contacts: clustered hunters leave no single-shooter angle) | |
+| good-82 | twin of good-81 (r41x) | 5.45 | |
