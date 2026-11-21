@@ -3,17 +3,30 @@
 ## Please submit
 The table order is the queue. Every tag listed passed the **full Linux gate** (`eval/check.sh <tag>`: unit tests,
 native + Docker with the exact sandbox flags, big and late stress streams, slow-policy and crash guards, 0 missed
-replies). Two tracks: experiments (table) first, then re-roll filler (track 1). FFA work (track 2) is in "FFA self-play" below.
+replies). Agreed with the coordinator (08:00): **re-rolls first, at most one experiment per hour** (no single-hypothesis variant has beaten the base policy beyond noise). Engineering time goes to FFA (track 2, below). good-49 is the FFA candidate's practice check.
 
 | Prio | Tag | Commit | Single hypothesis it tests | Expected official |
 | --- | --- | --- | --- | --- |
-| 1 | `good-40` | 633caaf | good-31 + gun lead for airborne targets from their observed vertical acceleration (jetting +12 m/s² up to the 8.9 m/s cap, ballistic −g, clamped at the ground; the old lead used −g/2 while rising and missed jetting targets by up to 5 m). Profile `…steadyx+airx` | 5.6 |
-| 2 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
-| 3 | `good-48` | 0208ea2 | good-31 + **gun discipline**: no opportunistic gun fire at a mech beyond 150 m unless it already fights us, is the brain's target or is killable. Real FFA (6 AM showdown): gun-only, we opened fire on a laser bot at 176 m and lost 1,400 HP to four full beams in 8 s. In practice it may also stop waking passive house bots with 40 %-accurate long shots. Sim: squad +0.19 ± 0.49, FFA −0.20 ± 2.0. Profile `…steadyx+discx` | 5.4 |
-| 4 | `good-42` | 6d78ab0 | good-31 + break contact when a 2nd hunter is in sight (the steady-base version of good-34). Profile `…steadyx+hretx` | 5.5 |
-| 5 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
-| 6 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
-| 7 | `good-49` | 20b1e60 | **FFA candidate**: good-31 policy + `ffax` (FFA-only tactics, inactive in squad unless the detector errs, ~7 % in sim). Its official run checks the switch costs nothing in practice before we consider it for the final; it is also a near-re-roll of the good-31 policy | 5.3 |
+| 1 | `good-r1` | 0b3d535 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 2 | `good-r2` | a3de7d6 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 3 | `good-r3` | 3539b7c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 4 | `good-49` | 20b1e60 | **FFA candidate**: good-31 policy + `ffax` (FFA-only tactics, inactive in squad unless the detector errs, ~7 % in sim). Its official run checks the switch costs nothing in practice before we consider it for the final; it is also a near-re-roll of the good-31 policy | 5.3 |
+| 5 | `good-r4` | 0647f5f | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 6 | `good-r5` | 964946c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 7 | `good-r6` | fe55d11 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 8 | `good-43` | 695ceae | good-31 + hold 170 m with a laser (steady-base good-32). Profile `…steadyx+snipex` | 5.45 |
+| 9 | `good-r7` | 7b21405 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 10 | `good-r8` | 90709e2 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 11 | `good-r9` | e0c167c | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 12 | `good-44` | 8f2c4d8 | good-31 + explore for a laser until 120 s, never take a mortar (steady-base good-33). Profile `…steadyx+lhuntx` | 5.5 |
+| 13 | `good-r10` | 0fb8dcd | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 14 | `good-r11` | 15b725a | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 15 | `good-r12` | cd320aa | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 16 | `good-41` | eff7dd6 | good-31 + full sideways motion while closing or opening range (diagonal approach instead of mostly radial). Profile `…steadyx+widex` | 5.55 |
+| 17 | `good-r13` | 17f7e06 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 18 | `good-r14` | 98dc39d | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 19 | `good-r15` | 6ebae40 | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
+| 20 | `good-r16` | 7f0977e | re-roll of the good-31 policy (qualification insurance; ~1-in-4 chance per draw of beating 5.56) | 5.42 |
 
 ### Filler: qualification-insurance re-rolls (track 1)
 Same policy as good-31 (`laser+nav3x+fixx+steadyx`), differing only in the behaviour-neutral idle torso-scan phase
@@ -96,6 +109,9 @@ SE of one draw ≈ 0.27, so the steady family's lead over non-steady (~+0.1) is 
 | Tag | Score | What it changed |
 | --- | --- | --- |
 | good-31 | **5.56** | good-22 + steady strafe (reversals every 3–5 s instead of 1.2–2.4 s) |
+| good-48 | 5.35 | good-31 + gun discipline beyond 150 m |
+| good-40 | 5.25 | good-31 + airborne gun lead |
+| good-42 | **4.73** | good-31 + break contact at the 2nd hunter: clearly worse (−0.7); idea and relatives dropped |
 | good-47 | 5.40 | second re-roll of good-31 |
 | good-46 | 5.29 | **re-roll of good-31** (behaviour-neutral chaos control): good-31 drew high |
 | good-39 | 5.27 | good-31 + boost-run strafe above 80 energy |
