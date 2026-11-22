@@ -215,3 +215,21 @@ The same builds run in the sim give the sim's value; where they disagree, the si
 | probe-att3 | first time 3 mechs hit us within 3 s | kills before the first triple-team | 3.8 | |
 | probe-k3 | our 3rd kill | E[min(kills, 3)]: share of matches that fail early | 2.8 | |
 
+
+### 11-21 19:05 policy v2 (MacBook agent, branch `v2`, `bot/apex.py`): objective layers, not fight-loop tweaks
+Telemetry just in: probe-t60 = **1.85**, probe-t150 = **5.10** (full match 5.34). So we hold ~1.85 kills at 60 s, add
+~3.25 between 60 and 150 s and are almost always dead by 150 s: the first supply drop (called 70 s, lands 95 s: full
+HP + full energy + 3 cubes) falls inside our life in most matches, and the base never takes it (it only considers a
+drop when no fight is on). All tags = `laser+nav3x+fixx+steadyx+openholdx+ffahide3x` (base + the FFA-only final
+package, practice cost measured nil: 5.35 / 5.31) + one layer. Sim (96 paired seeds, proxy only): vacuum +0.10 ± 0.33,
+passive-first −0.07 ± 0.29, first drop version −0.47 ± 0.30 (long straight runs; since fixed: trips ≤ 35 s, weave,
+last stand after the capture). Sanity: 24 seeds each, 0 tracebacks, 0 apex errors.
+
+| Tag | Layer (one each) | Prediction | Official |
+| --- | --- | --- | --- |
+| v2-1 | `dropx` drop king: from the call run to the drop (weaving, firing), capture under fire by circling inside the ring, never retreat afterwards | 5.6 (alive at 95 s in most matches; a full heal + 3 cubes is worth ~1 kill when captured; the run costs kill time) | |
+| v2-2 | `vacx` cube vacuum: every cube within 90 m at once, boosting, under fire (base: only when unhit for 3 s) | 5.45 (sim cubes at death 3.9 → 6.7; cubex was 5.39) | |
+| v2-3 | `headx` passive first: prefer mechs that are not hunting us, plus seek. Hunters = the kills + 1 weakest alive, so killing passives keeps easy/medium bots as our hunters | 5.3 (5.9 if tiers differ a lot and passives do not retaliate; 4.8 if the hunters chew on us meanwhile) | |
+| v2-4 | `dropx+vacx` | 5.65 | |
+| v2-5 | `roofx` roof fortress: once armed, climb the nearest big flat roof (54 mapped), fight at the edge, heal at the centre | 4.8 (lottery: 7+ if house bots cannot follow onto roofs; the sim's bots jet up and it scores 3.3) | |
+| v2-6 | `duckx` laser duck: a visible mech charging at us → sprint behind cover within 14 m, else across its aim line | 5.35 | |
