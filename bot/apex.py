@@ -303,6 +303,28 @@ def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Opti
         if not threats_pos or state.arena is None:
             return None
         c = None
+        if P["px_deep"]:
+            # deep cover: hidden not only from where the nearest hunters stand now but also from where they will be
+            # after a 30 m step toward us (and, for a single hunter, 25 m to either side): cover that lasts the 20 s
+            pts = []
+            for tp in threats_pos[:2]:
+                dx, dy = state.pos[0] - tp[0], state.pos[1] - tp[1]
+                n = math.hypot(dx, dy) or 1.0
+                step = min(30.0, 0.5 * n)
+                pts.append(tp)
+                pts.append((tp[0] + dx / n * step, tp[1] + dy / n * step, tp[2]))
+                if len(threats_pos) == 1:
+                    pts.append((tp[0] - dy / n * 25.0, tp[1] + dx / n * 25.0, tp[2]))
+                    pts.append((tp[0] + dy / n * 25.0, tp[1] - dx / n * 25.0, tp[2]))
+            try:
+                c = state.arena.nearest_cover(state.pos, pts[:4], float(P["px_reach"]),
+                                              cubes=state.me.get("cubes", 0) or 0, budget_ms=2.5)
+            except Exception:
+                c = None
+            if c is not None and not (B._inside_zone_soon(state, c, 6.0) and B._in_safe_future(state, c)):
+                c = None
+            if c is not None:
+                return c
         # hidden from the four nearest mechs if possible, else from the three / two nearest (the far ones hit less)
         for k in (4, 3, 2):
             if len(threats_pos) < k and k != 4:

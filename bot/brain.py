@@ -167,7 +167,8 @@ P: Dict[str, Any] = {
     "px_max_s": 25.0,              # ...give up if no HP came back after this long
     "px_retry_s": 12.0,            # ...after being found, fight this long before trying again
     "px_ffa": True,
-    "px_hunters_only": True,       # ...squad/unknown rounds: hide from, and be flushed out by, hunters only
+    "px_hunters_only": True,
+    "px_deep": False,              # ...prefer cover that stays hidden after the nearest hunters step 30 m toward us / sideways       # ...squad/unknown rounds: hide from, and be flushed out by, hunters only
     "px_relocate": False,          # ...once out of sight hop to a second hidden spot px_hop_m further (hunters go to where they saw us)
     "px_hop_m": 50.0,
     "px_anchor": False,            # ...below px_anchor_hp drift (while duelling) toward the nearest cover within px_anchor_m
@@ -288,6 +289,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "freshhx": {"heal_below_squad": 0.8, "heal_below": 0.8, "heal_until": 0.95, "opp_min_hp_squad": 0.85,
                 "opp_min_hp": 0.85, "heal_after_kill": True},      # no new fight below 85 %: hide and heal to 95 % first
     "cornerx": {"corner": True},
+    "phdx": {"phoenix": True, "upg_heal": True, "px_deep": True, "px_low": 0.6},
+    "ph80x": {"phoenix": True, "upg_heal": True, "px_low": 0.8},
     "phrx": {"phoenix": True, "upg_heal": True, "px_relocate": True, "px_low": 0.6},
     "phax": {"phoenix": True, "upg_heal": True, "px_anchor": True, "px_low": 0.55},
     "phstrictx": {"phoenix": True, "upg_heal": True, "px_min_hide": 4, "px_reach": 45.0},
