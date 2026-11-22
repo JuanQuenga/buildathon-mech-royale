@@ -280,11 +280,11 @@ regenerated per match, hunters find us in ~60 % of resets (sim hunters walk to o
 | Tag | Layer | Prediction | Official |
 | --- | --- | --- | --- |
 | v2-13 | `phx`: reset below 50 % HP when cover hidden from the mechs around us is within 60 m; cease fire, sit to 95 %; regen-first upgrades | 5.7 (6.0+ if the real hunters do not walk into cover; 5.4 if they do) |**5.33** (no gain: as in the sim, the reset costs kill time and the hunters find us) |
-| v2-14 | `ph65x`: same, reset below 65 % (the leaders break off at 50-75 %) | 5.7 | |
-| v2-15 | `phrx`: reset below 60 % + once out of sight hop 50 m to a second hidden spot (hunters go where they last saw us) | 5.7 | |
-| v2-16 | `phax`: reset below 55 % + below 85 % HP drift (while duelling) toward the nearest cover within 100 m | 5.6 | |
-| v2-17 | `phx+freshhx`: phoenix + no new fight below 85 % HP (hide and heal to 95 % first) | 5.5 (fresh alone was −0.17 on an old base) | |
-| v2-18 | `r1x`: re-roll of the `vacx+duckx` base (behaviour-neutral scan phase): is 5.63 the level or a lucky draw? | 5.5 | |
+| v2-14 | `ph65x`: same, reset below 65 % (the leaders break off at 50-75 %) | 5.7 | **5.42** |
+| v2-15 | `phrx`: reset below 60 % + once out of sight hop 50 m to a second hidden spot (hunters go where they last saw us) | 5.7 | **5.40** |
+| v2-16 | `phax`: reset below 55 % + below 85 % HP drift (while duelling) toward the nearest cover within 100 m | 5.6 | **5.54** |
+| v2-17 | `phx+freshhx`: phoenix + no new fight below 85 % HP (hide and heal to 95 % first) | 5.5 (fresh alone was −0.17 on an old base) | **5.38** |
+| v2-18 | `r1x`: re-roll of the `vacx+duckx` base (behaviour-neutral scan phase): is 5.63 the level or a lucky draw? | 5.5 | **5.48** (base level ≈ 5.55) |
 
 ### Calibrated-sim screen of structural ideas (`--squad join_per_loss=0.6`, paired seeds; proxy only, none tagged unless noted)
 | Idea (profile) | Sim result vs base | Why it fails in the sim |
@@ -303,8 +303,8 @@ gun + lightning, 3.33 gun + mortar, 1.75 gun only (28 % of matches end without a
 
 | Tag | Layer | Prediction | Official |
 | --- | --- | --- | --- |
-| v2-19 | `lookx`: spin the torso while unarmed to find pickups sooner | 5.5 | |
-| v2-20 | `lhuntx`: armed but no laser: keep exploring for one until 120 s; never take a mortar | 5.5 | |
+| v2-19 | `lookx`: spin the torso while unarmed to find pickups sooner | 5.5 | **5.33** |
+| v2-20 | `lhuntx`: armed but no laser: keep exploring for one until 120 s; never take a mortar | 5.5 | **5.46** |
 | v2-21 | `upghx`: regen-first upgrade ranking (nanites, plating, armor: the leaders' picks) without the heal cycle | 5.5 | |
 | v2-22 / 23 / 24 | `r2x` / `r3x` / `r4x`: behaviour-neutral re-rolls of the base (best draw counts on the board) | 5.5 each | |
 
@@ -331,8 +331,19 @@ every score without restoring the speed sensitivity; not pursued further (9 min 
 ### 11-21 22:45 batch 5: speed first under fire (the opposite of `lasx`)
 | Tag | Layer on `vacx+duckx` | Prediction | Official |
 | --- | --- | --- | --- |
-| v2-26 | `lasx+zapx+updx` damage stack (sim 5.89) | 6.0 before v2-25 scored; now 5.4 | |
-| v2-27 | `lasx+r1x` re-roll of v2-25 | 5.45 | |
+| v2-26 | `lasx+zapx+updx` damage stack (sim 5.89) | 6.0 before v2-25 scored; now 5.4 | **5.52** |
+| v2-27 | `lasx+r1x` re-roll of v2-25 | 5.45 | **5.50** |
 | v2-28 | `snapx`: while a mech is hitting us release the laser at 0.25 s charge (65 % of the beam, a third of the slow time) | 5.6 | |
 | v2-29 | `shy2x`: with 2+ mechs hitting us do not charge the laser at all (gun / lightning at full speed) | 5.6 | |
 | v2-30 | `shy1x`: no laser charge while any mech is hitting us | 5.5 | |
+
+### Verdict after 30 official v2 runs (11-21 22:50)
+Every v2 variant scored 5.33-5.63 except the three disasters (roof 3.25, 105 m 4.69, geometry movement 4.98). The base
+`vacx+duckx` has a true level of ~5.55 (5.63, 5.48); nothing built on it moved it: heal cycle 5.33-5.54, laser-always
+5.40 / 5.50, damage stack 5.52, laser hunt 5.46, torso spin 5.33. The cut is 6.19 and rising. Best entry: **v2-7**
+(`bb7fb8121df21ba5e76d0252a2b508465cd6c5b7`, 5.63; contains the FFA-only final package).
+What we learned that is solid: (1) cubes at once and ducking laser charges are worth ~+0.2 together; (2) 90 m is the
+range optimum; (3) the leaders' heal cycle (3-4k HP per FFA match) does not pay against the squad; (4) the sim predicts
+direction for survival/positioning ideas but over-values damage bought with slow movement (speed cap: sim −0.04,
+official −0.57), so its +0.4..+0.6 for the laser/damage line was not real. Untested and gated: v2-28/29/30 (speed first
+under fire), v2-22/23/24 (re-rolls of the base).

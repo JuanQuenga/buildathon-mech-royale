@@ -46,3 +46,18 @@ recommendation. The submit queue itself is `coord/queue/mech.txt`. This file is 
 - Gate (`eval/check.sh`) under heavy load can flake `native_slow` by one late reply; do not pin it with `taskset`
   onto cores that a sim batch saturates. Combat unit tests pin fire-suppressing switches off (`tests/combat/helpers.py`).
 - Machine budget: ≤ 3 CPU-bound processes, temp files under `mech-royale/work/` (TMPDIR), not /tmp.
+
+
+## MacBook v2 session (11-21 18:30-22:50 ET): branch `v2`, tags `v2-1`..`v2-30`
+- Trunk is branch `v2` (main untouched). New code: `bot/apex.py` (objective layers: drop_king, vacuum, duck, roof,
+  bank, pet, phoenix, corner), `bot/dodge.py` (predictive dodge), nav3 `evade` / `boost_charge` / `drift`, combat
+  `laser_always` / `zap_always` / `laser_snap` / `laser_shy`, brain `upg_kill` / `upg_heal` / `upg_dps`, `range_floor`.
+  All default off; profiles in `bot/brain.py: PROFILES`. Results, sim numbers and the verdict: `eval/RESULTS.md`.
+- Best entry: **v2-7** = `laser+nav3x+fixx+steadyx+openholdx+ffahide3x+vacx+duckx` (5.63; level ~5.55).
+- Sim: use `--squad join_per_loss=0.6` (base 5.07 vs official 5.34; called the direction of the survival/positioning
+  runs incl. roof). It does NOT model how hard the real squad punishes slow movement (speed cap: sim −0.04, official
+  −0.57), so do not trust sim gains that come with more laser charge time. `SIM_TIERS` env overrides house aim.
+- Gate on macOS: `MECH_KIT=<kit>/mechfight-kit PY=<venv>/bin/python TMPDIR=<dir> bash eval/check.sh <ref>`; combat and
+  brain tests pin the v2 switches, so they pass under every profile. Do not run sims while gating (timing).
+- Live Showdown tooling (not in repo): capture with `eval/diag/cast/cap.mjs`; the leaders regenerate 3-4k HP per FFA
+  match (cease fire, break line of sight, heal to full, nanites + plating). Relevant for an FFA entry, not for practice.
