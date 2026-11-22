@@ -139,6 +139,15 @@ class TestLaser(unittest.TestCase):
         out, _ = run(w, obs(tick=100, aim=(0.0, 0.0), weapons=self.ws(charge=0.4)), Intent(mode="retreat", urgency=0.8))
         self.assertFalse(out.fire[1])
 
+    def test_laser_always_keeps_charging_in_retreat(self):
+        helpers._brain.P["laser_always"] = True
+        try:
+            out, _ = run(self.w, obs(tick=100, aim=(0.0, -0.01), weapons=self.ws(charge=0.4), mechs=[self.e]),
+                         Intent(mode="retreat", urgency=0.8))
+            self.assertTrue(out.fire[1])              # policy v2: keep the charge going, the beam is our damage
+        finally:
+            helpers._brain.P["laser_always"] = False
+
     def test_kill_shot_early(self):
         e = enemy(5, (120, 0, 0), hp=150)
         out, _ = run(self.w, obs(tick=100, aim=(0.0, -0.01), weapons=self.ws(charge=0.3), mechs=[e]))
