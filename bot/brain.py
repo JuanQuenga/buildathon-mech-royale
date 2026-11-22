@@ -161,7 +161,9 @@ P: Dict[str, Any] = {
     "px_reach": 60.0,              # ...cover search radius (m)
     "px_min_hide": 2,              # ...accept cover hidden from only this many nearest mechs when none hides from all
     "px_mem_s": 6.0,               # ...hide from every mech seen in the last this many seconds
-    "px_fight_m": 55.0,            # ...on the way shoot back only at a mech this close with a line on us
+    "px_fight_m": 90.0,            # ...on the way shoot back only at a mech this close with a line on us
+    "px_near_m": 20.0,             # ...do not start a reset toward cover further than this while a mech with a line
+    "px_press_m": 60.0,            # on us is closer than this (sim: 1150 -> 68 HP walking 44 m to cover, silent, at 45 m)
     "px_max_s": 25.0,              # ...give up if no HP came back after this long
     "px_retry_s": 12.0,            # ...after being found, fight this long before trying again
     "px_ffa": True,

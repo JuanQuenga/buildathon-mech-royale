@@ -286,7 +286,7 @@ def test_apex_phoenix_heal_cycle():
         o, th = _attacked(hp=600, pos=(0, 0, 0), t=80.0)
         s.update(o)
         it = brain.choose_intent(s, th(s))
-        assert it.mode == "retreat" and it.goal[0] == 20.0 and not it.allow_fire, it     # attacker is 85 m away: no fire
+        assert it.mode == "retreat" and it.goal[0] == 20.0 and it.allow_fire, it         # attacker 85 m away with a line: fire back on the way
         o2 = mk(pos=(20, 0, 0), t=83.0, hp=640)                                           # arrived, nobody visible
         s.update(o2)
         it = brain.choose_intent(s, Threats())

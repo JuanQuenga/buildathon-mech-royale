@@ -342,6 +342,9 @@ def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Opti
         if spot is None:
             _stat(am, "px_nocover")
             return None
+        if dist2d(spot, state.pos) > float(P["px_near_m"]) and any(e.dist < float(P["px_press_m"]) for e in seeing):
+            _stat(am, "px_pressed")
+            return None                               # a mech on top of us and the cover is far: fighting on costs less
         px.update(on=True, t0=t, hp0=state.hp, spot=spot, seen_since=None, moved=False)
         px["n"] += 1
         _stat(am, "px_start")
