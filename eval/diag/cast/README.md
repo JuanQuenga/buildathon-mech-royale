@@ -9,3 +9,7 @@
 
 Findings (11-21 05:30): top-16 bots boost 27–44 % of their firing time (2.3%, scorpion, kyoto-max, Mahalas,
 tigerbyte); a few stand still. FFA places are decided by survival: winners deal 5–7k damage with 1–5 kills.
+- `python3 castprof.py out.jsonl`: per bot per match: place, life, dealt/taken per s, HP regenerated, heal episodes, drops,
+  cubes, standing-still / slow / fast / airborne shares, fight share, hit ranges, upgrades taken.
+- `python3 healep.py out.jsonl <name> [...]`: every heal episode of the named bots (start relative to the last hit taken /
+  dealt, distance moved, nearest enemy and whether it had line of sight).
