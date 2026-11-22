@@ -175,6 +175,7 @@ P: Dict[str, Any] = {
     "px_anchor_hp": 0.85,
     "px_anchor_m": 100.0,
     "upg_heal": False,             # upgrade ranking of the live-showdown leaders: nanites and plating first
+    "laser_always": False,         # combat: charge/fire the laser in every mode with fire allowed (retreat, cube runs, urgency >= 0.7)
     "corner": False,               # corner duel (bot/apex.py _corner): laser charged in cover, step out, fire, step back
     "cn_reach": 30.0,              # ...cover within this many metres
     "cn_max_m": 150.0,             # ...targets up to this range
@@ -289,6 +290,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "freshhx": {"heal_below_squad": 0.8, "heal_below": 0.8, "heal_until": 0.95, "opp_min_hp_squad": 0.85,
                 "opp_min_hp": 0.85, "heal_after_kill": True},      # no new fight below 85 %: hide and heal to 95 % first
     "cornerx": {"corner": True},
+    "lasx": {"laser_always": True},
     "phdx": {"phoenix": True, "upg_heal": True, "px_deep": True, "px_low": 0.6},
     "ph80x": {"phoenix": True, "upg_heal": True, "px_low": 0.8},
     "phrx": {"phoenix": True, "upg_heal": True, "px_relocate": True, "px_low": 0.6},

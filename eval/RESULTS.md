@@ -307,3 +307,16 @@ gun + lightning, 3.33 gun + mortar, 1.75 gun only (28 % of matches end without a
 | v2-20 | `lhuntx`: armed but no laser: keep exploring for one until 120 s; never take a mortar | 5.5 | |
 | v2-21 | `upghx`: regen-first upgrade ranking (nanites, plating, armor: the leaders' picks) without the heal cycle | 5.5 | |
 | v2-22 / 23 / 24 | `r2x` / `r3x` / `r4x`: behaviour-neutral re-rolls of the base (best draw counts on the board) | 5.5 each | |
+
+### 11-21 22:00 damage audit: the laser was idle a third of the time under fire (`lasx`)
+Sim sensitivity (handicapped sim, 48 seeds, base 5.42): damage dealt x1.33 -> 6.35, x2 -> 7.54; damage taken x0.75 -> 6.00,
+x0.5 -> 6.81. Damage is worth more than survival, and a ~30 % damage edge is the size of the gap to the leaders.
+Uptime audit (calibrated traces, base `vacx+duckx`): only 33 s per match are "hot" (an engaged hunter has a line of fire
+on us); there we deal 188/s and take 71/s, the gun fires 1.65/s (82 % of its sustained rate) but the laser only once per
+3.5 s (cycle 2.4 s). combat refused to charge it in retreat mode and at urgency >= 0.7 (zone runs, cube runs).
+`laser_always`: charge/fire in every mode with fire allowed. Hot damage 188 -> 226/s, laser one per 2.6 s.
+Sim: 6.28 vs 5.56 (32 seeds), **+0.42 ± 0.43 (96 paired seeds)**: the largest sim effect of the whole v2 search.
+
+| Tag | Layer | Prediction | Official |
+| --- | --- | --- | --- |
+| v2-25 | `vacx+duckx+lasx` | 5.9 | |

@@ -213,6 +213,14 @@ def _passive_first() -> bool:
         return False
 
 
+def _laser_always() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("laser_always", False))
+    except Exception:
+        return False
+
+
 def _fire_fix() -> bool:
     try:
         from .brain import P as BP
@@ -908,6 +916,10 @@ def _laser_ctrl(state, intent, threats, me: _Me, mem, las, lst, tg, best, allow,
     as min_charge is reached; a full charge held `hold_s` more fires by itself; then `cooldown`. Charging halves
     our movement; a lightning hit ('short') cancels the charge and blocks charging for short_s."""
     slot, w = las
+    if allow and mode != "heal" and _laser_always():
+        # policy v2: the laser fired once per 3.5 s under fire (cycle 2.4 s) and never while retreating, grabbing cubes
+        # or running at urgency >= 0.7. Sim: +33 % damage dealt is worth +0.9 points, -25 % damage taken +0.6.
+        mode, urgency = "engage", min(urgency, 0.45)
     c = float(w.get("charge", 0) or 0)
     cd = float(w.get("cooldown", 0) or 0)
     full = float(lst.get("charge", 0.75))
