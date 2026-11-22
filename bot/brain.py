@@ -152,6 +152,9 @@ P: Dict[str, Any] = {
     "roof_heal_below": 0.55,       # ...step back to the roof centre and regenerate below this HP fraction
     "roof_unarmed_t": 45.0,        # ...only once we hold a secondary weapon, or after this match time
     "roof_ffa": False,             # ...also in rounds detected as FFA
+    "upg_kill": False,             # upgrade ranking for kills before death (HP, then damage; nanites last)
+    "dodge_plan": False,           # nav3: predictive bullet dodge (bot/dodge.py) instead of the vector-sum dodge
+    "range_floor": 0.0,            # >0: squad/unknown: never fight a mech closer than this (bullet flight time = dodge time)
     "passive_first": False,        # squad/unknown: prefer mechs that are NOT hunting us. Hunters = the kills + 1 weakest
                                    # house bots alive, so killing a hunter promotes a stronger one; killing the passive
                                    # (stronger) bots first keeps the weakest tiers as our hunters for the whole match
@@ -234,6 +237,9 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "telek6x": {"tele_kills": 6}, "telek7x": {"tele_kills": 7}, "telelaserx": {"tele_laser": True},
     "teledmg1400x": {"tele_dmg": 1400.0}, "teledmg2800x": {"tele_dmg": 2800.0},
     "dropx": {"drop_king": True},
+    "dodgex": {"dodge_plan": True},
+    "upgx": {"upg_kill": True},
+    "far105x": {"range_floor": 105.0}, "far120x": {"range_floor": 120.0}, "far140x": {"range_floor": 140.0},
     "vacx": {"vacuum": True},
     "close55x": {"laser_range": 55.0},
     "headx": {"passive_first": True, "seek": True},
@@ -303,7 +309,16 @@ if P["laser_first"]:
     WEAPON_VALUE["laser"] = 3.6
 if P["no_mortar"]:
     WEAPON_VALUE["mortar"] = 0.0
-UPGRADE_VALUE = {
+if P.get("upg_kill"):
+    # policy v2: points are kills before death and we never get 5 quiet seconds once the squad hunts, so regeneration
+    # (nanites) is worth little; HP first, then damage
+    _UPG2 = {"plating": 10, "armor": 9.5, "laser_damage": 9, "gun_damage": 8, "gun_rate": 7.5, "laser_charge": 7.5,
+             "lightning_efficiency": 7, "lightning_chain": 6.5, "servos": 6, "lightning_range": 5.5, "gun_mag": 5,
+             "capacitor": 4.5, "reactor": 4.5, "gun_velocity": 4.5, "jets": 3, "gyros": 3, "sensors": 3, "nanites": 2.5,
+             "mortar_reload": 2, "mortar_velocity": 2, "mortar_splash": 2, "laser_pierce": 2}
+else:
+    _UPG2 = None
+UPGRADE_VALUE = _UPG2 or {
     "plating": 10, "armor": 9.5, "nanites": 8, "lightning_efficiency": 7, "laser_damage": 7, "gun_damage": 6.5,
     "laser_charge": 6.5, "gun_rate": 6, "servos": 5.5, "lightning_range": 5.5, "capacitor": 5, "reactor": 5,
     "jets": 4.5, "gun_mag": 4.5, "gun_velocity": 4, "gyros": 4, "lightning_chain": 4, "sensors": 3.5,
@@ -1309,6 +1324,13 @@ def _fighting_others(state: WorldState, e: EnemyThreat) -> bool:
 
 
 def _desired_range(state: WorldState, e: EnemyThreat) -> float:
+    r = _desired_range0(state, e)
+    if P["range_floor"] > 0 and e.kind == "mech" and state.mode_guess != "ffa":
+        r = max(r, P["range_floor"])       # policy v2: stay where gun bullets take long enough to be dodged
+    return r
+
+
+def _desired_range0(state: WorldState, e: EnemyThreat) -> float:
     kinds = [k for k in state.weapon_kinds() if k]
     their = set(e.weapons or [])
     if e.kind == "npc":

@@ -538,6 +538,21 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
 
     # ---------------- dodge incoming projectiles
     dodge = threats.dodge if threats is not None else None
+    planned = None
+    if _flag("dodge_plan") and grounded and not (threats is not None and getattr(threats, "shell_urgency", 0.0) > 0.25):
+        # policy v2: predictive planner (bot/dodge.py) replaces the vector-sum bullet dodge; shells keep the legacy one
+        dodge = None
+        try:
+            from . import dodge as _dg
+            planned = _dg.plan(state, want, allow_boost=allow_boost)
+        except Exception:
+            planned = None
+            st_ = m["stats"]
+            st_["dodge_err"] = st_.get("dodge_err", 0) + 1
+        if planned is not None:
+            m["stats"]["dodge_plans"] = m["stats"].get("dodge_plans", 0) + 1
+            want = planned[0] if (planned[0][0] or planned[0][1]) else None
+            speed = 1.0
     if dodge is not None and (dodge[0] or dodge[1]):
         soon = min((p.t_impact for p in (threats.incoming or [])), default=1.0)
         w = 1.0 if soon < 0.6 else 0.5
@@ -584,7 +599,7 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     dx, dy = _steer(ar, k, x, y, want[0], want[1], 5.0 if grounded else 3.0) if nav_ok and ar.walkable(x, y, k) else want
 
     # ---------------- speed caps (silent movement) and boost
-    if intent is not None and intent.max_speed is not None:
+    if intent is not None and intent.max_speed is not None and planned is None:
         speed = min(speed, max(0.0, intent.max_speed / walk_v))
     boost = False
     if speed >= 0.99 and grounded and allow_boost:
@@ -602,6 +617,8 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
         on = energy > (sb - 30.0) if on else energy > sb
         m["sboost"] = on
         boost = on
+    if planned is not None:
+        boost = bool(planned[1]) and energy > 10.0      # the planner rolled this exact speed forward
     out.move = (dx * speed, dy * speed)
     out.boost = boost
     out.eta = (eta_s * walk_v / (state.stat("boost_speed", 19.5) if boost else walk_v)) if eta_s is not None else None

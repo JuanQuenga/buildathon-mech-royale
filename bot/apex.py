@@ -98,7 +98,10 @@ def _drop(state: WorldState, threats: Threats, it: Intent, m, am, zp, ring_only:
             except Exception:
                 pass
         hurt = state.hp < 0.5 * max(1.0, state.max_hp)
-        if eta > (P["dk_max_eta_hurt"] if hurt else P["dk_max_eta"]):
+        lim = P["dk_max_eta_hurt"] if hurt else P["dk_max_eta"]
+        if am.get("dk_commit") == d.get("id"):
+            lim = P["dk_max_eta_hurt"] + 20.0      # once on the way stay on the way (no flip-flop as HP crosses 50 %)
+        if eta > lim:
             continue
         cap_s = float(d.get("capture_s", 4.0) or 4.0)
         c, r = state.zone_circle_at(state.t + max(eta, lands) + cap_s + 2.0)
@@ -137,6 +140,7 @@ def _drop(state: WorldState, threats: Threats, it: Intent, m, am, zp, ring_only:
                 face = yaw_to(state.pos, e.pos)
                 break
         _stat(am, "ring")
+        am["dk_commit"] = d.get("id")
         return Intent(mode="engage" if tid is not None else "capture", goal=p, target_id=tid, desired_range=None,
                       urgency=0.5, face=face, allow_fire=True, loot_id=d.get("id"), raw_move=mv, raw_boost=False,
                       reason=f"ring {d.get('id')} prog {float(d.get('progress', 0) or 0):.1f}")
@@ -151,6 +155,7 @@ def _drop(state: WorldState, threats: Threats, it: Intent, m, am, zp, ring_only:
     if lands > eta + float(P["dk_lead_s"]):
         return None                       # too early: carry on, we leave when the trip takes as long as the fall
     _stat(am, "run")
+    am["dk_commit"] = d.get("id")
     return Intent(mode="engage" if tid is not None else "capture", goal=p, target_id=tid, desired_range=None,
                   urgency=0.75, face=face, allow_fire=True, loot_id=d.get("id"), weave=dist > 14.0,
                   reason=f"drop run {d.get('id')} eta {eta:.0f} lands {lands:.0f}")
