@@ -245,9 +245,9 @@ the bullet's flight is under a body radius (median lateral speed at the shot 6 m
 ### 11-21 19:55 policy v2 batch 2: movement (how not to be where the bullet goes) and the stack of batch-1 positives
 | Tag | Layer | Prediction | Official |
 | --- | --- | --- | --- |
-| v2-7 | `vacx+duckx`: the two batch-1 layers that held | 5.5 | |
-| v2-8 | `evx`: threat-geometry heading (pick the heading that keeps lateral speed x flight time above a body radius against every mech shooting at us) + ground-boost through the laser charge (the charge halves our speed) | 5.45 (sim: hit rate 40.2 → 36.8 %, low-displacement share of hits 0.80 → 0.63, score flat) | |
-| v2-9 | `vacx+duckx+evx+upgx`: full stack + upgrade ranking for kills before death (HP, then damage; nanites last) | 5.55 | |
+| v2-7 | `vacx+duckx`: the two batch-1 layers that held | 5.5 | **5.63** (new best; the two layers add) |
+| v2-8 | `evx`: threat-geometry heading (pick the heading that keeps lateral speed x flight time above a body radius against every mech shooting at us) + ground-boost through the laser charge (the charge halves our speed) | 5.45 (sim: hit rate 40.2 → 36.8 %, low-displacement share of hits 0.80 → 0.63, score flat) | **4.98** (hurts: keep the base strafe) |
+| v2-9 | `vacx+duckx+evx+upgx`: full stack + upgrade ranking for kills before death (HP, then damage; nanites last) | 5.55 | **5.10** (the movement layer drags the stack down) |
 | v2-10 | `dodgex`: predictive bullet-dodge planner (rolls 25 candidate moves forward against every visible bullet) instead of the vector-sum dodge | 5.35 (sim: hit rate 39.8 → 35.3 %) | |
 | v2-11 | `far105x`: never fight a mech inside 105 m, whatever we hold (no 28 m lightning brawls, no 55 m gun fights) | 5.2 (sim: hit rate 40 → 30 %, life +45 %, kills flat; official 170 m was 4.92, 90 m with the gun kept 5.33) | |
 
@@ -269,3 +269,17 @@ away, and runs to full HP (hamsters 1185 -> 2148 in 32 s without moving 2 m). Th
 fire, stand still to px_high; regen-first upgrades (nanites, plating, armor). Calibrated sim: 1.1-1.5 resets per match,
 +200-260 HP, but the sim's hunters walk to our last seen position and find us in 60 % of resets: score flat
 (4.94 / 5.03 vs 5.07). Whether the real hunters push into cover is exactly what the official run measures.
+
+### 11-21 20:40 batch 3: the heal cycle (phoenix) on the new base `vacx+duckx` (5.63)
+All = `laser+nav3x+fixx+steadyx+openholdx+ffahide3x+vacx+duckx` + the layer. Sim (calibrated, 96 paired seeds, phoenix
+on the old base): px_low 0.5 −0.14 ± 0.28, 0.65 −0.04 ± 0.37, relocate +0.06 ± 0.40, anchor +0.01 ± 0.40; +200-260 HP
+regenerated per match, hunters find us in ~60 % of resets (sim hunters walk to our last seen position).
+
+| Tag | Layer | Prediction | Official |
+| --- | --- | --- | --- |
+| v2-13 | `phx`: reset below 50 % HP when cover hidden from the mechs around us is within 60 m; cease fire, sit to 95 %; regen-first upgrades | 5.7 (6.0+ if the real hunters do not walk into cover; 5.4 if they do) | |
+| v2-14 | `ph65x`: same, reset below 65 % (the leaders break off at 50-75 %) | 5.7 | |
+| v2-15 | `phrx`: reset below 60 % + once out of sight hop 50 m to a second hidden spot (hunters go where they last saw us) | 5.7 | |
+| v2-16 | `phax`: reset below 55 % + below 85 % HP drift (while duelling) toward the nearest cover within 100 m | 5.6 | |
+| v2-17 | `phx+freshhx`: phoenix + no new fight below 85 % HP (hide and heal to 95 % first) | 5.5 (fresh alone was −0.17 on an old base) | |
+| v2-18 | `r1x`: re-roll of the `vacx+duckx` base (behaviour-neutral scan phase): is 5.63 the level or a lucky draw? | 5.5 | |
