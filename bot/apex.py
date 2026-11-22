@@ -18,8 +18,14 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, Optional, Tuple
 
+import os
+import sys
+
 from . import brain as B
 from .state import Intent, Threats, WorldState, dist2d, unit2, yaw_to
+
+
+_LOG = bool(os.environ.get("MECH_APEXLOG"))
 
 
 def _stat(am: Dict[str, Any], key: str) -> None:
@@ -41,7 +47,9 @@ def refine(state: WorldState, threats: Threats, it: Intent, m: Dict[str, Any]) -
             am["vac_last_pick"] = state.t
     zp = m.get("zp") or {}
     out: Optional[Intent] = None
-    if P["duck"]:
+    if P["bank"]:
+        out = _bank(state, threats, it, m, am, zp)
+    if out is None and P["duck"]:
         out = _duck(state, threats, it, m, am)
     if out is None and P["drop_king"]:
         out = _drop(state, threats, it, m, am, zp, ring_only=True)
@@ -53,9 +61,22 @@ def refine(state: WorldState, threats: Threats, it: Intent, m: Dict[str, Any]) -
         out = _vacuum(state, threats, it, m, am, zp, float(P["vac_reach"]))
     if out is None and P["roof"]:
         out = _roof(state, threats, it, m, am, zp)
+    if _LOG and state.tick % 20 == 0:
+        try:
+            bk = am.get("bank") or {}
+            wl = {i: round(w.get("hpf", 0), 2) for i, w in (bk.get("W") or {}).items()}
+            vs = [(e.id, round(e.dist), round((e.hp or 0) / max(1.0, e.max_hp or 1400), 2), int(e.los))
+                  for e in threats.enemies if e.kind == "mech" and e.visible]
+            print(f"[apex] t={state.t:.0f} hp={state.hp:.0f} k={state.kills} ph={bk.get('phase')} W={wl} "
+                  f"out={(out.reason if out is not None else 'base:' + it.mode + ' ' + it.reason)[:40]} vis={vs}", file=sys.stderr)
+        except Exception:
+            pass
     if out is None:
+        if P["bank"] and am.get("bank_spare"):
+            it.spare_ids = list(set(it.spare_ids or []) | set(am["bank_spare"]))
         return it
-    out.spare_ids = it.spare_ids
+    if not out.spare_ids:
+        out.spare_ids = it.spare_ids
     if out.face is None:
         out.face = it.face
     m["mode"] = out.mode
@@ -236,6 +257,101 @@ def _vacuum(state: WorldState, threats: Threats, it: Intent, m, am, zp, reach: f
     return Intent(mode="engage" if tid is not None else "loot", goal=tuple(c["pos"]), loot_id=c["id"], target_id=tid,
                   desired_range=None, urgency=0.75, face=face, allow_fire=True, weave=dd > 14.0,
                   reason=f"vacuum {c['id']} {dd:.0f}m")
+
+
+# ----------------------------------------------------------------------------- bank and burst
+def _bank(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Optional[Intent]:
+    """The squad escalates on DEATHS ("more join as you thin the squad out"), not on damage. So do not kill one bot at
+    a time (each kill is then paid for under one more hunter): wound several house bots down to a third of their HP
+    while only the opening hunter is on us, keep them from regenerating with a single shot every few seconds, then
+    finish them all within seconds. The kills are banked before any reinforcement has walked over, and the cubes of the
+    whole burst (2 per kill) arrive at once."""
+    P = B.P
+    bk = am.setdefault("bank", {"phase": "bank", "W": {}, "t0": None, "last_fresh": state.t, "bursts": 0})
+    am["bank_spare"] = []
+    if bk["phase"] == "done" or state.mode_guess == "ffa" or zp.get("must_go"):
+        return None
+    t = state.t
+    W = bk["W"]
+    for ev in state.events:
+        if ev.get("type") == "hit" and ev.get("target") in W:
+            W[ev.get("target")]["t_hit"] = t
+    thr = float(P["bank_hp"])
+    vis = []
+    for e in threats.enemies:
+        if e.kind != "mech":
+            continue
+        tr = state.tracks.get(e.id)
+        if tr is not None and tr.dead:
+            W.pop(e.id, None)
+            continue
+        if e.hp is None or not e.max_hp:
+            continue
+        hpf = e.hp / max(1.0, e.max_hp)
+        if e.id in W:
+            W[e.id]["hpf"] = hpf
+            if e.visible:
+                W[e.id]["seen"] = t
+            if hpf > thr + 0.2:
+                W.pop(e.id, None)                 # regenerated out of reach: wound it again later
+        elif e.visible and hpf <= thr:
+            W[e.id] = {"t_hit": t, "hpf": hpf, "seen": t}
+        if e.visible and e.los and e.dist < 210.0 and t - e.last_seen_t < 1.0:
+            vis.append((e, hpf))
+    for i in [i for i, w in W.items() if t - w["seen"] > 8.0 or (state.tracks.get(i) is not None and state.tracks[i].dead)]:
+        W.pop(i, None)
+    hpf_me = state.hp / max(1.0, state.max_hp)
+    armed = (state.weapon_kinds() + [None, None])[1] is not None
+    if bk["phase"] == "bank":
+        if not armed and t < float(P["bank_unarmed_t"]):
+            return None
+        if W and bk["t0"] is None:
+            bk["t0"] = t
+        n_w = len(W)
+        go = (n_w >= int(P["bank_n"]) or (n_w >= 1 and hpf_me < float(P["bank_bail_hp"]))
+              or (n_w >= 2 and bk["t0"] is not None and t - bk["t0"] > float(P["bank_max_s"]))
+              or (n_w >= 1 and t - bk["last_fresh"] > 10.0) or (n_w >= 1 and t > float(P["bank_until"])))
+        if go:
+            bk["phase"] = "burst"
+            bk["bursts"] += 1
+            bk["burst_t"] = t
+            bk["burst_n"] = n_w
+            _stat(am, "bank_burst_start")
+        elif t > float(P["bank_until"]) + 20.0 or hpf_me < 0.3:
+            bk["phase"] = "done"
+            return None
+    if bk["phase"] == "burst":
+        if not W or t - bk.get("burst_t", t) > 40.0:
+            bk["phase"] = "bank" if (bk["bursts"] < int(P["bank_cycles"]) and hpf_me > 0.6 and t < float(P["bank_until"])) else "done"
+            bk["t0"] = None
+            bk["last_fresh"] = t
+            return None
+        cand = [(hpf, e) for e, hpf in vis if e.id in W]
+        if not cand:
+            return None                                # wounded ones out of sight: base brain / seek brings us back
+        hpf, e = min(cand, key=lambda q: (q[0], q[1].dist))
+        _stat(am, "bank_burst")
+        return Intent(mode="engage", goal=None, target_id=e.id, desired_range=B._desired_range(state, e), urgency=0.5,
+                      face=yaw_to(state.pos, e.pos), allow_fire=True, reason=f"burst {e.id} {hpf:.2f} ({len(W)} banked)")
+    # ---- bank phase: never kill; wound fresh ones, re-tag wounded ones before they regenerate (5 s)
+    am["bank_spare"] = list(W.keys())
+    retag = [(t - W[e.id]["t_hit"], e) for e, hpf in vis if e.id in W and hpf > 0.10 and t - W[e.id]["t_hit"] > float(P["bank_retag_s"])]
+    fresh = [(hpf, e.dist, e) for e, hpf in vis if e.id not in W]
+    tgt = None
+    if retag:
+        tgt = max(retag, key=lambda q: q[0])[1]
+        why = "tag"
+    elif fresh:
+        tgt = min(fresh, key=lambda q: (round(q[0], 1), q[1]))[2]
+        bk["last_fresh"] = t
+        why = "wound"
+    if tgt is None:
+        return None
+    spare = [e.id for e, _ in vis if e.id != tgt.id] + [i for i in W if i != tgt.id]
+    _stat(am, "bank_" + why)
+    return Intent(mode="engage", goal=None, target_id=tgt.id, desired_range=B._desired_range(state, tgt), urgency=0.5,
+                  face=yaw_to(state.pos, tgt.pos), allow_fire=True, spare_ids=spare,
+                  reason=f"{why} {tgt.id} ({len(W)} banked)")
 
 
 # ----------------------------------------------------------------------------- laser duck
@@ -446,4 +562,7 @@ def _roof(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Optiona
 
 def summary(m: Dict[str, Any]) -> Dict[str, Any]:
     am = m.get("apex") or {}
-    return {"stat": am.get("stat"), "drops": am.get("drops_got", 0), "drop_t": am.get("drop_t")}
+    bk = am.get("bank") or {}
+    return {"stat": am.get("stat"), "drops": am.get("drops_got", 0), "drop_t": am.get("drop_t"),
+            "bank": {"phase": bk.get("phase"), "bursts": bk.get("bursts"), "burst_t": bk.get("burst_t"),
+                     "burst_n": bk.get("burst_n")} if bk else None}

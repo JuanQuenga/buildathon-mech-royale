@@ -155,6 +155,15 @@ P: Dict[str, Any] = {
     "roof_heal_below": 0.55,       # ...step back to the roof centre and regenerate below this HP fraction
     "roof_unarmed_t": 45.0,        # ...only once we hold a secondary weapon, or after this match time
     "roof_ffa": False,             # ...also in rounds detected as FFA
+    "bank": False,                 # bank and burst (bot/apex.py _bank): wound bank_n mechs to bank_hp, then kill them together
+    "bank_n": 4,
+    "bank_hp": 0.33,
+    "bank_retag_s": 3.5,           # ...one shot at a wounded mech this long after our last hit (regen starts at 5 s)
+    "bank_max_s": 50.0,            # ...burst anyway this long after the first wound (>= 2 banked)
+    "bank_bail_hp": 0.5,           # ...or when our own HP fraction falls below this
+    "bank_until": 110.0,           # ...no banking after this match time
+    "bank_unarmed_t": 30.0,        # ...start once we hold a secondary weapon, or after this time
+    "bank_cycles": 2,
     "evade": False,                # nav3: threat-geometry heading: keep lateral speed against every mech shooting at us
     "boost_charge": False,         # nav3: ground-boost while the laser charges (the charge halves our speed)
     "upg_kill": False,             # upgrade ranking for kills before death (HP, then damage; nanites last)
@@ -245,6 +254,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "drop2x": {"drop_king": True, "dk_drift": True, "dk_max_eta": 45.0},
     "vac2x": {"vacuum": True, "vac_drift": True},
     "dodgex": {"dodge_plan": True},
+    "bankx": {"bank": True, "seek": True}, "bank3x": {"bank": True, "seek": True, "bank_n": 3},
+    "bank6x": {"bank": True, "seek": True, "bank_n": 6, "bank_max_s": 70.0},
     "evadegx": {"evade": True}, "bchargex": {"boost_charge": True}, "evx": {"evade": True, "boost_charge": True},
     "upgx": {"upg_kill": True},
     "far105x": {"range_floor": 105.0}, "far120x": {"range_floor": 120.0}, "far140x": {"range_floor": 140.0},
@@ -715,7 +726,7 @@ def _ehp(state: WorldState) -> float:
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
     it = _choose_base(state, threats)
-    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"]:
+    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"] or P["bank"]:
         try:
             from . import apex
             it = apex.refine(state, threats, it, _mem(state))
