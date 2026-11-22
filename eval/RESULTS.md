@@ -285,3 +285,13 @@ regenerated per match, hunters find us in ~60 % of resets (sim hunters walk to o
 | v2-16 | `phax`: reset below 55 % + below 85 % HP drift (while duelling) toward the nearest cover within 100 m | 5.6 | |
 | v2-17 | `phx+freshhx`: phoenix + no new fight below 85 % HP (hide and heal to 95 % first) | 5.5 (fresh alone was −0.17 on an old base) | |
 | v2-18 | `r1x`: re-roll of the `vacx+duckx` base (behaviour-neutral scan phase): is 5.63 the level or a lucky draw? | 5.5 | |
+
+### Calibrated-sim screen of structural ideas (`--squad join_per_loss=0.6`, paired seeds; proxy only, none tagged unless noted)
+| Idea (profile) | Sim result vs base | Why it fails in the sim |
+| --- | --- | --- |
+| bank and burst (`bankx`): wound 4 mechs to a third, then kill them together (the squad escalates on deaths, not damage) | −0.83 ± 0.68 (48) | wounded passives wander out of sight and regenerate; chains / the base finish them early; banks of 1-2 only |
+| pet hunters (`petx`): never kill the first 4 unprovoked attackers, kill everyone else, cash the pets in below 40 % HP | −0.42 ± 0.51 (48) | the easy pets are not harmless at 50-60 m; finding others takes time |
+| corner duel (`cornerx`): laser charged in cover, step out, fire, step back | 5.44 vs 5.56 (32) | the gun is half our damage and is silent while we hide; sim hunters walk around the corner |
+| threat-geometry heading (`evx`, tagged v2-8) | flat; official **4.98** | |
+| predictive dodge planner (`dodgex`, tagged v2-10) | hit rate 39.8 → 35.3 %; official **5.29** | most bullets inside 100 m cannot be dodged after they are seen |
+| house bots after losing line of sight (live lobby, `house:expert` x3): 1 of 14 closes in on the last seen position within 5 s, 4 move away | (measurement) | suggests the real expert archetype does not push into cover the way the sim's hunters do |
