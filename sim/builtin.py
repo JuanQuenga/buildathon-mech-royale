@@ -254,6 +254,9 @@ class BuiltinBot:
             goal = (x - math.cos(ang) * 30, y - math.sin(ang) * 30)
         elif hunt_pos is not None and engaged:
             goal = (hunt_pos[0], hunt_pos[1])
+            hr = intel.get("hold_range", 0.0)
+            if hr and math.hypot(hunt_pos[0] - x, hunt_pos[1] - y) < hr:
+                goal = None          # sensitivity case: hunters do not walk into cover (live lobby: house:expert rarely does)
         else:
             # loot or wander inside the zone
             if P["loot"] and me["weapons"][1] is None and obs["pickups"]:
@@ -446,5 +449,6 @@ class SquadDirector:
                     em = M.mechs[e]
                     if em.alive and (math.dist(em.pos, me.pos) < self.p["defend_range"] or t - getattr(me, "_hurt_by", {}).get(e, -99) < self.p["retaliate_s"]):
                         allowed.add(e)
-            out[hid] = {"engaged": eng, "allowed_targets": allowed, "hunt_pos": hunt if eng else None}
+            out[hid] = {"engaged": eng, "allowed_targets": allowed, "hunt_pos": hunt if eng else None,
+                        "hold_range": float(self.p.get("hold_range", 0.0) or 0.0)}
         return out, seen

@@ -20,7 +20,8 @@ from sense import Senses, build_obs
 
 HOUSE_TIERS = ["easy"] * 4 + ["medium"] * 4 + ["hard"] * 4 + ["expert"] * 3
 
-SQUAD_DEFAULTS = {"early": 1, "join_per_loss": 1.0, "all_engage_t": 300.0, "forget_s": 8.0, "defend_range": 0.0, "retaliate_s": 0.0}
+SQUAD_DEFAULTS = {"early": 1, "join_per_loss": 1.0, "all_engage_t": 300.0, "forget_s": 8.0, "defend_range": 0.0, "retaliate_s": 0.0,
+                  "hold_range": 0.0}   # >0: a hunter without sight of the entrant stops this far from its last seen position
 
 
 # ---------------------------------------------------------------------------- controllers
