@@ -288,6 +288,13 @@ def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Opti
         px["on"] = False
         return None
     mechs = [e for e in threats.enemies if e.kind == "mech" and t - e.last_seen_t < float(P["px_mem_s"])]
+    if state.mode_guess != "ffa" and P["px_hunters_only"]:
+        # practice squad: only the mechs hunting us shoot; a passive house bot wandering past is not a reason to
+        # leave cover (sim: resets were abandoned for passives; 5-16 % ran to full HP)
+        hs = set(getattr(threats, "hunters", None) or []) | set(threats.attackers or [])
+        hm = [e for e in mechs if e.id in hs or (e.facing_me and e.dist < 120.0)]
+        if hm:
+            mechs = hm
     seeing = [e for e in mechs if e.visible and e.los and t - e.last_seen_t < 0.6]
     killable = set(getattr(threats, "killable", None) or [])
     threats_pos = [tuple(e.pos) for e in sorted(mechs, key=lambda e: e.dist)[:4]]

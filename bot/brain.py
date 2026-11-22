@@ -167,6 +167,7 @@ P: Dict[str, Any] = {
     "px_max_s": 25.0,              # ...give up if no HP came back after this long
     "px_retry_s": 12.0,            # ...after being found, fight this long before trying again
     "px_ffa": True,
+    "px_hunters_only": True,       # ...squad/unknown rounds: hide from, and be flushed out by, hunters only
     "px_relocate": False,          # ...once out of sight hop to a second hidden spot px_hop_m further (hunters go to where they saw us)
     "px_hop_m": 50.0,
     "px_anchor": False,            # ...below px_anchor_hp drift (while duelling) toward the nearest cover within px_anchor_m
