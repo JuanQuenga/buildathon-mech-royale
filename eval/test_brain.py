@@ -190,9 +190,10 @@ def _attacked(hp=700, pos=(0, 0, 0), t=80.0, epos=(60, 60, 0)):
 def test_apex_drop_run_under_fire():
     o, th = _attacked()
     o["drops"] = [_drop((150, 0, 0), lands=12.0)]
-    s, it = run([o], th)
+    with _Sw(drop_king=False, vacuum=False, duck=False, roof=False):
+        s, it = run([o], th)
     assert it.loot_id != 20000, it                      # base: in a fight the drop is ignored
-    with _Sw(drop_king=True):
+    with _Sw(drop_king=True, vacuum=False, duck=False, roof=False):
         s, it = run([o], th)
     assert it.loot_id == 20000 and it.goal[0] == 150 and it.allow_fire and it.weave and it.target_id == 1, it
 
@@ -200,7 +201,7 @@ def test_apex_drop_run_under_fire():
 def test_apex_drop_not_too_early_and_zone_first():
     o, th = _attacked()
     o["drops"] = [_drop((40, 0, 0), lands=24.0)]          # 4 s away, lands in 24 s: keep fighting
-    with _Sw(drop_king=True):
+    with _Sw(drop_king=True, vacuum=False, duck=False, roof=False):
         s, it = run([o], th)
         assert it.loot_id != 20000, it
         z = {"center": [0, 0], "radius": 100, "next_center": [0, 0], "next_radius": 50, "shrink_start": 10, "shrink_end": 300, "dps": 60}
@@ -212,7 +213,7 @@ def test_apex_drop_not_too_early_and_zone_first():
 
 def test_apex_ring_dance_stays_inside():
     # integrate the ground model (accelerate toward move * walk speed at 58.5 m/s^2) for 8 s inside the ring
-    with _Sw(drop_king=True):
+    with _Sw(drop_king=True, vacuum=False, duck=False, roof=False):
         s = st.WorldState(HELLO, None)
         pos, vel = [3.0, 1.0, 0.0], [0.0, 0.0]
         worst = 0.0
@@ -241,9 +242,10 @@ def test_apex_ring_dance_stays_inside():
 def test_apex_vacuum_grabs_cubes_under_fire():
     o, th = _attacked(hp=900)
     o["cubes"] = [{"id": 5001, "pos": [30, 0, 0]}, {"id": 5002, "pos": [32, 1, 0]}]
-    s, it = run([o], th)
+    with _Sw(drop_king=False, vacuum=False, duck=False, roof=False, cube_price=False):
+        s, it = run([o], th)
     assert it.loot_id not in (5001, 5002), it           # base: no cube grabs while being hit
-    with _Sw(vacuum=True):
+    with _Sw(vacuum=True, drop_king=False, duck=False, roof=False):
         s, it = run([o], th)
     assert it.loot_id == 5001 and it.allow_fire and it.target_id == 1 and it.urgency >= 0.7, it
 
@@ -257,9 +259,10 @@ def test_passive_first_prefers_non_hunter():
         t_ = Threats(enemies=[threat(1, (70, 10, 0), s=s), threat(2, (70, 20, 0), s=s)], attackers=[1])
         t_.hunters = [1]
         return t_
-    s, it = run([mk(hp=1300, mechs=mechs, events=ev)], th)
+    with _Sw(passive_first=False, drop_king=False, vacuum=False, duck=False, roof=False):
+        s, it = run([mk(hp=1300, mechs=mechs, events=ev)], th)
     assert it.target_id == 1, it
-    with _Sw(passive_first=True):
+    with _Sw(passive_first=True, drop_king=False, vacuum=False, duck=False, roof=False):
         s, it = run([mk(hp=1300, mechs=mechs, events=ev)], th)
     assert it.target_id == 2, it
 
