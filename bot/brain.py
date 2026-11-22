@@ -171,6 +171,10 @@ P: Dict[str, Any] = {
     "px_anchor_hp": 0.85,
     "px_anchor_m": 100.0,
     "upg_heal": False,             # upgrade ranking of the live-showdown leaders: nanites and plating first
+    "corner": False,               # corner duel (bot/apex.py _corner): laser charged in cover, step out, fire, step back
+    "cn_reach": 30.0,              # ...cover within this many metres
+    "cn_max_m": 150.0,             # ...targets up to this range
+    "cn_peek_s": 1.6,              # ...longest stay in the open per peek
     "pet": False,                  # pet hunters (bot/apex.py _pet): never kill the first pet_n unprovoked attackers
     "pet_n": 4,
     "pet_cash_hp": 0.4,            # ...cash them in (kill them) once our HP fraction is below this
@@ -280,6 +284,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "ph65x": {"phoenix": True, "upg_heal": True, "px_low": 0.65}, "phnoupx": {"phoenix": True},
     "freshhx": {"heal_below_squad": 0.8, "heal_below": 0.8, "heal_until": 0.95, "opp_min_hp_squad": 0.85,
                 "opp_min_hp": 0.85, "heal_after_kill": True},      # no new fight below 85 %: hide and heal to 95 % first
+    "cornerx": {"corner": True},
     "phrx": {"phoenix": True, "upg_heal": True, "px_relocate": True, "px_low": 0.6},
     "phax": {"phoenix": True, "upg_heal": True, "px_anchor": True, "px_low": 0.55},
     "phstrictx": {"phoenix": True, "upg_heal": True, "px_min_hide": 4, "px_reach": 45.0},
@@ -765,7 +770,7 @@ def _ehp(state: WorldState) -> float:
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
     it = _choose_base(state, threats)
-    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"] or P["bank"] or P["pet"] or P["phoenix"]:
+    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"] or P["bank"] or P["pet"] or P["phoenix"] or P["corner"]:
         try:
             from . import apex
             it = apex.refine(state, threats, it, _mem(state))

@@ -55,6 +55,8 @@ def refine(state: WorldState, threats: Threats, it: Intent, m: Dict[str, Any]) -
         out = _bank(state, threats, it, m, am, zp)
     if out is None and P["duck"]:
         out = _duck(state, threats, it, m, am)
+    if out is None and P["corner"]:
+        out = _corner(state, threats, it, m, am, zp)
     if out is None and P["drop_king"]:
         out = _drop(state, threats, it, m, am, zp, ring_only=True)
     if out is None and P["vacuum"]:
@@ -412,6 +414,100 @@ def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Opti
     return Intent(mode="retreat", goal=tuple(spot), target_id=close[0].id if close else None, desired_range=None,
                   urgency=0.9, face=face, allow_fire=bool(close), allow_boost=True, weave=bool(seeing) and d > 12.0,
                   avoid=threats_pos, reason=f"phoenix cover {d:.0f}m {hpf:.2f}")
+
+
+# ----------------------------------------------------------------------------- corner duel
+def _peek_pair(state: WorldState, e, threats: Threats):
+    """(H, E): a spot hidden from the target (and the other mechs shooting at us) and, a few metres from it, a spot
+    with a clear shot at the target that the others see least. (None, None) when the ground offers none."""
+    import time as _time
+    ar = state.arena
+    P = B.P
+    t_end = _time.perf_counter() + 0.004
+    cubes = state.me.get("cubes", 0) or 0
+    hs = set(getattr(threats, "hunters", None) or []) | set(threats.attackers or [])
+    others = [tuple(o.pos) for o in sorted(threats.enemies, key=lambda o: o.dist)
+              if o.kind == "mech" and o.id != e.id and o.visible and (o.id in hs or o.facing_me) and o.dist < 200.0][:2]
+    tpos = tuple(e.pos)
+    H = None
+    try:
+        H = ar.nearest_cover(state.pos, [tpos] + others, float(P["cn_reach"]), cubes=cubes, budget_ms=1.8)
+        if H is None and others:
+            H = ar.nearest_cover(state.pos, [tpos], float(P["cn_reach"]), cubes=cubes, budget_ms=1.2)
+    except Exception:
+        H = None
+    if H is None or not B._inside_zone_soon(state, H, 6.0):
+        return None, None
+    k = ar.size_class(cubes)
+    best, bk = None, None
+    for r in (4.0, 6.5, 9.0):
+        for j in range(10):
+            if _time.perf_counter() > t_end:
+                break
+            a = j * math.pi / 5.0
+            cx, cy = H[0] + r * math.cos(a), H[1] + r * math.sin(a)
+            try:
+                cz = ar.surface(cx, cy)
+                if abs(cz - H[2]) > 1.5 or not ar.standable(cx, cy, k) or not ar.walk_line(H[0], H[1], cx, cy, k):
+                    continue
+                if ar.can_shoot((cx, cy, cz), tpos, cubes, 0) is None:
+                    continue
+                ex = sum(ar.exposure([(cx, cy)], others)) if others else 0
+            except Exception:
+                continue
+            key = (ex, r)
+            if bk is None or key < bk:
+                best, bk = (cx, cy, cz), key
+        if best is not None and bk[0] == 0:
+            break
+    if best is None:
+        return None, None
+    return H, best
+
+
+def _corner(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Optional[Intent]:
+    """Corner duel with the laser: charge behind hard cover, step out a few metres, release (the gun fires while we
+    are out), step back for the cooldown. The house squad can then shoot only during the short peek, and the heal
+    cycle's cover is already at our back. kyoto-max (practice #1) fights the same way in the live Showdown: out of
+    everyone's line of sight, 3 s bursts, back into cover."""
+    P = B.P
+    if zp.get("must_go") or state.arena is None or not getattr(state.arena, "ok_nav", False):
+        return None
+    if it.mode != "engage" or it.target_id is None:
+        return None
+    las = None
+    for w in state.me.get("weapons") or []:
+        if w and w.get("kind") == "laser":
+            las = w
+    if las is None:
+        return None
+    e = threats.by_id(it.target_id)
+    if e is None or e.kind != "mech" or not (25.0 <= e.dist <= float(P["cn_max_m"])):
+        return None
+    t = state.t
+    cn = am.setdefault("cn", {"H": None, "E": None, "t": -1e9, "tid": None, "phase": "hide", "peek_t": 0.0})
+    if cn["tid"] != e.id or t - cn["t"] > 1.5 or cn["H"] is None or dist2d(cn["H"], state.pos) > float(P["cn_reach"]) + 8.0:
+        H, E = _peek_pair(state, e, threats)
+        if H is None and cn["tid"] == e.id and cn["H"] is not None and t - cn["t"] < 4.0:
+            pass                                       # keep the pair we have for a moment
+        else:
+            cn.update(H=H, E=E, t=t, tid=e.id)
+    H, E = cn["H"], cn["E"]
+    if H is None or E is None:
+        _stat(am, "cn_none")
+        return None
+    charge = float(las.get("charge", 0) or 0)
+    cd = float(las.get("cooldown", 0) or 0)
+    full = float((las.get("stats") or {}).get("charge", 0.75))
+    if cn["phase"] == "hide":
+        if charge >= full - 0.12:
+            cn["phase"], cn["peek_t"] = "peek", t
+    elif (charge <= 0 and cd > 0.3) or t - cn["peek_t"] > float(P["cn_peek_s"]):
+        cn["phase"] = "hide"
+    goal = E if cn["phase"] == "peek" else H
+    _stat(am, "cn_" + cn["phase"])
+    return Intent(mode="engage", goal=tuple(goal), target_id=e.id, desired_range=None, urgency=0.45,
+                  face=yaw_to(state.pos, e.pos), allow_fire=True, reason=f"corner {cn['phase']} {e.id}")
 
 
 # ----------------------------------------------------------------------------- pet hunters
