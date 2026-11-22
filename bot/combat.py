@@ -213,6 +213,14 @@ def _passive_first() -> bool:
         return False
 
 
+def _zap_always() -> bool:
+    try:
+        from .brain import P as BP
+        return bool(BP.get("zap_always", False))
+    except Exception:
+        return False
+
+
 def _laser_always() -> bool:
     try:
         from .brain import P as BP
@@ -783,6 +791,8 @@ def _step(state: WorldState, intent: Intent, threats: Threats) -> CombatOutX:
     # ---- lightning
     if lig and allow and lig_ready:
         reserve = 40.0 if (mode in ("retreat", "heal") or urgency >= 0.7) else 20.0   # keep jets for the escape
+        if _zap_always():
+            reserve = 8.0          # policy v2: damage beats the escape (sim: +33 % damage dealt = +0.9 points)
         if tg is not None and (tg.kind == "mech" and (tg.id in getattr(threats, "killable", []) or tg.charging or tg.dist < 25)):
             reserve = 6.0
         nav_m = state.scratch.get("nav") or {}

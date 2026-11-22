@@ -18,7 +18,7 @@ from bot import brain as _brain  # noqa: E402
 # Combat mechanics tests run with the A/B switches that suppress fire turned off, whatever DEFAULT_PROFILE a variant
 # branch selects (tests for those switches set them explicitly).
 for _k, _v in (("open_hold", False), ("gun_disc_m", 0.0), ("ffa_tactics", False), ("look_around", False),
-               ("laser_always", False)):      # the laser-in-retreat tests describe the base rule
+               ("laser_always", False), ("zap_always", False)):      # the laser-in-retreat tests describe the base rule
     _brain.P[_k] = _v
 
 _KITDIR = os.environ.get("MECH_KIT", "/home/juan/.t3/scratch/2026-11-20-you-are-the-coordinator-for-8d9ce8ed/mech-royale/starter/mechfight-kit")

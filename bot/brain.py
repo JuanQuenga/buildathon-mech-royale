@@ -175,6 +175,8 @@ P: Dict[str, Any] = {
     "px_anchor_hp": 0.85,
     "px_anchor_m": 100.0,
     "upg_heal": False,             # upgrade ranking of the live-showdown leaders: nanites and plating first
+    "upg_dps": False,              # upgrades by expected points for the weapons held (sim sensitivities), not a fixed ranking
+    "zap_always": False,           # combat: lightning keeps only 8 energy in reserve (was 20, 40 when retreating)
     "laser_always": False,         # combat: charge/fire the laser in every mode with fire allowed (retreat, cube runs, urgency >= 0.7)
     "corner": False,               # corner duel (bot/apex.py _corner): laser charged in cover, step out, fire, step back
     "cn_reach": 30.0,              # ...cover within this many metres
@@ -290,7 +292,9 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "freshhx": {"heal_below_squad": 0.8, "heal_below": 0.8, "heal_until": 0.95, "opp_min_hp_squad": 0.85,
                 "opp_min_hp": 0.85, "heal_after_kill": True},      # no new fight below 85 %: hide and heal to 95 % first
     "cornerx": {"corner": True},
-    "lasx": {"laser_always": True},
+    "lasx": {"laser_always": True}, "zapx": {"zap_always": True},
+    "updx": {"upg_dps": True},
+    "cratex": {"crate_value": 32.0, "drone_value": 60.0},
     "phdx": {"phoenix": True, "upg_heal": True, "px_deep": True, "px_low": 0.6},
     "ph80x": {"phoenix": True, "upg_heal": True, "px_low": 0.8},
     "phrx": {"phoenix": True, "upg_heal": True, "px_relocate": True, "px_low": 0.6},
@@ -1845,9 +1849,39 @@ def inventory(state: WorldState, intent: Intent) -> InvOut:
     return out
 
 
+def _upg_points(state: WorldState, cid: str) -> float:
+    """Policy v2 upgrade value in expected points, from the sim's sensitivities (damage dealt +1 % = +0.028 points,
+    effective HP +1 % = +0.0175) and each upgrade's effect on the weapons we hold right now."""
+    kinds = [k for k in state.weapon_kinds() if k]
+    g = l = z = 0.0
+    if "gun" in kinds and "laser" in kinds:
+        g, l = 0.5, 0.5
+    elif "laser" in kinds and "lightning" in kinds:
+        l, z = 0.5, 0.5
+    elif "gun" in kinds and "lightning" in kinds:
+        g, z = 0.55, 0.45
+    elif "gun" in kinds:
+        g = 0.8 if len(kinds) > 1 else 1.0
+    elif "laser" in kinds:
+        l = 1.0
+    dmg = {"gun_mag": 0.26 * g, "gun_damage": 0.15 * g, "gun_rate": 0.077 * g, "gun_velocity": 0.03 * g,
+           "laser_damage": 0.18 * l, "laser_charge": 0.085 * l, "laser_pierce": 0.01 * l,
+           "lightning_efficiency": 0.22 * z, "lightning_range": 0.25 * z, "lightning_chain": 0.10 * z,
+           "mortar_reload": 0.02, "mortar_velocity": 0.01, "mortar_splash": 0.01}.get(cid, 0.0)
+    hp = {"plating": 0.15, "armor": 0.087, "nanites": 0.03, "servos": 0.03, "capacitor": 0.02 + 0.06 * z,
+          "reactor": 0.015 + 0.08 * z, "jets": 0.01, "gyros": 0.015, "sensors": 0.005}.get(cid, 0.0)
+    return 2.8 * dmg + 1.75 * hp
+
+
 def _pick_upgrade(state: WorldState, choices: List[Dict[str, Any]]) -> int:
     best, bv = 0, -1e9
     kinds = state.weapon_kinds()
+    if P["upg_dps"]:
+        for i, c in enumerate(choices):
+            v = _upg_points(state, c.get("id", ""))
+            if v > bv:
+                best, bv = i, v
+        return best
     for i, c in enumerate(choices):
         cid = c.get("id", "")
         v = UPGRADE_VALUE.get(cid, 1.0)
