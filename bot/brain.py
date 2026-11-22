@@ -176,6 +176,8 @@ P: Dict[str, Any] = {
     "px_anchor_m": 100.0,
     "upg_heal": False,             # upgrade ranking of the live-showdown leaders: nanites and plating first
     "upg_dps": False,              # upgrades by expected points for the weapons held (sim sensitivities), not a fixed ranking
+    "laser_snap": 0.0,             # >0: while a mech is hitting us release the laser at this charge (s) instead of the full 0.75
+    "laser_shy": 0,                # >0: with this many mechs hitting us (last 3 s) do not charge the laser at all (speed first)
     "zap_always": False,           # combat: lightning keeps only 8 energy in reserve (was 20, 40 when retreating)
     "laser_always": False,         # combat: charge/fire the laser in every mode with fire allowed (retreat, cube runs, urgency >= 0.7)
     "corner": False,               # corner duel (bot/apex.py _corner): laser charged in cover, step out, fire, step back
@@ -293,6 +295,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
                 "opp_min_hp": 0.85, "heal_after_kill": True},      # no new fight below 85 %: hide and heal to 95 % first
     "cornerx": {"corner": True},
     "lasx": {"laser_always": True}, "zapx": {"zap_always": True},
+    "snapx": {"laser_snap": 0.25}, "shy2x": {"laser_shy": 2}, "shy1x": {"laser_shy": 1},
     "updx": {"upg_dps": True},
     "cratex": {"crate_value": 32.0, "drone_value": 60.0},
     "phdx": {"phoenix": True, "upg_heal": True, "px_deep": True, "px_low": 0.6},

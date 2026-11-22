@@ -213,6 +213,14 @@ def _passive_first() -> bool:
         return False
 
 
+def _laser_snap_shy():
+    try:
+        from .brain import P as BP
+        return float(BP.get("laser_snap", 0.0) or 0.0), int(BP.get("laser_shy", 0) or 0)
+    except Exception:
+        return 0.0, 0
+
+
 def _zap_always() -> bool:
     try:
         from .brain import P as BP
@@ -950,6 +958,18 @@ def _laser_ctrl(state, intent, threats, me: _Me, mem, las, lst, tg, best, allow,
         fa = _fire_aim(me, las_opt[1])
         p = min(laser_p(me, tg, ls, fa, rng), laser_p(me, tg, ls, me.aim, rng))
 
+    snap, shy = _laser_snap_shy()
+    n_att = len(getattr(threats, "attackers", None) or [])
+    if allow and shy > 0 and n_att >= shy:
+        # policy v2 (official: speed capped at 6 m/s costs 0.57, the laser charge runs at 5.9 m/s; "laser in every
+        # mode" scored 5.40 vs 5.55): with this many mechs hitting us do not start a charge, let a running one go
+        if c > 0:
+            if las_opt is not None and tg is not None and tg.los and p >= 0.4:
+                return False, las_opt[1], False, "laser-shy-release"
+            return False, None, False, "laser-shy-drop"
+        return False, None, False, ""
+    if allow and snap > 0 and n_att >= 1 and c >= snap and las_opt is not None and tg is not None and tg.los and p >= 0.6:
+        return False, las_opt[1], False, "laser-snap"      # short charge under fire: 65 % of the beam for a third of the slow time
     if c > 0:
         # ----- charging: decide release
         if not allow:

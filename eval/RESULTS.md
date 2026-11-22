@@ -319,4 +319,20 @@ Sim: 6.28 vs 5.56 (32 seeds), **+0.42 ± 0.43 (96 paired seeds)**: the largest s
 
 | Tag | Layer | Prediction | Official |
 | --- | --- | --- | --- |
-| v2-25 | `vacx+duckx+lasx` | 5.9 | |
+| v2-25 | `vacx+duckx+lasx` | 5.9 | **5.40** (did not transfer) |
+
+**Why `lasx` failed officially, and the sim error behind it (22:35).** Replaying the official movement experiments in the
+calibrated sim: speed capped at 6 m/s is −0.04 ± 0.44 in the sim but **−0.57 officially**; standing still −0.36 vs
+**−1.15**. The real house squad punishes a slow target far more than the sim's. A laser charge moves us at 5.9 m/s, so
+every extra charge under fire is paid in hits the sim does not model: the sim over-values damage bought with charge time
+(and under-values everything that keeps us fast). A first attempt to recalibrate the house aim (sharper, leading) lowered
+every score without restoring the speed sensitivity; not pursued further (9 min per round).
+
+### 11-21 22:45 batch 5: speed first under fire (the opposite of `lasx`)
+| Tag | Layer on `vacx+duckx` | Prediction | Official |
+| --- | --- | --- | --- |
+| v2-26 | `lasx+zapx+updx` damage stack (sim 5.89) | 6.0 before v2-25 scored; now 5.4 | |
+| v2-27 | `lasx+r1x` re-roll of v2-25 | 5.45 | |
+| v2-28 | `snapx`: while a mech is hitting us release the laser at 0.25 s charge (65 % of the beam, a third of the slow time) | 5.6 | |
+| v2-29 | `shy2x`: with 2+ mechs hitting us do not charge the laser at all (gun / lightning at full speed) | 5.6 | |
+| v2-30 | `shy1x`: no laser charge while any mech is hitting us | 5.5 | |
