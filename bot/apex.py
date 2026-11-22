@@ -73,6 +73,21 @@ def _target_id(state: WorldState, it: Intent, m: Dict[str, Any]) -> Optional[int
     return None
 
 
+def _drift_intent(state: WorldState, it: Intent, goal, why: str) -> Optional[Intent]:
+    """The base brain is duelling a target: keep that duel (strafe, range, fire) and drift toward `goal`."""
+    if it.mode != "engage" or it.target_id is None or not it.desired_range or it.goal is not None:
+        return None
+    tr = state.tracks.get(it.target_id)
+    if tr is None or state.t - tr.last_seen_t > 1.5:
+        return None
+    dx, dy = goal[0] - state.pos[0], goal[1] - state.pos[1]
+    n = math.hypot(dx, dy)
+    if n < 1.0:
+        return None
+    return Intent(mode="engage", goal=None, target_id=it.target_id, desired_range=it.desired_range, urgency=it.urgency,
+                  face=it.face, allow_fire=True, avoid=it.avoid, drift=(dx / n, dy / n), reason=why)
+
+
 # ----------------------------------------------------------------------------- supply drops
 def _drop(state: WorldState, threats: Threats, it: Intent, m, am, zp, ring_only: bool) -> Optional[Intent]:
     drops = state.obs.get("drops") or []
@@ -152,6 +167,16 @@ def _drop(state: WorldState, threats: Threats, it: Intent, m, am, zp, ring_only:
             return None
         if state.t + eta + 3.0 > float(zp.get("deadline", 1e9)):
             return None
+    hpf = state.hp / max(1.0, state.max_hp)
+    close = dist < float(P["dk_sprint_m"]) and lands < 3.0
+    if P["dk_drift"] and not close and not (hpf < 0.45 and lands < eta):
+        # fight our way there: the duel goes on (kills, lateral speed), biased toward the drop
+        di = _drift_intent(state, it, p, f"drop drift {d.get('id')} eta {eta:.0f} lands {lands:.0f}")
+        if di is not None:
+            _stat(am, "drift")
+            am["dk_commit"] = d.get("id")
+            di.loot_id = d.get("id")
+            return di
     if lands > eta + float(P["dk_lead_s"]):
         return None                       # too early: carry on, we leave when the trip takes as long as the fall
     _stat(am, "run")
@@ -194,6 +219,13 @@ def _vacuum(state: WorldState, threats: Threats, it: Intent, m, am, zp, reach: f
         am["vac"] = None
         _stat(am, "vac_giveup")
         return None
+    if P["vac_drift"] and dd > 25.0:
+        di = _drift_intent(state, it, c["pos"], f"vacuum drift {c['id']} {dd:.0f}m")
+        if di is not None:
+            _stat(am, "vac_drift")
+            v["t0"] = max(v["t0"], state.t - 2.0)      # the give-up clock only runs on the direct run
+            di.loot_id = c["id"]
+            return di
     tid = _target_id(state, it, m)
     face = it.face
     if tid is not None:

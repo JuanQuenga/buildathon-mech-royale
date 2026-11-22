@@ -403,6 +403,21 @@ def _engage_dir(state: WorldState, intent: Intent, m) -> Optional[Tuple[float, f
         else:
             m["strafe_t"] = state.t + 1.2 + ((state.tick * 7919) % 13) / 10.0
     s = m["strafe_sign"]
+    dr = getattr(intent, "drift", None)
+    if dr is not None:
+        # policy v2 fighting drift: strafe on the side that carries us toward the objective and let the range open
+        # (the hunters follow), so we travel while keeping lateral speed and the guns on the target
+        side = -uy * dr[0] + ux * dr[1]
+        if side * s < -0.15:
+            s = m["strafe_sign"] = -s
+        m["strafe_t"] = max(m["strafe_t"], state.t + 0.5)
+        hi = max(want + 50.0, 140.0)
+        if d < want:
+            radial = max(-1.0, (d - want) / 15.0)
+        elif d > hi:
+            radial = min(1.0, (d - hi) / 15.0)
+        else:
+            radial = 0.0
     tx, ty = -uy * s, ux * s
     w_t = 0.85 if abs(radial) < 0.7 else 0.4
     if _flag("strafe_wide"):
@@ -413,7 +428,71 @@ def _engage_dir(state: WorldState, intent: Intent, m) -> Optional[Tuple[float, f
         if abs(radial) < 0.15:
             return None
     vx, vy = ux * radial + tx * w_t, uy * radial + ty * w_t
+    if dr is not None:
+        vx += 0.8 * dr[0]
+        vy += 0.8 * dr[1]
     return unit2(vx, vy)
+
+
+_EV_DIRS = tuple((math.cos(k * math.pi / 8.0), math.sin(k * math.pi / 8.0)) for k in range(16))
+
+
+def _charging(state: WorldState) -> bool:
+    for w in state.me.get("weapons") or []:
+        if w and w.get("kind") == "laser" and float(w.get("charge", 0) or 0) > 0:
+            return True
+    return False
+
+
+def _evade_dir(state: WorldState, threats: Threats, base, mode: str, m) -> Optional[Tuple[float, float]]:
+    """Policy v2 threat-geometry movement. A gun bullet aimed at where we are misses when we move more than a body
+    radius sideways during its flight: lateral speed x distance / bullet speed >= ~3 m. Sim traces: 70 % of the gun
+    hits we take land when that product is below 2.8 m (median lateral speed at the shot 6 m/s: radial range keeping,
+    straight routes, the half-speed laser charge). Pick the heading that keeps the product high against EVERY mech
+    shooting at us, trading against the direction navigation wanted and against needless reversals."""
+    if threats is None:
+        return None
+    x, y = state.pos[0], state.pos[1]
+    hs = set(getattr(threats, "hunters", None) or []) | set(threats.attackers or [])
+    sh = []
+    for e in threats.enemies or []:
+        if e.kind != "mech" or not e.visible or not e.los:
+            continue
+        dx, dy = e.pos[0] - x, e.pos[1] - y
+        d = math.hypot(dx, dy)
+        if d > 235.0 or d < 5.0:
+            continue
+        if e.id in hs:
+            w = 1.0
+        elif e.facing_me:
+            w = 0.4
+        else:
+            continue
+        sh.append((dx / d, dy / d, d, w))
+    if not sh:
+        return None
+    v = _walk_speed(state)
+    if _charging(state) and not (_flag("boost_charge") and state.energy > 12.0):
+        v *= state.stat("charge_move_mult", 0.5)
+    lam = 0.5 if mode == "engage" else 1.1
+    cvx, cvy = state.vel[0], state.vel[1]
+    cs = math.hypot(cvx, cvy)
+    best, bc = None, 1e18
+    for dx, dy in _EV_DIRS:
+        c = 0.0
+        for ux, uy, d, w in sh:
+            disp = abs(dx * -uy + dy * ux) * v * d / 252.0
+            if disp < 3.3:
+                c += w * (1.0 - disp / 3.3)
+        if base is not None:
+            c += lam * 0.5 * (1.0 - (dx * base[0] + dy * base[1]))
+        if cs > 3.0:
+            c += 0.35 * 0.5 * (1.0 - (dx * cvx + dy * cvy) / cs)
+        if c < bc:
+            best, bc = (dx, dy), c
+    st_ = m["stats"]
+    st_["evade"] = st_.get("evade", 0) + 1
+    return best
 
 
 def _offmesh_escape(state: WorldState, m, ar, k) -> Optional[Tuple[float, float]]:
@@ -536,6 +615,15 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
     elif mode == "engage" and intent is not None and intent.target_id is not None:
         want = _engage_dir(state, intent, m)
 
+    # ---------------- policy v2: threat-geometry heading (lateral speed against every shooter)
+    if _flag("evade") and want is not None and grounded and m.get("jet") is None:
+        try:
+            ev = _evade_dir(state, threats, want, mode, m)
+            if ev is not None:
+                want = ev
+        except Exception:
+            m["stats"]["evade_err"] = m["stats"].get("evade_err", 0) + 1
+
     # ---------------- dodge incoming projectiles
     dodge = threats.dodge if threats is not None else None
     planned = None
@@ -617,6 +705,12 @@ def _step(state: WorldState, intent: Intent, threats: Threats, m) -> NavOut:
         on = energy > (sb - 30.0) if on else energy > sb
         m["sboost"] = on
         boost = on
+    if _flag("boost_charge") and not boost and grounded and allow_boost and speed >= 0.99 and energy > 12.0 \
+            and mode in ("engage", "retreat", "rotate", "loot", "capture") and _charging(state):
+        # policy v2: the laser charge halves our speed (5.9 m/s: every unled bullet inside 120 m hits); boosting through
+        # the 0.75 s charge keeps 9.8 m/s and the 2.4 s laser cycle regenerates more energy than it costs
+        boost = True
+        m["stats"]["boost_charge"] = m["stats"].get("boost_charge", 0) + 1
     if planned is not None:
         boost = bool(planned[1]) and energy > 10.0      # the planner rolled this exact speed forward
     out.move = (dx * speed, dy * speed)

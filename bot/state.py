@@ -40,6 +40,7 @@ class Intent:
     raw_move: Optional[Vec2] = None      # policy v2 (bot/apex.py): direct move vector, bypasses path following
     raw_boost: bool = False              # ...with ground boost
     weave: bool = False                  # nav3: add a sideways weave (relative to the nearest attacker) to the route
+    drift: Optional[Vec2] = None         # nav3 engage: unit direction of an objective to drift toward while duelling
 
 
 @dataclass

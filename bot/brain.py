@@ -140,6 +140,9 @@ P: Dict[str, Any] = {
     "dk_max_eta": 35.0,            # ...only drops we can reach within this many seconds (dk_max_eta_hurt below half HP)
     "dk_max_eta_hurt": 60.0,
     "dk_lead_s": 4.0,              # ...leave when the trip takes as long as the fall plus this
+    "dk_drift": False,             # ...while duelling, drift toward the drop instead of breaking off to run (v2b)
+    "dk_sprint_m": 45.0,           # ...and run straight in only for the last stretch once it has landed
+    "vac_drift": False,            # same for cubes further than 25 m
     "dk_last_stand": True,         # ...after a capture never retreat again (sim: the base fled with its second life and
                                    # died 30 s later without a kill; officially never-retreat costs nothing: 5.31)
     "vacuum": False,               # collect cubes at once (boosting, under fire) up to vac_max_cubes
@@ -152,6 +155,8 @@ P: Dict[str, Any] = {
     "roof_heal_below": 0.55,       # ...step back to the roof centre and regenerate below this HP fraction
     "roof_unarmed_t": 45.0,        # ...only once we hold a secondary weapon, or after this match time
     "roof_ffa": False,             # ...also in rounds detected as FFA
+    "evade": False,                # nav3: threat-geometry heading: keep lateral speed against every mech shooting at us
+    "boost_charge": False,         # nav3: ground-boost while the laser charges (the charge halves our speed)
     "upg_kill": False,             # upgrade ranking for kills before death (HP, then damage; nanites last)
     "dodge_plan": False,           # nav3: predictive bullet dodge (bot/dodge.py) instead of the vector-sum dodge
     "range_floor": 0.0,            # >0: squad/unknown: never fight a mech closer than this (bullet flight time = dodge time)
@@ -237,7 +242,10 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "telek6x": {"tele_kills": 6}, "telek7x": {"tele_kills": 7}, "telelaserx": {"tele_laser": True},
     "teledmg1400x": {"tele_dmg": 1400.0}, "teledmg2800x": {"tele_dmg": 2800.0},
     "dropx": {"drop_king": True},
+    "drop2x": {"drop_king": True, "dk_drift": True, "dk_max_eta": 45.0},
+    "vac2x": {"vacuum": True, "vac_drift": True},
     "dodgex": {"dodge_plan": True},
+    "evadegx": {"evade": True}, "bchargex": {"boost_charge": True}, "evx": {"evade": True, "boost_charge": True},
     "upgx": {"upg_kill": True},
     "far105x": {"range_floor": 105.0}, "far120x": {"range_floor": 120.0}, "far140x": {"range_floor": 140.0},
     "vacx": {"vacuum": True},
