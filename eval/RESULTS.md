@@ -279,7 +279,7 @@ regenerated per match, hunters find us in ~60 % of resets (sim hunters walk to o
 
 | Tag | Layer | Prediction | Official |
 | --- | --- | --- | --- |
-| v2-13 | `phx`: reset below 50 % HP when cover hidden from the mechs around us is within 60 m; cease fire, sit to 95 %; regen-first upgrades | 5.7 (6.0+ if the real hunters do not walk into cover; 5.4 if they do) | |
+| v2-13 | `phx`: reset below 50 % HP when cover hidden from the mechs around us is within 60 m; cease fire, sit to 95 %; regen-first upgrades | 5.7 (6.0+ if the real hunters do not walk into cover; 5.4 if they do) |**5.33** (no gain: as in the sim, the reset costs kill time and the hunters find us) |
 | v2-14 | `ph65x`: same, reset below 65 % (the leaders break off at 50-75 %) | 5.7 | |
 | v2-15 | `phrx`: reset below 60 % + once out of sight hop 50 m to a second hidden spot (hunters go where they last saw us) | 5.7 | |
 | v2-16 | `phax`: reset below 55 % + below 85 % HP drift (while duelling) toward the nearest cover within 100 m | 5.6 | |
@@ -295,3 +295,15 @@ regenerated per match, hunters find us in ~60 % of resets (sim hunters walk to o
 | threat-geometry heading (`evx`, tagged v2-8) | flat; official **4.98** | |
 | predictive dodge planner (`dodgex`, tagged v2-10) | hit rate 39.8 → 35.3 %; official **5.29** | most bullets inside 100 m cannot be dodged after they are seen |
 | house bots after losing line of sight (live lobby, `house:expert` x3): 1 of 14 closes in on the last seen position within 5 s, 4 move away | (measurement) | suggests the real expert archetype does not push into cover the way the sim's hunters do |
+
+### 11-21 21:45 batch 4: tickets on the `vacx+duckx` base (no sim-backed step change left)
+Sim screen on the new base (calibrated, 96 paired seeds): cycle +0.04 ± 0.35, isolate −0.29 ± 0.34, commit −0.32 ± 0.39,
+phoenix −0.15 ± 0.37 (official 5.33). In the sim the base scores 5.95 holding laser + lightning, 5.45 gun + laser, 4.68
+gun + lightning, 3.33 gun + mortar, 1.75 gun only (28 % of matches end without a laser).
+
+| Tag | Layer | Prediction | Official |
+| --- | --- | --- | --- |
+| v2-19 | `lookx`: spin the torso while unarmed to find pickups sooner | 5.5 | |
+| v2-20 | `lhuntx`: armed but no laser: keep exploring for one until 120 s; never take a mortar | 5.5 | |
+| v2-21 | `upghx`: regen-first upgrade ranking (nanites, plating, armor: the leaders' picks) without the heal cycle | 5.5 | |
+| v2-22 / 23 / 24 | `r2x` / `r3x` / `r4x`: behaviour-neutral re-rolls of the base (best draw counts on the board) | 5.5 each | |
