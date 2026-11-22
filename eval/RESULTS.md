@@ -248,8 +248,10 @@ the bullet's flight is under a body radius (median lateral speed at the shot 6 m
 | v2-7 | `vacx+duckx`: the two batch-1 layers that held | 5.5 | **5.63** (new best; the two layers add) |
 | v2-8 | `evx`: threat-geometry heading (pick the heading that keeps lateral speed x flight time above a body radius against every mech shooting at us) + ground-boost through the laser charge (the charge halves our speed) | 5.45 (sim: hit rate 40.2 → 36.8 %, low-displacement share of hits 0.80 → 0.63, score flat) | **4.98** (hurts: keep the base strafe) |
 | v2-9 | `vacx+duckx+evx+upgx`: full stack + upgrade ranking for kills before death (HP, then damage; nanites last) | 5.55 | **5.10** (the movement layer drags the stack down) |
-| v2-10 | `dodgex`: predictive bullet-dodge planner (rolls 25 candidate moves forward against every visible bullet) instead of the vector-sum dodge | 5.35 (sim: hit rate 39.8 → 35.3 %) | |
-| v2-11 | `far105x`: never fight a mech inside 105 m, whatever we hold (no 28 m lightning brawls, no 55 m gun fights) | 5.2 (sim: hit rate 40 → 30 %, life +45 %, kills flat; official 170 m was 4.92, 90 m with the gun kept 5.33) | |
+| v2-10 | `dodgex`: predictive bullet-dodge planner (rolls 25 candidate moves forward against every visible bullet) instead of the vector-sum dodge | 5.35 (sim: hit rate 39.8 → 35.3 %) | **5.29** (no gain) |
+| v2-11 | `far105x`: never fight a mech inside 105 m, whatever we hold (no 28 m lightning brawls, no 55 m gun fights) | 5.2 (sim: hit rate 40 → 30 %, life +45 %, kills flat; official 170 m was 4.92, 90 m with the gun kept 5.33) | **4.69** (far is clearly worse) |
+
+| v2-12 | `close55x`: 55 m with the laser (sixth slot, range axis) | 5.2 | **5.08** (closer is worse too: 90 m is the optimum; range axis closed: 55 m 5.08, 90 m 5.34, 105 m 4.69, 170 m 4.92) |
 
 ### 11-21 20:20 the live Top-16 Showdown: what today's 6.2-6.4 bots do that we do not (work/castprof.py, healep.py)
 Captured `wss://watch.joinbuilders.org/live` (8 PM Showdown, FFA of the current practice top 16). Per bot per match:
