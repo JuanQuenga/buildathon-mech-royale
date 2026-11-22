@@ -309,6 +309,25 @@ def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Opti
                 break
         return c
 
+    if not px["on"] and P["px_anchor"] and float(P["px_low"]) <= hpf < float(P["px_anchor_hp"]) and mechs:
+        # fight where a reset is possible: while duelling drift toward the nearest spot hidden from the mechs around us
+        an = px.setdefault("anchor", {"t": -1e9, "spot": None})
+        if t - an["t"] > 1.5:
+            an["t"] = t
+            try:
+                an["spot"] = state.arena.nearest_cover(state.pos, threats_pos[:3], float(P["px_anchor_m"]),
+                                                       cubes=state.me.get("cubes", 0) or 0, budget_ms=2.0) \
+                    if state.arena is not None else None
+            except Exception:
+                an["spot"] = None
+            if an["spot"] is not None and not B._inside_zone_soon(state, an["spot"], 6.0):
+                an["spot"] = None
+        sp = an["spot"]
+        if sp is not None and dist2d(sp, state.pos) > 22.0:
+            di = _drift_intent(state, it, sp, f"anchor {dist2d(sp, state.pos):.0f}m")
+            if di is not None:
+                _stat(am, "px_anchor")
+                return di
     if not px["on"]:
         if hpf >= float(P["px_low"]) or t < px["retry_t"] or t - px["probe_t"] < 1.0:
             return None
@@ -321,7 +340,7 @@ def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Opti
         if spot is None:
             _stat(am, "px_nocover")
             return None
-        px.update(on=True, t0=t, hp0=state.hp, spot=spot, seen_since=None)
+        px.update(on=True, t0=t, hp0=state.hp, spot=spot, seen_since=None, moved=False)
         px["n"] += 1
         _stat(am, "px_start")
     spot = px["spot"]
@@ -332,6 +351,39 @@ def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Opti
         _stat(am, "px_done")
         return None
     at_spot = d < 3.0
+    if at_spot and not seeing and P["px_relocate"] and not px.get("moved") and threats_pos and state.arena is not None:
+        # out of sight: do not stay where they last saw us go. One more hop to a second hidden spot, itself reached
+        # without crossing anybody's line of sight; the hunters walk to the last place they saw us.
+        px["moved"] = True
+        try:
+            ar = state.arena
+            tx = sum(p[0] for p in threats_pos) / len(threats_pos)
+            ty = sum(p[1] for p in threats_pos) / len(threats_pos)
+            ux, uy = unit2(state.pos[0] - tx, state.pos[1] - ty)
+            best = None
+            for ang in (0.0, 0.7, -0.7, 1.4, -1.4):
+                ca, sa = math.cos(ang), math.sin(ang)
+                hop = float(P["px_hop_m"])
+                p2 = (state.pos[0] + (ux * ca - uy * sa) * hop, state.pos[1] + (ux * sa + uy * ca) * hop, state.pos[2])
+                c = ar.nearest_cover(p2, threats_pos[:3], 25.0, cubes=state.me.get("cubes", 0) or 0, budget_ms=1.2)
+                if c is None or dist2d(c, state.pos) < 28.0 or abs(c[2] - state.pos[2]) > 6.0:
+                    continue
+                if not (B._inside_zone_soon(state, c, 6.0) and B._in_safe_future(state, c)):
+                    continue
+                mid = ((c[0] + state.pos[0]) * 0.5, (c[1] + state.pos[1]) * 0.5)
+                q1 = ((c[0] + 3 * state.pos[0]) * 0.25, (c[1] + 3 * state.pos[1]) * 0.25)
+                q3 = ((3 * c[0] + state.pos[0]) * 0.25, (3 * c[1] + state.pos[1]) * 0.25)
+                if sum(ar.exposure([mid, q1, q3], threats_pos[:3])) > 0:
+                    continue
+                best = c
+                break
+            if best is not None:
+                px["spot"] = spot = best
+                d = dist2d(spot, state.pos)
+                at_spot = False
+                _stat(am, "px_hop")
+        except Exception:
+            pass
     if at_spot:
         if seeing:
             if px["seen_since"] is None:

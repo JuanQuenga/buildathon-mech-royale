@@ -165,6 +165,11 @@ P: Dict[str, Any] = {
     "px_max_s": 25.0,              # ...give up if no HP came back after this long
     "px_retry_s": 12.0,            # ...after being found, fight this long before trying again
     "px_ffa": True,
+    "px_relocate": False,          # ...once out of sight hop to a second hidden spot px_hop_m further (hunters go to where they saw us)
+    "px_hop_m": 50.0,
+    "px_anchor": False,            # ...below px_anchor_hp drift (while duelling) toward the nearest cover within px_anchor_m
+    "px_anchor_hp": 0.85,
+    "px_anchor_m": 100.0,
     "upg_heal": False,             # upgrade ranking of the live-showdown leaders: nanites and plating first
     "pet": False,                  # pet hunters (bot/apex.py _pet): never kill the first pet_n unprovoked attackers
     "pet_n": 4,
@@ -273,6 +278,10 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "dodgex": {"dodge_plan": True},
     "phx": {"phoenix": True, "upg_heal": True}, "ph40x": {"phoenix": True, "upg_heal": True, "px_low": 0.4},
     "ph65x": {"phoenix": True, "upg_heal": True, "px_low": 0.65}, "phnoupx": {"phoenix": True},
+    "freshhx": {"heal_below_squad": 0.8, "heal_below": 0.8, "heal_until": 0.95, "opp_min_hp_squad": 0.85,
+                "opp_min_hp": 0.85, "heal_after_kill": True},      # no new fight below 85 %: hide and heal to 95 % first
+    "phrx": {"phoenix": True, "upg_heal": True, "px_relocate": True, "px_low": 0.6},
+    "phax": {"phoenix": True, "upg_heal": True, "px_anchor": True, "px_low": 0.55},
     "phstrictx": {"phoenix": True, "upg_heal": True, "px_min_hide": 4, "px_reach": 45.0},
     "phfarx": {"phoenix": True, "upg_heal": True, "px_reach": 85.0, "px_low": 0.6},
     "upghx": {"upg_heal": True},

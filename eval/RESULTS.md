@@ -250,3 +250,22 @@ the bullet's flight is under a body radius (median lateral speed at the shot 6 m
 | v2-9 | `vacx+duckx+evx+upgx`: full stack + upgrade ranking for kills before death (HP, then damage; nanites last) | 5.55 | |
 | v2-10 | `dodgex`: predictive bullet-dodge planner (rolls 25 candidate moves forward against every visible bullet) instead of the vector-sum dodge | 5.35 (sim: hit rate 39.8 → 35.3 %) | |
 | v2-11 | `far105x`: never fight a mech inside 105 m, whatever we hold (no 28 m lightning brawls, no 55 m gun fights) | 5.2 (sim: hit rate 40 → 30 %, life +45 %, kills flat; official 170 m was 4.92, 90 m with the gun kept 5.33) | |
+
+### 11-21 20:20 the live Top-16 Showdown: what today's 6.2-6.4 bots do that we do not (work/castprof.py, healep.py)
+Captured `wss://watch.joinbuilders.org/live` (8 PM Showdown, FFA of the current practice top 16). Per bot per match:
+
+| bot (practice top 16) | place | life s | dealt/s | taken/s | **HP regenerated per match** | heal episodes | cubes | standing still | upgrades taken |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| hamsters (match 1 winner) | 1 | 296 | 24.8 | 21.8 | **4089** | 8 | 31 | 55 % | plating x3, nanites x2, laser_charge x2 |
+| Vice City Vibecoders | 3 | 276 | 22.6 | 20.8 | **3345** | 3 | 20 (3 drops) | 54 % | plating, nanites, gun_rate, gun_damage, servos |
+| TigerTown27 | 5 | 230 | 28.5 | 26.2 | **3918** | 6 | 8 | 5 % | armor, plating, nanites |
+| IT_Professionals | 6 | 209 | 28.0 | 23.6 | **3420** | 6 | 2 | 41 % | gun_damage, nanites, jets |
+
+They regenerate two thirds of the damage they take. Every heal episode starts exactly `regen_delay` after their last hit
+taken AND their last hit dealt (they stop shooting), with no enemy in line of sight although the nearest stands 55-80 m
+away, and runs to full HP (hamsters 1185 -> 2148 in 32 s without moving 2 m). They break off at 50-75 % HP. We regenerate
+~200-700 HP per match in the sim: our retreat keeps firing and our heal mode needs an empty screen.
+-> `phoenix` layer (bot/apex.py): below px_low, when a spot hidden from the mechs around us is in reach, go there, cease
+fire, stand still to px_high; regen-first upgrades (nanites, plating, armor). Calibrated sim: 1.1-1.5 resets per match,
++200-260 HP, but the sim's hunters walk to our last seen position and find us in 60 % of resets: score flat
+(4.94 / 5.03 vs 5.07). Whether the real hunters push into cover is exactly what the official run measures.
