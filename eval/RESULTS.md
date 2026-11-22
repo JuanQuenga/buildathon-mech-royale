@@ -227,9 +227,26 @@ last stand after the capture). Sanity: 24 seeds each, 0 tracebacks, 0 apex error
 
 | Tag | Layer (one each) | Prediction | Official |
 | --- | --- | --- | --- |
-| v2-1 | `dropx` drop king: from the call run to the drop (weaving, firing), capture under fire by circling inside the ring, never retreat afterwards | 5.6 (alive at 95 s in most matches; a full heal + 3 cubes is worth ~1 kill when captured; the run costs kill time) | |
-| v2-2 | `vacx` cube vacuum: every cube within 90 m at once, boosting, under fire (base: only when unhit for 3 s) | 5.45 (sim cubes at death 3.9 → 6.7; cubex was 5.39) | |
-| v2-3 | `headx` passive first: prefer mechs that are not hunting us, plus seek. Hunters = the kills + 1 weakest alive, so killing passives keeps easy/medium bots as our hunters | 5.3 (5.9 if tiers differ a lot and passives do not retaliate; 4.8 if the hunters chew on us meanwhile) | |
-| v2-4 | `dropx+vacx` | 5.65 | |
-| v2-5 | `roofx` roof fortress: once armed, climb the nearest big flat roof (54 mapped), fight at the edge, heal at the centre | 4.8 (lottery: 7+ if house bots cannot follow onto roofs; the sim's bots jet up and it scores 3.3) | |
-| v2-6 | `duckx` laser duck: a visible mech charging at us → sprint behind cover within 14 m, else across its aim line | 5.35 | |
+| v2-1 | `dropx` drop king: from the call run to the drop (weaving, firing), capture under fire by circling inside the ring, never retreat afterwards | 5.6 (alive at 95 s in most matches; a full heal + 3 cubes is worth ~1 kill when captured; the run costs kill time) | **5.27** (no gain: the sprint costs kills and the ring circling kills our gun aim) |
+| v2-2 | `vacx` cube vacuum: every cube within 90 m at once, boosting, under fire (base: only when unhit for 3 s) | 5.45 (sim cubes at death 3.9 → 6.7; cubex was 5.39) | **5.48** (best of the batch, +0.14 on the base mean) |
+| v2-3 | `headx` passive first: prefer mechs that are not hunting us, plus seek. Hunters = the kills + 1 weakest alive, so killing passives keeps easy/medium bots as our hunters | 5.3 (5.9 if tiers differ a lot and passives do not retaliate; 4.8 if the hunters chew on us meanwhile) | **5.04** (worse: do not chase passives) |
+| v2-4 | `dropx+vacx` | 5.65 | **5.08** (the drop run is a net loss) |
+| v2-5 | `roofx` roof fortress: once armed, climb the nearest big flat roof (54 mapped), fight at the edge, heal at the centre | 4.8 (lottery: 7+ if house bots cannot follow onto roofs; the sim's bots jet up and it scores 3.3) | **3.25** (house bots follow onto roofs; the sim's 3.2-3.3 was right) |
+| v2-6 | `duckx` laser duck: a visible mech charging at us → sprint behind cover within 14 m, else across its aim line | 5.35 | **5.42** (holds, within noise of the base) |
+
+**Batch 1 reading (19:45).** Nothing is a step change: vacuum 5.48 and duck 5.42 sit at or just above the base mean
+(5.34, SD 0.13), the drop run (5.27 / 5.08 with vacuum) and passive-first (5.04) cost, the roof is a disaster (3.25).
+The sim got every direction right once calibrated (`--squad join_per_loss=0.6`: base 5.07 vs official 5.34, drop −0.41,
+vacuum 0.00, passive-first −0.01, roof 3.2), so it is usable to reject bad ideas and to measure mechanisms.
+Mechanism facts from calibrated traces: we die after absorbing 1.7-2.0k damage (about 340 HP per kill), 89 % of it gun
+bullets, 40 % of the house squad's shots at us hit, and 70-80 % of those hits land when our sideways displacement during
+the bullet's flight is under a body radius (median lateral speed at the shot 6 m/s).
+
+### 11-21 19:55 policy v2 batch 2: movement (how not to be where the bullet goes) and the stack of batch-1 positives
+| Tag | Layer | Prediction | Official |
+| --- | --- | --- | --- |
+| v2-7 | `vacx+duckx`: the two batch-1 layers that held | 5.5 | |
+| v2-8 | `evx`: threat-geometry heading (pick the heading that keeps lateral speed x flight time above a body radius against every mech shooting at us) + ground-boost through the laser charge (the charge halves our speed) | 5.45 (sim: hit rate 40.2 → 36.8 %, low-displacement share of hits 0.80 → 0.63, score flat) | |
+| v2-9 | `vacx+duckx+evx+upgx`: full stack + upgrade ranking for kills before death (HP, then damage; nanites last) | 5.55 | |
+| v2-10 | `dodgex`: predictive bullet-dodge planner (rolls 25 candidate moves forward against every visible bullet) instead of the vector-sum dodge | 5.35 (sim: hit rate 39.8 → 35.3 %) | |
+| v2-11 | `far105x`: never fight a mech inside 105 m, whatever we hold (no 28 m lightning brawls, no 55 m gun fights) | 5.2 (sim: hit rate 40 → 30 %, life +45 %, kills flat; official 170 m was 4.92, 90 m with the gun kept 5.33) | |
