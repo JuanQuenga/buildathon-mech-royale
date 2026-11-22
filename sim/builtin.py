@@ -34,6 +34,19 @@ TIERS = {
     "idle":    dict(aim_sigma=9, bias=0, lead=0, react=9, range=0, pref=0, strafe=0, loot=False, retreat=0, tol=0, jets=False, hop=0, jink=(1, 2), secondary=False),
 }
 
+# Calibration hook: SIM_TIERS='{"easy": {"aim_sigma": 0.8, "lead": 0.6}, ...}' overrides tier parameters (sim only).
+import json as _json
+import os as _os
+try:
+    for _k, _v in (_json.loads(_os.environ.get("SIM_TIERS", "") or "{}")).items():
+        if _k == "*":
+            for _t in ("easy", "medium", "hard", "expert"):
+                TIERS[_t].update(_v)
+        elif _k in TIERS:
+            TIERS[_k].update(_v)
+except Exception as _e:
+    print("SIM_TIERS ignored:", _e)
+
 UPGRADE_PREF = ["armor", "plating", "nanites", "gun_damage", "gun_rate", "laser_damage", "servos", "gyros", "lightning_efficiency",
                 "mortar_reload", "capacitor", "reactor", "jets", "gun_mag", "gun_velocity", "laser_charge", "sensors"]
 
