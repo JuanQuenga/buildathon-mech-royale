@@ -47,7 +47,9 @@ def refine(state: WorldState, threats: Threats, it: Intent, m: Dict[str, Any]) -
             am["vac_last_pick"] = state.t
     zp = m.get("zp") or {}
     out: Optional[Intent] = None
-    if P["bank"]:
+    if P["pet"]:
+        out = _pet(state, threats, it, m, am, zp)
+    if out is None and P["bank"]:
         out = _bank(state, threats, it, m, am, zp)
     if out is None and P["duck"]:
         out = _duck(state, threats, it, m, am)
@@ -74,6 +76,8 @@ def refine(state: WorldState, threats: Threats, it: Intent, m: Dict[str, Any]) -
     if out is None:
         if P["bank"] and am.get("bank_spare"):
             it.spare_ids = list(set(it.spare_ids or []) | set(am["bank_spare"]))
+        if P["pet"] and am.get("pet_spare"):
+            it.spare_ids = list(set(it.spare_ids or []) | set(am["pet_spare"]))
         return it
     if not out.spare_ids:
         out.spare_ids = it.spare_ids
@@ -257,6 +261,92 @@ def _vacuum(state: WorldState, threats: Threats, it: Intent, m, am, zp, reach: f
     return Intent(mode="engage" if tid is not None else "loot", goal=tuple(c["pos"]), loot_id=c["id"], target_id=tid,
                   desired_range=None, urgency=0.75, face=face, allow_fire=True, weave=dd > 14.0,
                   reason=f"vacuum {c['id']} {dd:.0f}m")
+
+
+# ----------------------------------------------------------------------------- pet hunters
+def _pet(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Optional[Intent]:
+    """The squad hunts weakest first and adds hunters as it loses members, so the hunters are always the weakest house
+    bots alive. Killing a hunter promotes a stronger one (calibrated sim: damage intake triples once the easy tier is
+    dead; 2/3 of matches end at exactly that stage). So the first pet_n mechs that attack us unprovoked are never
+    killed: they are worn down to a third of their HP and kept as weak hunters while we kill everybody else. When our
+    HP runs low (or nothing else is left to shoot) the pets are cashed in: several quick kills at the end."""
+    P = B.P
+    pt = am.setdefault("pet", {"ids": [], "cash": False, "other_t": state.t, "cash_t": None})
+    am["pet_spare"] = []
+    if state.mode_guess == "ffa":
+        return None
+    t = state.t
+    ids = pt["ids"]
+    for ev in state.events:
+        if ev.get("type") == "damaged":
+            by = ev.get("by")
+            if by is None or by >= 100 or by in ids or len(ids) >= int(P["pet_n"]):
+                continue
+            tr = state.tracks.get(by)
+            if tr is None or tr.dmg_from_me < 60.0:       # it started it: one of the squad's hunters
+                ids.append(by)
+    ids[:] = [i for i in ids if not (state.tracks.get(i) is not None and state.tracks[i].dead)]
+    if not ids:
+        return None
+    hpf_me = state.hp / max(1.0, state.max_hp)
+    mechs = [e for e in threats.enemies if e.kind == "mech" and e.visible and t - e.last_seen_t < 1.0]
+    others = [e for e in mechs if e.id not in ids]
+    if others:
+        pt["other_t"] = t
+    if not pt["cash"] and (hpf_me < float(P["pet_cash_hp"]) or t > float(P["pet_until"])
+                           or t - pt["other_t"] > float(P["pet_idle_s"])):
+        pt["cash"] = True
+        pt["cash_t"] = round(t, 1)
+        pt["cash_n"] = len(ids)
+        _stat(am, "pet_cash_start")
+    if zp.get("must_go"):
+        if not pt["cash"]:
+            am["pet_spare"] = list(ids)
+        return None
+    if pt["cash"]:
+        cand = [e for e in mechs if e.id in ids and e.los]
+        if not cand:
+            return None
+        e = min(cand, key=lambda q: ((q.hp if q.hp is not None else 1400.0), q.dist))
+        _stat(am, "pet_cash")
+        return Intent(mode="engage", goal=None, target_id=e.id, desired_range=B._desired_range(state, e), urgency=0.5,
+                      face=yaw_to(state.pos, e.pos), allow_fire=True, reason=f"cash pet {e.id}")
+    am["pet_spare"] = list(ids)
+    spare = list(ids)
+    los_others = [e for e in others if e.los and e.dist < 215.0]
+    if los_others:
+        e = min(los_others, key=lambda q: ((q.hp if q.hp is not None else 1400.0) / 1400.0 + q.dist / 300.0))
+        _stat(am, "pet_kill_other")
+        return Intent(mode="engage", goal=None, target_id=e.id, desired_range=B._desired_range(state, e), urgency=0.5,
+                      face=yaw_to(state.pos, e.pos), allow_fire=True, spare_ids=spare, avoid=[], reason=f"kill {e.id} (pets {len(ids)})")
+    if it.mode in ("loot", "capture", "rotate", "heal") and it.target_id is None and it.loot_id is not None:
+        return None                                    # the base brain is fetching a weapon / cubes: let it
+    # only pets in sight: wear the freshest one down, then go and find someone we are allowed to kill
+    pets_vis = [e for e in mechs if e.id in ids and e.los]
+    wound = [e for e in pets_vis if e.hp is not None and e.max_hp and e.hp / e.max_hp > float(P["pet_wound_hp"])]
+    if wound and hpf_me > 0.55:
+        e = max(wound, key=lambda q: q.hp)
+        _stat(am, "pet_wound")
+        return Intent(mode="engage", goal=None, target_id=e.id, desired_range=max(95.0, B._desired_range(state, e)),
+                      urgency=0.5, face=yaw_to(state.pos, e.pos), allow_fire=True,
+                      spare_ids=[i for i in ids if i != e.id], reason=f"wound pet {e.id}")
+    best, bd = None, 400.0
+    for tr in state.tracks.values():
+        if tr.kind != "mech" or tr.dead or tr.id in ids or t - tr.last_seen_t > 40.0:
+            continue
+        d = dist2d(tr.pos, state.pos)
+        if d < bd and B._inside_zone_soon(state, tr.pos, 3.0):
+            best, bd = tr, d
+    if best is not None:
+        _stat(am, "pet_seek")
+        return Intent(mode="loot", goal=tuple(best.pos), urgency=0.4, face=yaw_to(state.pos, best.pos), allow_fire=True,
+                      spare_ids=spare, weave=True, reason=f"seek {best.id} (pets {len(ids)})")
+    if pets_vis:
+        e = min(pets_vis, key=lambda q: q.dist)
+        _stat(am, "pet_hold")
+        return Intent(mode="engage", goal=None, target_id=e.id, desired_range=100.0, urgency=0.4,
+                      face=yaw_to(state.pos, e.pos), allow_fire=True, spare_ids=spare, reason=f"hold pets {len(ids)}")
+    return None
 
 
 # ----------------------------------------------------------------------------- bank and burst
@@ -563,6 +653,9 @@ def _roof(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Optiona
 def summary(m: Dict[str, Any]) -> Dict[str, Any]:
     am = m.get("apex") or {}
     bk = am.get("bank") or {}
+    pt = am.get("pet") or {}
+    if pt:
+        return {"stat": am.get("stat"), "pet": {"n": len(pt.get("ids") or []), "cash_t": pt.get("cash_t"), "cash_n": pt.get("cash_n")}}
     return {"stat": am.get("stat"), "drops": am.get("drops_got", 0), "drop_t": am.get("drop_t"),
             "bank": {"phase": bk.get("phase"), "bursts": bk.get("bursts"), "burst_t": bk.get("burst_t"),
                      "burst_n": bk.get("burst_n")} if bk else None}

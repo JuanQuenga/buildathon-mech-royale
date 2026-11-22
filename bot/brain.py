@@ -155,6 +155,12 @@ P: Dict[str, Any] = {
     "roof_heal_below": 0.55,       # ...step back to the roof centre and regenerate below this HP fraction
     "roof_unarmed_t": 45.0,        # ...only once we hold a secondary weapon, or after this match time
     "roof_ffa": False,             # ...also in rounds detected as FFA
+    "pet": False,                  # pet hunters (bot/apex.py _pet): never kill the first pet_n unprovoked attackers
+    "pet_n": 4,
+    "pet_cash_hp": 0.4,            # ...cash them in (kill them) once our HP fraction is below this
+    "pet_wound_hp": 0.33,          # ...wear pets down to this HP fraction when nothing else is in sight
+    "pet_idle_s": 30.0,            # ...or when no other mech has been in sight for this long
+    "pet_until": 200.0,
     "bank": False,                 # bank and burst (bot/apex.py _bank): wound bank_n mechs to bank_hp, then kill them together
     "bank_n": 4,
     "bank_hp": 0.33,
@@ -254,6 +260,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "drop2x": {"drop_king": True, "dk_drift": True, "dk_max_eta": 45.0},
     "vac2x": {"vacuum": True, "vac_drift": True},
     "dodgex": {"dodge_plan": True},
+    "petx": {"pet": True}, "pet2x": {"pet": True, "pet_n": 2}, "pet6x": {"pet": True, "pet_n": 6},
     "bankx": {"bank": True, "seek": True}, "bank3x": {"bank": True, "seek": True, "bank_n": 3},
     "bank6x": {"bank": True, "seek": True, "bank_n": 6, "bank_max_s": 70.0},
     "evadegx": {"evade": True}, "bchargex": {"boost_charge": True}, "evx": {"evade": True, "boost_charge": True},
@@ -726,7 +733,7 @@ def _ehp(state: WorldState) -> float:
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
     it = _choose_base(state, threats)
-    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"] or P["bank"]:
+    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"] or P["bank"] or P["pet"]:
         try:
             from . import apex
             it = apex.refine(state, threats, it, _mem(state))
