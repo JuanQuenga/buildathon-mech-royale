@@ -47,7 +47,9 @@ def refine(state: WorldState, threats: Threats, it: Intent, m: Dict[str, Any]) -
             am["vac_last_pick"] = state.t
     zp = m.get("zp") or {}
     out: Optional[Intent] = None
-    if P["pet"]:
+    if P["phoenix"]:
+        out = _phoenix(state, threats, it, m, am, zp)
+    if out is None and P["pet"]:
         out = _pet(state, threats, it, m, am, zp)
     if out is None and P["bank"]:
         out = _bank(state, threats, it, m, am, zp)
@@ -261,6 +263,103 @@ def _vacuum(state: WorldState, threats: Threats, it: Intent, m, am, zp, reach: f
     return Intent(mode="engage" if tid is not None else "loot", goal=tuple(c["pos"]), loot_id=c["id"], target_id=tid,
                   desired_range=None, urgency=0.75, face=face, allow_fire=True, weave=dd > 14.0,
                   reason=f"vacuum {c['id']} {dd:.0f}m")
+
+
+# ----------------------------------------------------------------------------- phoenix (heal cycle)
+def _phoenix(state: WorldState, threats: Threats, it: Intent, m, am, zp) -> Optional[Intent]:
+    """Heal cycle, the way today's 6.2-6.4 bots do it in the live Top-16 Showdown (hamsters, TigerTown27, Vice City:
+    3,000-4,000 HP regenerated per match in 5-8 episodes, 2/3 of all damage they take; we regenerate a few hundred).
+    Their episodes start exactly regen_delay after their last hit taken AND their last hit dealt, with no enemy in line
+    of sight although the nearest stands 55-80 m away, and run to full HP while they stand still.
+    So below px_low, when a spot hidden from every mech we know of is in reach: go there (firing only at mechs close
+    enough to hit us anyway), then stand still, silent and not shooting until px_high. If somebody walks into a line
+    on us the reset is over: fight on with the base brain and try again later from the new geometry."""
+    P = B.P
+    px = am.setdefault("px", {"on": False, "t0": 0.0, "hp0": 0.0, "spot": None, "n": 0, "gain": 0.0, "done": 0,
+                              "prev_hp": state.hp, "retry_t": -1e9, "seen_since": None, "probe_t": -1e9})
+    t = state.t
+    hpf = state.hp / max(1.0, state.max_hp)
+    if px["on"] and state.hp > px["prev_hp"]:
+        px["gain"] += state.hp - px["prev_hp"]
+    px["prev_hp"] = state.hp
+    if zp.get("must_go") or (state.mode_guess == "ffa" and not P["px_ffa"]):
+        px["on"] = False
+        return None
+    mechs = [e for e in threats.enemies if e.kind == "mech" and t - e.last_seen_t < float(P["px_mem_s"])]
+    seeing = [e for e in mechs if e.visible and e.los and t - e.last_seen_t < 0.6]
+    killable = set(getattr(threats, "killable", None) or [])
+    threats_pos = [tuple(e.pos) for e in sorted(mechs, key=lambda e: e.dist)[:4]]
+
+    def find_spot():
+        if not threats_pos or state.arena is None:
+            return None
+        c = None
+        # hidden from the four nearest mechs if possible, else from the three / two nearest (the far ones hit less)
+        for k in (4, 3, 2):
+            if len(threats_pos) < k and k != 4:
+                continue
+            try:
+                c = state.arena.nearest_cover(state.pos, threats_pos[:k], float(P["px_reach"]),
+                                              cubes=state.me.get("cubes", 0) or 0, budget_ms=2.0)
+            except Exception:
+                c = None
+            if c is not None and not (B._inside_zone_soon(state, c, 6.0) and B._in_safe_future(state, c)):
+                c = None
+            if c is not None or len(threats_pos) <= 2 or k <= int(P["px_min_hide"]):
+                break
+        return c
+
+    if not px["on"]:
+        if hpf >= float(P["px_low"]) or t < px["retry_t"] or t - px["probe_t"] < 1.0:
+            return None
+        if any(e.id in killable and e.los for e in seeing):
+            return None                               # finish the kill first
+        if not mechs:
+            return None                               # nobody around: the base brain's own heal mode does this
+        px["probe_t"] = t
+        spot = find_spot()
+        if spot is None:
+            _stat(am, "px_nocover")
+            return None
+        px.update(on=True, t0=t, hp0=state.hp, spot=spot, seen_since=None)
+        px["n"] += 1
+        _stat(am, "px_start")
+    spot = px["spot"]
+    d = dist2d(spot, state.pos)
+    if hpf >= float(P["px_high"]):
+        px["on"] = False
+        px["done"] += 1
+        _stat(am, "px_done")
+        return None
+    at_spot = d < 3.0
+    if at_spot:
+        if seeing:
+            if px["seen_since"] is None:
+                px["seen_since"] = t
+        else:
+            px["seen_since"] = None
+        if px["seen_since"] is not None and t - px["seen_since"] > 0.7:
+            px["on"] = False                          # found: the reset is over, fight
+            px["retry_t"] = t + float(P["px_retry_s"])
+            _stat(am, "px_found")
+            return None
+    if t - px["t0"] > float(P["px_max_s"]) and state.hp < px["hp0"] + 150.0:
+        px["on"] = False
+        px["retry_t"] = t + 2.0 * float(P["px_retry_s"])
+        _stat(am, "px_fail")
+        return None
+    face = it.face
+    if mechs:
+        face = yaw_to(state.pos, min(mechs, key=lambda e: e.dist).pos)
+    if at_spot:
+        _stat(am, "px_sit")
+        return Intent(mode="heal", goal=None, target_id=None, desired_range=None, urgency=0.3, face=face,
+                      allow_fire=False, allow_boost=False, max_speed=0.0, reason=f"phoenix sit {hpf:.2f}")
+    close = [e for e in seeing if e.dist < float(P["px_fight_m"])]
+    _stat(am, "px_go")
+    return Intent(mode="retreat", goal=tuple(spot), target_id=close[0].id if close else None, desired_range=None,
+                  urgency=0.9, face=face, allow_fire=bool(close), allow_boost=True, weave=bool(seeing) and d > 12.0,
+                  avoid=threats_pos, reason=f"phoenix cover {d:.0f}m {hpf:.2f}")
 
 
 # ----------------------------------------------------------------------------- pet hunters
@@ -654,6 +753,10 @@ def summary(m: Dict[str, Any]) -> Dict[str, Any]:
     am = m.get("apex") or {}
     bk = am.get("bank") or {}
     pt = am.get("pet") or {}
+    px = am.get("px") or {}
+    if px:
+        return {"stat": am.get("stat"), "px": {"n": px.get("n"), "done": px.get("done"), "gain": round(px.get("gain", 0.0))},
+                "drops": am.get("drops_got", 0)}
     if pt:
         return {"stat": am.get("stat"), "pet": {"n": len(pt.get("ids") or []), "cash_t": pt.get("cash_t"), "cash_n": pt.get("cash_n")}}
     return {"stat": am.get("stat"), "drops": am.get("drops_got", 0), "drop_t": am.get("drop_t"),

@@ -267,6 +267,42 @@ def test_passive_first_prefers_non_hunter():
     assert it.target_id == 2, it
 
 
+class _FakeArena:
+    """Minimal arena for the phoenix test: one cover spot, everything else as the brain's no-arena fallbacks."""
+    ok_nav = False
+
+    def __init__(self, spot):
+        self.spot, self.calls = spot, 0
+
+    def nearest_cover(self, pos, threats, max_dist=60.0, cubes=0, budget_ms=3.0):
+        self.calls += 1
+        return self.spot
+
+
+def test_apex_phoenix_heal_cycle():
+    # hurt, attacked, cover 20 m away: go there; at the spot with nobody in sight: sit still, no fire, until healed
+    with _Sw(phoenix=True, drop_king=False, vacuum=False, duck=False, roof=False, bank=False, pet=False):
+        s = st.WorldState(HELLO, _FakeArena((20.0, 0.0, 0.0)))
+        o, th = _attacked(hp=600, pos=(0, 0, 0), t=80.0)
+        s.update(o)
+        it = brain.choose_intent(s, th(s))
+        assert it.mode == "retreat" and it.goal[0] == 20.0 and not it.allow_fire, it     # attacker is 85 m away: no fire
+        o2 = mk(pos=(20, 0, 0), t=83.0, hp=640)                                           # arrived, nobody visible
+        s.update(o2)
+        it = brain.choose_intent(s, Threats())
+        assert it.mode == "heal" and not it.allow_fire and it.max_speed == 0.0, it
+        o3 = mk(pos=(20, 0, 0), t=100.0, hp=1380)                                         # healed: back to the base brain
+        s.update(o3)
+        it = brain.choose_intent(s, Threats())
+        assert "phoenix" not in it.reason, it
+    with _Sw(phoenix=True, drop_king=False, vacuum=False, duck=False, roof=False, bank=False, pet=False):
+        s = st.WorldState(HELLO, _FakeArena(None))                                        # no cover: keep fighting
+        o, th = _attacked(hp=600, pos=(0, 0, 0), t=80.0)
+        s.update(o)
+        it = brain.choose_intent(s, th(s))
+        assert "phoenix" not in it.reason, it
+
+
 def main():
     fails = 0
     for name, fn in sorted(globals().items()):

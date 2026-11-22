@@ -155,6 +155,17 @@ P: Dict[str, Any] = {
     "roof_heal_below": 0.55,       # ...step back to the roof centre and regenerate below this HP fraction
     "roof_unarmed_t": 45.0,        # ...only once we hold a secondary weapon, or after this match time
     "roof_ffa": False,             # ...also in rounds detected as FFA
+    "phoenix": False,              # heal cycle (bot/apex.py _phoenix): below px_low cease fire, hide from everyone, heal to px_high
+    "px_low": 0.5,
+    "px_high": 0.95,
+    "px_reach": 60.0,              # ...cover search radius (m)
+    "px_min_hide": 2,              # ...accept cover hidden from only this many nearest mechs when none hides from all
+    "px_mem_s": 6.0,               # ...hide from every mech seen in the last this many seconds
+    "px_fight_m": 55.0,            # ...on the way shoot back only at a mech this close with a line on us
+    "px_max_s": 25.0,              # ...give up if no HP came back after this long
+    "px_retry_s": 12.0,            # ...after being found, fight this long before trying again
+    "px_ffa": True,
+    "upg_heal": False,             # upgrade ranking of the live-showdown leaders: nanites and plating first
     "pet": False,                  # pet hunters (bot/apex.py _pet): never kill the first pet_n unprovoked attackers
     "pet_n": 4,
     "pet_cash_hp": 0.4,            # ...cash them in (kill them) once our HP fraction is below this
@@ -260,6 +271,11 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "drop2x": {"drop_king": True, "dk_drift": True, "dk_max_eta": 45.0},
     "vac2x": {"vacuum": True, "vac_drift": True},
     "dodgex": {"dodge_plan": True},
+    "phx": {"phoenix": True, "upg_heal": True}, "ph40x": {"phoenix": True, "upg_heal": True, "px_low": 0.4},
+    "ph65x": {"phoenix": True, "upg_heal": True, "px_low": 0.65}, "phnoupx": {"phoenix": True},
+    "phstrictx": {"phoenix": True, "upg_heal": True, "px_min_hide": 4, "px_reach": 45.0},
+    "phfarx": {"phoenix": True, "upg_heal": True, "px_reach": 85.0, "px_low": 0.6},
+    "upghx": {"upg_heal": True},
     "petx": {"pet": True}, "pet2x": {"pet": True, "pet_n": 2}, "pet6x": {"pet": True, "pet_n": 6},
     "bankx": {"bank": True, "seek": True}, "bank3x": {"bank": True, "seek": True, "bank_n": 3},
     "bank6x": {"bank": True, "seek": True, "bank_n": 6, "bank_max_s": 70.0},
@@ -344,6 +360,13 @@ if P.get("upg_kill"):
              "mortar_reload": 2, "mortar_velocity": 2, "mortar_splash": 2, "laser_pierce": 2}
 else:
     _UPG2 = None
+if P.get("upg_heal"):
+    # live Top-16 Showdown (11-21 20:00): hamsters plating x3 + nanites x2 + laser_charge x2, TigerTown27 armor + plating
+    # + nanites, Vice City plating + nanites; regeneration is two thirds of the damage they survive
+    _UPG2 = {"nanites": 10.5, "plating": 10, "armor": 9.5, "laser_charge": 8, "laser_damage": 7.5, "gun_damage": 7,
+             "gun_rate": 6.5, "lightning_efficiency": 6.5, "servos": 6, "lightning_range": 5, "capacitor": 4.5,
+             "reactor": 4.5, "gun_mag": 4.5, "jets": 4, "gun_velocity": 4, "gyros": 4, "lightning_chain": 4,
+             "sensors": 3.5, "mortar_reload": 3, "mortar_velocity": 2, "mortar_splash": 2, "laser_pierce": 2}
 UPGRADE_VALUE = _UPG2 or {
     "plating": 10, "armor": 9.5, "nanites": 8, "lightning_efficiency": 7, "laser_damage": 7, "gun_damage": 6.5,
     "laser_charge": 6.5, "gun_rate": 6, "servos": 5.5, "lightning_range": 5.5, "capacitor": 5, "reactor": 5,
@@ -733,7 +756,7 @@ def _ehp(state: WorldState) -> float:
 # ----------------------------------------------------------------------------- main decision
 def choose_intent(state: WorldState, threats: Threats) -> Intent:
     it = _choose_base(state, threats)
-    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"] or P["bank"] or P["pet"]:
+    if P["drop_king"] or P["vacuum"] or P["duck"] or P["roof"] or P["bank"] or P["pet"] or P["phoenix"]:
         try:
             from . import apex
             it = apex.refine(state, threats, it, _mem(state))
